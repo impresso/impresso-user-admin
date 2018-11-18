@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 class SearchQuery(models.Model):
     """
-    Please save
+    Please save as
     SearchQuery.objects.create(id='creatorid-xyzXYZ')
     """
     id = models.CharField(primary_key=True, max_length=50)
@@ -15,5 +15,9 @@ class SearchQuery(models.Model):
 
     creator = models.ForeignKey(User,  on_delete=models.CASCADE);
 
+    date_created       = models.DateTimeField(auto_now_add=True)
+    date_last_modified = models.DateTimeField(auto_now=True)
+
     class Meta:
         db_table = 'search_queries'
+        verbose_name_plural = 'Search Queries'
