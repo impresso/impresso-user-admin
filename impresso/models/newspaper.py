@@ -1,0 +1,11 @@
+from django.db import models
+
+class Newspaper(models.Model):
+    id = models.CharField(primary_key=True, max_length=20)
+    title = models.CharField(max_length=255)
+    start_year = models.IntegerField(blank=True, null=True)
+    end_year = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'newspapers'
