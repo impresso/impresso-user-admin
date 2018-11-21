@@ -77,13 +77,12 @@ WSGI_APPLICATION = 'impresso.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': get_env_variable('IMPRESSO_MYSQL_DB'),
-        'USER': get_env_variable('IMPRESSO_MYSQL_USER'),
-        'PASSWORD': get_env_variable('IMPRESSO_MYSQL_PWD'),
-        'HOST': get_env_variable('IMPRESSO_MYSQL_HOST'),
-        'PORT': get_env_variable('IMPRESSO_MYSQL_PORT')
-
+        'ENGINE': get_env_variable('IMPRESSO_DB_ENGINE'),
+        'NAME': get_env_variable('IMPRESSO_DB_NAME'),
+        'USER': get_env_variable('IMPRESSO_DB_USER'),
+        'PASSWORD': get_env_variable('IMPRESSO_DB_PASSWORD'),
+        'HOST': get_env_variable('IMPRESSO_DB_HOST'),
+        'PORT': get_env_variable('IMPRESSO_DB_PORT')
     }
 }
 
