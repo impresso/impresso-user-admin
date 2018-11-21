@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Issue, Newspaper, SearchQuery, ContentItem, Collection
+from .models import Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag
 
 
 @admin.register(Issue)
@@ -24,4 +24,9 @@ class ContentItemAdmin(admin.ModelAdmin):
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
     list_display = ('id', 'creator', 'name', 'status',)
+    autocomplete_fields = ('content_items',)
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ('id', 'creator', 'name',)
     autocomplete_fields = ('content_items',)
