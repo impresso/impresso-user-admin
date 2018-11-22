@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from .models import Profile, Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag
+
 
 
 @admin.register(Issue)
@@ -30,3 +33,27 @@ class CollectionAdmin(admin.ModelAdmin):
 class TagAdmin(admin.ModelAdmin):
     list_display = ('id', 'creator', 'name',)
     autocomplete_fields = ('content_items',)
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = 'profiles'
+
+    def get_readonly_fields(self, request, user=None):
+        if hasattr(user, 'profile'):
+            return ['uid',]
+        else:
+            return []
+
+
+class UserAdmin(BaseUserAdmin):
+    inlines = (ProfileInline,)
+    list_display = ('username', 'uid', 'is_staff',)
+
+    def uid(self, user):
+        return user.profile.uid if hasattr(user, 'profile') else None
+    uid.short_description = 'short unique identifier'
+
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
