@@ -1,7 +1,7 @@
 import json
 from django.db import models
 from django.contrib.auth.models import User
-from . import Bucket, ContentItem
+from . import Bucket
 
 
 
@@ -17,7 +17,9 @@ class Collection(Bucket):
     )
 
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
-    content_items = models.ManyToManyField(ContentItem, verbose_name="content items")
+
+    def __str__(self):
+        return self.name
 
     class Meta(Bucket.Meta):
         db_table = 'collections'
