@@ -26,7 +26,7 @@ SECRET_KEY = 'xvqp74e(#pd**ubd*3yv$+kf$li8*ml+!r_=_&$5vbu-1yww$g'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [ get_env_variable('ALLOWED_HOSTS') ]
 
 
 # Application definition

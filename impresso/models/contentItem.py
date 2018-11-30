@@ -6,6 +6,9 @@ class ContentItem(models.Model):
     newspaper = models.ForeignKey(Newspaper, models.DO_NOTHING)
     issue = models.ForeignKey(Issue, models.DO_NOTHING)
 
+    def __str__(self):
+        return self.id
+
     class Meta:
         managed = False
         db_table = 'content_items'

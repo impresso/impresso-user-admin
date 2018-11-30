@@ -14,3 +14,4 @@ class Bucket(models.Model):
     class Meta:
         abstract = True
         ordering = ['name']
+        unique_together = ("name", "creator")

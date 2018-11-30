@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Profile, Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag
+from .models import Profile, Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag, CollectableItem
 
 
 
@@ -26,8 +26,13 @@ class ContentItemAdmin(admin.ModelAdmin):
 
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
+    search_fields = ['name', 'creator']
     list_display = ('id', 'creator', 'name', 'status',)
-    autocomplete_fields = ('content_items',)
+
+@admin.register(CollectableItem)
+class CollectableItemAdmin(admin.ModelAdmin):
+    list_display = ('item_id', 'collection', 'content_type', 'date_added',)
+    autocomplete_fields = ('collection',)
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
