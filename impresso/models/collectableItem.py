@@ -17,7 +17,7 @@ class CollectableItem(models.Model):
     # Foreing key: the collection
     collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
     # Foreing key: the search query if any when the item was added
-    search_query = models.ForeignKey(SearchQuery, null=True, verbose_name="search query", on_delete=models.SET_NULL)
+    search_query = models.ForeignKey(SearchQuery, null=True, blank=True, verbose_name="search query", on_delete=models.SET_NULL)
 
     class Meta:
         db_table = 'collectable_items'
