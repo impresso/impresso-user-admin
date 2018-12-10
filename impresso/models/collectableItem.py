@@ -11,7 +11,7 @@ class CollectableItem(models.Model):
         ('I', 'Issue'),
     )
 
-    item_id = models.CharField(max_length=50)
+    item_id = models.CharField(max_length=50, db_index=True)
     content_type = models.CharField(max_length=1, choices=CONTENT_TYPE_CHOICES)
     date_added = models.DateTimeField(auto_now_add=True)
     # Foreing key: the collection
