@@ -13,3 +13,19 @@ python3.6 -m venv impresso
 source impresso/bin/activate
 ```
 
+### setup env files
+We use env files to inject sensitive configuration into `settings.js`.
+
+```
+ENV=dev python manage.py runserver
+```
+will load configuration from `.dev.env` file
+
+basic configuration for the `*.env` files can be found in the `.example.env`
+
+### setup celery
+Once pip installed celery:
+
+```
+ENV=dev celery -A impresso worker -l info
+```
