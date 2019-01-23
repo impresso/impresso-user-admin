@@ -9,3 +9,4 @@ from .collectableItem import CollectableItem
 from .tag import Tag
 
 from .profile import Profile
+from .job import Job

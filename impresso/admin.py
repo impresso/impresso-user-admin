@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Profile, Issue, Newspaper, SearchQuery, ContentItem, Collection, Tag, CollectableItem
+from .models import Profile, Issue, Job, Newspaper, SearchQuery, ContentItem, Collection, Tag, CollectableItem
 
 
 
@@ -38,6 +38,10 @@ class CollectableItemAdmin(admin.ModelAdmin):
 class TagAdmin(admin.ModelAdmin):
     list_display = ('id', 'creator', 'name',)
     autocomplete_fields = ('content_items',)
+
+@admin.register(Job)
+class JobAdmin(admin.ModelAdmin):
+    list_display = ('id', 'creator', 'type', 'date_created', 'status',)
 
 
 class ProfileInline(admin.StackedInline):
