@@ -125,8 +125,6 @@ USE_TZ = True
 STATIC_URL = get_env_variable('STATIC_URL', '/static/')
 STATIC_ROOT = get_env_variable('STATIC_ROOT', os.path.join(BASE_DIR, 'static'))
 
-# if any
-FORCE_SCRIPT_NAME = get_env_variable('FORCE_SCRIPT_NAME', '/')
 
 # Celery
 CELERY_BROKER_URL = 'redis://localhost/4'
