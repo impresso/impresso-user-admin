@@ -10,11 +10,13 @@ dotenv_dict = dotenv_values(dotenv_path=dotenv_path, verbose=True)
 
 print('loading env file: {0}'.format(dotenv_filename))
 
-def get_env_variable(var_name):
+def get_env_variable(var_name, default=None):
     if var_name in dotenv_dict:
         return dotenv_dict[var_name]
     try:
         return os.environ[var_name]
     except KeyError:
+        if default:
+            return default
         error_msg = "Set the %s environment variable" % var_name
         raise ImproperlyConfigured(error_msg)
