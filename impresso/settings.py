@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'xvqp74e(#pd**ubd*3yv$+kf$li8*ml+!r_=_&$5vbu-1yww$g'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_env_variable('DEBUG') == 'True'
 
 ALLOWED_HOSTS = [ get_env_variable('ALLOWED_HOSTS') ]
 
@@ -124,3 +124,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 
 STATIC_URL = '/static/'
+
+
+# Celery
+CELERY_BROKER_URL = 'redis://localhost/4'
+CELERY_RESULT_BACKEND = 'redis://localhost/5'
+
+# Solr
+SOLR_URL = get_env_variable('IMPRESSO_SOLR_URL')
+SOLR_USER = get_env_variable('IMPRESSO_SOLR_USER')
+SOLR_PASSWORD = get_env_variable('IMPRESSO_SOLR_PASSWORD')
+SOLR_AUTH = (SOLR_USER, SOLR_PASSWORD,)
+SOLR_ID_FIELD = get_env_variable('SOLR_ID_FIELD', 'id')
+SOLR_EXEC_MAX_LOOPS = 10000 # aka 50000 docs
