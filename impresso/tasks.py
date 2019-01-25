@@ -17,18 +17,63 @@ def echo(self, message):
     print('Message: {0}'.format(message))
     return message
 
-
-
+# @app.task(bind=True)
+# def execute_solr_update(self, query, job_id, collection_id, skip=0, limit=500):
+#     # get the job so that we can update its status
+#     job = Job.objects.get(pk=job_id)
+#     items = CollectableItem.objects.filter(collection__id=collection_id)
+#     total = items.count()
+#     loops = math.ceil(total / limit)
+#
+#     # get the collectableItems ids in the collection
+#     items_ids = items.values('id')[skip:limit]
+#
+#     res = requests.get(settings.IMPRESSO_SOLR_URL_UPDATE, auth = settings.IMPRESSO_SOLR_AUTH_WRITE, params = {
+#         commit: 'true',
+#     })
+#
+#     meta = {
+#         'task': 'execute_solr_update',
+#         'progress': 0,
+#         'job_id': job.pk,
+#         'user_id': job.creator.pk,
+#         'extra': {
+#             'QTime': qtime,
+#             'total': total,
+#             # here we put the actual loops needed.
+#             'loops':  loops,
+#             'realloops': math.ceil(total / limit),
+#             'maxloops': settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS,
+#             'page': page,
+#             'limit': limit,
+#             'skip': skip,
+#         },
+#         'warnings': [],
+#     }
+#     # should repeat until this gets None
+#     res.raise_for_status()
+#
+#     contents = res.json()
+#
+#
+#     pass
 
 @app.task(bind=True)
-def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0, limit=50):
+def count_items_in_collection(self, query, job_id, collection_id, content_type, skip=0):
+    pass
+
+@app.task(bind=True)
+def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
+    # get limit from settings
+    limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
+
     # now execute solr query, along with first `limit` rows
-    res = requests.get(settings.SOLR_URL, auth = settings.SOLR_AUTH, params = {
+    res = requests.get(settings.IMPRESSO_SOLR_URL_SELECT, auth = settings.IMPRESSO_SOLR_AUTH, params = {
         'q': query,
-        'fl': settings.SOLR_ID_FIELD,
+        'fl': settings.IMPRESSO_SOLR_ID_FIELD,
         'start': skip,
         'rows': limit,
         'wt': 'json',
@@ -45,7 +90,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0,
 
     qtime = contents['responseHeader']['QTime']
     page = skip / limit + 1
-    loops = math.ceil(min(total, settings.SOLR_EXEC_MAX_LOOPS) / limit)
+    loops = math.ceil(min(total, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS) / limit)
 
     meta = {
         'task': 'execute_solr_query',
@@ -58,7 +103,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0,
             # here we put the actual loops needed.
             'loops':  loops,
             'realloops': math.ceil(total / limit),
-            'maxloops': settings.SOLR_EXEC_MAX_LOOPS,
+            'maxloops': settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS,
             'page': page,
             'limit': limit,
             'skip': skip,
@@ -85,7 +130,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0,
                     content_type = content_type,
                     collection = collection,
                 ),
-                [*map(lambda doc: doc.get(settings.SOLR_ID_FIELD), contents['response']['docs'])]
+                [*map(lambda doc: doc.get(settings.IMPRESSO_SOLR_ID_FIELD), contents['response']['docs'])]
             ))
         except IntegrityError as e:
             meta['warnings'].append(str(e))
@@ -97,11 +142,12 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0,
             job_id = job_id,
             collection_id = collection_id,
             content_type = content_type,
-            skip = (skip + limit),
-            limit = 50
+            skip = (skip + limit)
         )
     else:
         job.status = Job.DONE
+
+
     job.extra = json.dumps(meta)
     job.save()
 
