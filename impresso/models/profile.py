@@ -1,3 +1,4 @@
+import requests
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -24,6 +25,8 @@ class Profile(models.Model):
     displayname = models.CharField(max_length=100, null=True, blank=True)
     picture     = models.URLField(null=True, blank=True)
 
+    # add pattern ;)
+    pattern     = models.CharField(max_length=100, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = 'profiles'
