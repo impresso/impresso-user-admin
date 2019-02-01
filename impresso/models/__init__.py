@@ -1,5 +1,6 @@
 from .newspaper import Newspaper
 from .issue import Issue
+from .page import Page
 from .contentItem import ContentItem
 
 from .searchQuery import SearchQuery

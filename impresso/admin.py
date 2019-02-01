@@ -1,13 +1,18 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Profile, Issue, Job, Newspaper, SearchQuery, ContentItem, Collection, Tag, CollectableItem
+from .models import Profile, Issue, Job, Page, Newspaper, SearchQuery, ContentItem, Collection, Tag, CollectableItem
 
 
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ('id', 'year',)
+    list_display = ('id', 'year', 'newspaper',)
+    search_fields = ['id']
+
+@admin.register(Page)
+class PageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'newspaper', 'ocr_quality',)
     search_fields = ['id']
 
 @admin.register(Newspaper)
