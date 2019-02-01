@@ -1,4 +1,4 @@
-import requests
+import requests, random
 from django.core.management.base import BaseCommand, CommandError
 from impresso.models import Profile
 
@@ -8,6 +8,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('user_id', nargs='+', type=int)
+        # Named (optional) arguments
+        parser.add_argument(
+            '--model',
+            dest='model',
+            help='Select a specific model instead of picking a random one',
+        )
 
     def handle(self, *args, **options):
         for user_id in options['user_id']:
@@ -17,8 +23,34 @@ class Command(BaseCommand):
                 raise CommandError('User Profile for user "%s" does not exist' % user_id)
 
             self.stdout.write('Adding pattern to profile for user "%s" ...' % profile.uid)
+            self.stdout.write('colormind.io/list - get models ...')
 
-            res = requests.get('http://colormind.io/api/', data='{"model":"makoto_shinkai"}')
+            res = requests.get('http://colormind.io/list/')
+            try:
+                res.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                raise CommandError('Api not reachable')
+
+            self.stdout.write('colormind.io/list - received HTTP status: %s' % (res.status_code,))
+            self.stdout.write(res.text)
+
+            models = [m for m in res.json().get('result', [])]
+            model  = random.choice(models)
+
+            self.stdout.write('available models: %s' % models)
+
+            if 'model' in options:
+                if options['model'] in models:
+                    model = options['model']
+                    self.stdout.write('selected model: %s' % model)
+                else:
+                    raise CommandError('Selected model is not available.')
+            else:
+                self.stdout.write('picked random model: %s' % model)
+
+
+            self.stdout.write('colormind.io/api - get colors ...')
+            res = requests.get('http://colormind.io/api/', data='{"model":"%s"}' % model)
 
             try:
                 res.raise_for_status()
@@ -28,7 +60,8 @@ class Command(BaseCommand):
             # print(e)
             #     break
 
-            self.stdout.write('Received HTTP status: %s : %s' % (res.status_code, res.text, ))
+            self.stdout.write('colormind.io/api - Received HTTP status: %s' % (res.status_code,))
+            self.stdout.write(res.text)
 
             colors = ['#%02x%02x%02x' % tuple(c) for c in res.json().get('result', [])]
 
@@ -46,5 +79,5 @@ class Command(BaseCommand):
 
             profile.pattern=','.join(colors)
             profile.save()
-            
+
             self.stdout.write(self.style.SUCCESS('Successfully added pattern to profile for user "%s"' % profile.uid))
