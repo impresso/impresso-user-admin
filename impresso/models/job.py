@@ -3,9 +3,13 @@ from django.contrib.auth.models import User
 
 class Job(models.Model):
     BULK_COLLECTION_FROM_QUERY = 'BCQ'
+    DELETE_COLLECTION = 'DCO'
+    SYNC_COLLECTION_TO_SOLR = 'IDX'
 
     TYPE_CHOICES = (
         (BULK_COLLECTION_FROM_QUERY, 'Bulk collection from query'),
+        (SYNC_COLLECTION_TO_SOLR, 'Index collection in search engine'),
+        (DELETE_COLLECTION, 'Delete collection'),
     )
 
     READY = 'REA'
