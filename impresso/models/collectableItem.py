@@ -5,10 +5,14 @@ from . import Collection, SearchQuery
 
 
 class CollectableItem(models.Model):
+    ARTICLE = 'A'
+    PAGE = 'P'
+    ISSUE = 'I'
+
     CONTENT_TYPE_CHOICES = (
-        ('A', 'Article'),
-        ('P', 'Page'),
-        ('I', 'Issue'),
+        (ARTICLE, 'Article'),
+        (PAGE, 'Page'),
+        (ISSUE, 'Issue'),
     )
 
     item_id = models.CharField(max_length=50, db_index=True)
