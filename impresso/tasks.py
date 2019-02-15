@@ -61,7 +61,9 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
         'task': taskname,
         'progress': progress,
         'job_id': job.pk,
+        'job_status': job.status,
         'user_id': job.creator.pk,
+        'user_uid': job.creator.profile.uid,
         'extra': {
             # 'QTime': qtime,
             'total': total,
@@ -99,14 +101,19 @@ def store_collection(self, collection_id):
         job_id = job.pk,
         collection_id = collection.pk,
     )
-
-    # if alles gut
-    self.update_state(state = "INIT", meta = {
+    meta = {
         'task': 'sync_collection_in_solr',
         'progress': 0,
         'job_id': job.pk,
+        'job_status': job.status,
         'user_id': collection.creator.pk,
-    })
+        'user_uid': collection.creator.profile.uid,
+    }
+
+    job.extra = json.dumps(meta)
+    job.save()
+    # if alles gut
+    self.update_state(state = "INIT", meta = meta)
 
     return serializers.serialize('json', (job,))
 
@@ -151,6 +158,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
         'progress': 0,
         'job_id': job.pk,
         'user_id': job.creator.pk,
+        'user_uid': job.creator.profile.uid,
         'extra': {
             'QTime': qtime,
             'total': total,
@@ -201,7 +209,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
     else:
         job.status = Job.DONE
 
-
+    meta['job_status'] = job.status
     job.extra = json.dumps(meta)
     job.save()
 
@@ -266,6 +274,7 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
         'progress': 0,
         'job_id': job.pk,
         'user_id': collection.creator.pk,
+        'user_uid': collection.creator.profile.pk,
     })
 
     # execute premiminary query
