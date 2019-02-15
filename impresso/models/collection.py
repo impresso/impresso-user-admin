@@ -21,8 +21,8 @@ class Collection(Bucket):
 
     def add_items_to_index(self, items_ids=[]):
         # get te desired items from SOLR along with their version
-        print(settings.IMPRESSO_SOLR_URL_SELECT)
-        print(settings.IMPRESSO_SOLR_AUTH)
+        print('collection %s add_items_to_index requests items ...' % self.pk)
+
         res = requests.get(settings.IMPRESSO_SOLR_URL_SELECT,
             auth = settings.IMPRESSO_SOLR_AUTH,
             params = {
@@ -35,6 +35,7 @@ class Collection(Bucket):
 
         res.raise_for_status()
 
+        print('collection %s add_items_to_index requests succeed' % self.pk)
         # SOLR documents
         docs = res.json().get('response').get('docs')
         todos = []
