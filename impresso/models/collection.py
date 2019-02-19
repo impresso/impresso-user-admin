@@ -84,9 +84,6 @@ class Collection(Bucket):
             'todos': todos,
         }
 
-    def __str__(self):
-        return self.name
-
     class Meta(Bucket.Meta):
         db_table = 'collections'
         verbose_name_plural = 'collections'
