@@ -8,6 +8,7 @@ from .bucket import Bucket
 from .collection import Collection
 from .collectableItem import CollectableItem
 from .tag import Tag
+from .taggableItem import TaggableItem
 
 from .profile import Profile
 from .job import Job
