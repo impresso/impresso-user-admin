@@ -28,6 +28,9 @@ class Profile(models.Model):
     # add pattern ;)
     pattern     = models.CharField(max_length=100, null=True, blank=True)
 
+    # is in mailing list.
+    email_accepted = models.BooleanField(default=False)
+    
     class Meta:
         verbose_name_plural = 'profiles'
         db_table = 'profiles'
