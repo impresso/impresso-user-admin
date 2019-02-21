@@ -10,6 +10,9 @@ from django.db.utils import IntegrityError
 from .celery import app
 from .models import Job, Collection, CollectableItem
 
+from celery.utils.log import get_task_logger
+
+logger = get_task_logger(__name__)
 
 @app.task(bind=True)
 def echo(self, message):
@@ -22,7 +25,6 @@ def echo(self, message):
 def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskname='store_collectable_items'):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    job.status = Job.RUN
 
     # get the collection!
     collection = Collection.objects.get(pk=collection_id)
@@ -33,21 +35,33 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
         content_type = CollectableItem.ARTICLE
     )
     total = items.count()
-    loops = math.ceil(total / limit)
-    page = skip / limit + 1
-    progress = page / loops
-    taskstate = 'PROGRESS'
 
-    # get the collectableItems ids in the collection
-    items_ids = items.values_list('item_id', flat=True)[skip:limit]
+    logger.info('n. of items to store: %s' %  total)
 
-    # do the right thing
-    collection.add_items_to_index(items_ids=items_ids)
+    if total == 0:
+        # nothing to do! return an error
+        progress = 0
+        loops = 0
+        page = -1
+        items_ids = []
+    else:
+        loops = math.ceil(total / limit)
+        page = skip / limit + 1
+        progress = page / loops
+        # get the collectableItems ids in the collection
+        items_ids = items.values_list('item_id', flat=True)[skip:limit]
+        # add items to the index
+        collection.add_items_to_index(items_ids=items_ids)
 
     if page == loops:
         taskstate = 'SUCCESS'
         job.status = Job.DONE
+    elif page == -1:
+        taskstate = 'ERROR'
+        job.status = Job.ERR
     else:
+        taskstate = 'PROGRESS'
+        job.status = Job.RUN
         # queue job.
         store_collectable_items.delay(
             job_id = job.pk,
@@ -120,8 +134,24 @@ def store_collection(self, collection_id):
 
 @app.task(bind=True)
 def count_items_in_collection(self, collection_id):
+    # get the collection
+    collection = Collection.objects.get(pk=collection_id)
 
-    pass
+    # count the items, per content type
+    items = CollectableItem.objects.filter(
+        collection = collection,
+        content_type = CollectableItem.ARTICLE
+    )
+
+    count = items.count()
+    items_ids = items.values_list('item_id', flat=True)
+
+    print('  items count: %s' % count)
+    print('  items sample: %s' % ','.join(items_ids[:3]))
+    # save collection count
+    collection.count_items = count
+    collection.save()
+
 
 @app.task(bind=True)
 def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0):
@@ -215,6 +245,10 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
 
     # update state
     self.update_state(state = "PROGRESS" if job.status == Job.RUN else "SUCCESS", meta = meta)
+
+    if job.status == Job.DONE:
+        count_items_in_collection.delay(collection_id = collection_id)
+        store_collection.delay(collection_id = collection_id)
 
     # return job, to be seen in info
     return serializers.serialize('json', (job,))
