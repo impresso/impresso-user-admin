@@ -43,7 +43,12 @@ class Collection(Bucket):
         for doc in docs:
             # get list of collection in ucoll_ss field
             ucoll_list = doc.get('ucoll_ss', [])
-            ucoll = '%s:%s' % (self.creator.pk, self.pk)
+
+            # TODO update list of collections for this item
+            # remove collection otherwise
+
+            # create the indexable name for current collection
+            ucoll = '%s:%s' % (self.creator.profile.uid, self.pk)
 
             if ucoll not in ucoll_list:
                 ucoll_list.append(ucoll)
