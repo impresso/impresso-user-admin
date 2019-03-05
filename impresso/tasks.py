@@ -22,7 +22,7 @@ def echo(self, message):
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskname='store_collectable_items'):
+def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskname='store_collectable_items', method='add_to_index'):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
@@ -51,7 +51,10 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
         # get the collectableItems ids in the collection
         items_ids = items.values_list('item_id', flat=True)[skip:limit]
         # add items to the index
-        collection.add_items_to_index(items_ids=items_ids)
+        if method == 'add_to_index':
+            collection.add_items_to_index(items_ids=items_ids)
+        else:
+            collection.remove_items_to_index(items_ids=items_ids)
 
     if page == loops:
         taskstate = 'SUCCESS'
@@ -154,13 +157,15 @@ def count_items_in_collection(self, collection_id):
 
 
 @app.task(bind=True)
-def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0):
+def execute_solr_query(self, query, fq, job_id, collection_id, content_type, skip=0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
     # get limit from settings
     limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
+    max_loops = min(job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS)
 
+    print('  execute_solr_query, q=%s' % query)
     # now execute solr query, along with first `limit` rows
     res = requests.get(settings.IMPRESSO_SOLR_URL_SELECT, auth = settings.IMPRESSO_SOLR_AUTH, params = {
         'q': query,
@@ -179,9 +184,14 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
     # calculate remaining loops
     total = contents['response']['numFound']
 
+
     qtime = contents['responseHeader']['QTime']
     page = skip / limit + 1
-    loops = math.ceil(min(total, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS) / limit)
+    loops = min(math.ceil(total / limit), max_loops)
+
+    logger.info('  execute_solr_query, numFound: %s' % total)
+    logger.info('  execute_solr_query, loops needed: %s' % math.ceil(total / limit))
+    logger.info('  execute_solr_query, loops: %s' % loops)
 
     meta = {
         'task': 'execute_solr_query',
@@ -190,12 +200,13 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
         'user_id': job.creator.pk,
         'user_uid': job.creator.profile.uid,
         'extra': {
+            'q': query,
             'QTime': qtime,
             'total': total,
             # here we put the actual loops needed.
             'loops':  loops,
             'realloops': math.ceil(total / limit),
-            'maxloops': settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS,
+            'maxloops': max_loops,
             'page': page,
             'limit': limit,
             'skip': skip,
@@ -231,6 +242,7 @@ def execute_solr_query(self, query, job_id, collection_id, content_type, skip=0)
         # once it's done, go on with the following execution!
         execute_solr_query.delay(
             query = query,
+            fq = fq,
             job_id = job_id,
             collection_id = collection_id,
             content_type = content_type,
@@ -290,7 +302,7 @@ def remove_from_collection(self, job_id, collection_id, user_id):
 
 
 @app.task(bind=True)
-def add_to_collection_from_query(self, collection_id, user_id, query, content_type):
+def add_to_collection_from_query(self, collection_id, user_id, query, content_type, fq=None):
     # check that the collection exists!
     collection = Collection.objects.get(pk=collection_id, creator__id=user_id);
 
@@ -314,6 +326,7 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
     # execute premiminary query
     execute_solr_query.delay(
         query  = query,
+        fq = fq,
         job_id = job.pk,
         collection_id = collection.pk,
         content_type = content_type,
