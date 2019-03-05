@@ -43,7 +43,7 @@ class Collection(Bucket):
         # get te desired items from SOLR along with their version
         print('collection %s add_items_to_index requests items ...' % self.pk)
         # check if status is bin exit otherwise
-        if self.status == DELETED:
+        if self.status == Collection.DELETED:
             return {
                 'message': 'collection is in BIN',
                 'docs': [],
