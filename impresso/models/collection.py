@@ -4,16 +4,36 @@ from django.contrib.auth.models import User
 from . import Bucket
 from django.conf import settings
 
+def get_indexed_items(items_ids=[]):
+    res = requests.get(settings.IMPRESSO_SOLR_URL_SELECT,
+        auth = settings.IMPRESSO_SOLR_AUTH,
+        params = {
+            'q': ' OR '.join(map(lambda id: 'id:%s' % id, items_ids)),
+            'fl': 'id,ucoll_ss,_version_',
+            'rows': len(items_ids),
+            'wt': 'json',
+        }
+    )
+
+    res.raise_for_status()
+    return res.json().get('response').get('docs')
+
 
 class Collection(Bucket):
     """
     Please save as
     SearchQuery.objects.create(id='creatorid-xyzXYZ')
     """
+    PRIVATE = 'PRI'
+    SHARED = 'PRI'
+    PUBLIC = 'PUB'
+    DELETED = 'DEL'
+
     STATUS_CHOICES = (
-        ('PRI', 'Private'),
-        ('SHA', 'Publicly available - only with a link'),
-        ('PUB', 'Public and indexed'),
+        (PRIVATE, 'Private'),
+        (SHARED, 'Publicly available - only with a link'),
+        (PUBLIC, 'Public and indexed'),
+        (DELETED, 'In bin, ready to be deleted. No add items after this change.'),
     )
 
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
@@ -22,22 +42,15 @@ class Collection(Bucket):
     def add_items_to_index(self, items_ids=[]):
         # get te desired items from SOLR along with their version
         print('collection %s add_items_to_index requests items ...' % self.pk)
-
-        res = requests.get(settings.IMPRESSO_SOLR_URL_SELECT,
-            auth = settings.IMPRESSO_SOLR_AUTH,
-            params = {
-                'q': ' OR '.join(map(lambda id: 'id:%s' % id, items_ids)),
-                'fl': 'id,ucoll_ss,_version_',
-                'rows': len(items_ids),
-                'wt': 'json',
+        # check if status is bin exit otherwise
+        if self.status == DELETED:
+            return {
+                'message': 'collection is in BIN',
+                'docs': [],
+                'todos': [],
             }
-        )
 
-        res.raise_for_status()
-
-        print('collection %s add_items_to_index requests succeed' % self.pk)
-        # SOLR documents
-        docs = res.json().get('response').get('docs')
+        docs = get_indexed_items(items_ids=items_ids)
         todos = []
 
         for doc in docs:
@@ -88,6 +101,13 @@ class Collection(Bucket):
             'docs': docs,
             'todos': todos,
         }
+
+    def remove_items_from_index(self, items_ids=[]):
+        # get te desired items from SOLR along with their version
+        print('collection %s add_items_to_index requests items ...' % self.pk)
+        docs = get_indexed_items(items_ids)
+        print(docs);
+
 
     class Meta(Bucket.Meta):
         db_table = 'collections'
