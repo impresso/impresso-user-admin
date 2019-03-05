@@ -30,6 +30,12 @@ class Profile(models.Model):
 
     # is in mailing list.
     email_accepted = models.BooleanField(default=False)
+
+    # maximum for save query
+    max_loops_allowed = models.IntegerField(default=100)
+
+    # maximum concurrent running jobs
+    max_parallel_jobs = models.IntegerField(default=2)
     
     class Meta:
         verbose_name_plural = 'profiles'
