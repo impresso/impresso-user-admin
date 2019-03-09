@@ -21,6 +21,78 @@ def echo(self, message):
     return message
 
 
+@app.task(bind=True)
+def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
+    # wait
+    if progress > 0:
+        time.sleep(sleep)
+    # get the job so that we can update its status
+    job = Job.objects.get(pk=job_id)
+
+    # check job status
+    if job.status == Job.STOP:
+         job.status = Job.DONE
+         taskstate = 'STOPPED'
+
+         meta = job.get_task_meta(taskname='test', progress=progress, extra={
+             'pace': pace,
+             'sleep': sleep,
+             'stopped': True
+         })
+
+         job.extra = json.dumps(meta)
+         job.save()
+
+         # update state
+         self.update_state(state = taskstate, meta = meta)
+
+         # return job, to be seen in info
+         return serializers.serialize('json', (job,))
+
+
+
+    if progress < 1.0:
+        taskstate = 'PROGRESS'
+        job.status = Job.RUN
+        # call the same function and
+        test_progress.delay(
+            job_id=job.pk,
+            sleep=sleep,
+            pace=pace,
+            progress=progress + pace
+        )
+    else:
+        taskstate = 'SUCCESS'
+        job.status = Job.DONE
+
+    # update job status and meta
+    meta = job.get_task_meta(taskname='test', progress=progress, extra = {
+        'pace': pace,
+        'sleep': sleep
+    })
+
+    job.extra = json.dumps(meta)
+    job.save()
+
+    # update state
+    self.update_state(state = taskstate, meta = meta)
+
+    # return job, to be seen in info
+    return serializers.serialize('json', (job,))
+
+
+@app.task(bind=True)
+def test(self, user_id):
+    # save current job then start test_progress task.
+    job = Job.objects.create(
+        type=Job.TEST,
+        creator_id=user_id
+    );
+
+    test_progress.delay(job_id=job.pk)
+    return serializers.serialize('json', (job,))
+
+
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
 def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskname='store_collectable_items', method='add_to_index'):
     # get the job so that we can update its status
