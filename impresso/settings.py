@@ -125,6 +125,9 @@ USE_TZ = True
 STATIC_URL = get_env_variable('STATIC_URL', '/static/')
 STATIC_ROOT = get_env_variable('STATIC_ROOT', os.path.join(BASE_DIR, 'static'))
 
+MEDIA_URL = get_env_variable('MEDIA_URL', '/media/')
+MEDIA_ROOT = get_env_variable('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+
 
 # Celery
 CELERY_BROKER_URL = 'redis://localhost/4'
@@ -142,5 +145,6 @@ IMPRESSO_SOLR_PASSWORD_WRITE = get_env_variable('IMPRESSO_SOLR_PASSWORD_WRITE')
 IMPRESSO_SOLR_AUTH = (IMPRESSO_SOLR_USER, IMPRESSO_SOLR_PASSWORD,)
 IMPRESSO_SOLR_AUTH_WRITE = (IMPRESSO_SOLR_USER_WRITE, IMPRESSO_SOLR_PASSWORD_WRITE,)
 IMPRESSO_SOLR_ID_FIELD = get_env_variable('IMPRESSO_SOLR_ID_FIELD', 'id')
+IMPRESSO_SOLR_ARTICLE_FIELDS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD', 'id,content_txt_de,content_txt_fr,content_length_i')
 IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(get_env_variable('IMPRESSO_SOLR_EXEC_MAX_LOOPS', 100000)) # aka 500000 docs
-IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable('IMPRESSO_SOLR_EXEC_LIMIT', 100)) 
+IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable('IMPRESSO_SOLR_EXEC_LIMIT', 100))
