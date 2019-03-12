@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import json, time, math
+import json, time, math, csv
 import requests
 
 from django.core import serializers
@@ -8,7 +8,8 @@ from django.conf import settings
 from django.db.utils import IntegrityError
 
 from .celery import app
-from .models import Job, Collection, CollectableItem
+from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
+from .solr import find_all
 
 from celery.utils.log import get_task_logger
 
@@ -23,33 +24,26 @@ def echo(self, message):
 
 @app.task(bind=True)
 def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
-    # wait
+    # do heavy stuff during this time
     if progress > 0:
         time.sleep(sleep)
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-
-    # check job status
+    # check if job needs to be stopped
     if job.status == Job.STOP:
          job.status = Job.DONE
          taskstate = 'STOPPED'
-
          meta = job.get_task_meta(taskname='test', progress=progress, extra={
              'pace': pace,
              'sleep': sleep,
              'stopped': True
          })
-
          job.extra = json.dumps(meta)
          job.save()
-
          # update state
          self.update_state(state = taskstate, meta = meta)
-
          # return job, to be seen in info
          return serializers.serialize('json', (job,))
-
-
 
     if progress < 1.0:
         taskstate = 'PROGRESS'
@@ -64,19 +58,15 @@ def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
     else:
         taskstate = 'SUCCESS'
         job.status = Job.DONE
-
     # update job status and meta
     meta = job.get_task_meta(taskname='test', progress=progress, extra = {
         'pace': pace,
         'sleep': sleep
     })
-
     job.extra = json.dumps(meta)
     job.save()
-
     # update state
     self.update_state(state = taskstate, meta = meta)
-
     # return job, to be seen in info
     return serializers.serialize('json', (job,))
 
@@ -88,9 +78,107 @@ def test(self, user_id):
         type=Job.TEST,
         creator_id=user_id
     );
-
     test_progress.delay(job_id=job.pk)
     return serializers.serialize('json', (job,))
+
+
+@app.task(bind=True)
+def export_query_as_csv_progress(self, job_id, query, skip=0):
+    # get the job so that we can update its status
+    job = Job.objects.get(pk=job_id)
+
+    # check if job needs to be stopped
+    if job.status == Job.STOP:
+         job.status = Job.DONE
+         taskstate = 'STOPPED'
+         meta = job.get_task_meta(taskname='export_query_as_csv', progress=progress, extra={
+             'stopped': True
+         })
+         job.extra = json.dumps(meta)
+         job.save()
+         # update state
+         self.update_state(state = taskstate, meta = meta)
+         # return job, to be seen in info
+         return serializers.serialize('json', (job,))
+
+    # do find_all
+    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_ARTICLE_FIELDS)
+
+    # get limit from settings
+    limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
+    max_loops = min(job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS)
+
+    # calculate remaining loops
+    total = contents['response']['numFound']
+
+    qtime = contents['responseHeader']['QTime']
+    page = skip / limit + 1
+    loops = min(math.ceil(total / limit), max_loops)
+    progress = page / loops
+
+    logger.info('  export_query_as_csv, numFound: %s' % total)
+    logger.info('  export_query_as_csv, loops needed: {0}, allocated: {1}'.format(math.ceil(total / limit), loops))
+
+    if total == 0:
+        taskstate = 'SUCCESS'
+        job.status = Job.DONE
+        logger.info('  export_query_as_csv, nothing to do!' % total)
+    elif page <= loops:
+        logger.info('  export_query_as_csv, page: %s / %s' % (page, loops))
+        with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
+            w = csv.DictWriter(csvfile, delimiter=';',
+                quotechar='|', quoting=csv.QUOTE_MINIMAL,
+                fieldnames=settings.IMPRESSO_SOLR_ARTICLE_FIELDS.split(',') + ['[total:{0}]'.format(total)])
+            if page == 1:
+                w.writeheader()
+            else:
+                w.writerows(contents['response']['docs'])
+        # next loop!
+        if page < loops:
+            taskstate = 'PROGRESS'
+            job.status = Job.RUN
+            # call the same function and
+            export_query_as_csv_progress.delay(
+                job_id=job.pk,
+                query=query,
+                skip=skip + limit,
+            )
+        else:
+            taskstate = 'SUCCESS'
+            job.status = Job.DONE
+
+    # update job status and meta
+    meta = job.get_task_meta(taskname='test', progress=progress, extra = {
+        'total': total,
+        'skip': skip,
+        'limit': limit,
+        'page': page,
+        'loops': loops,
+        'query': query
+    })
+    job.extra = json.dumps(meta)
+    job.save()
+    # update state
+    self.update_state(state = taskstate, meta = meta)
+    # return job, to be seen in info
+    return serializers.serialize('json', (job,))
+
+
+@app.task(bind=True)
+def export_query_as_csv(self, query, user_id):
+    # save current job then start export_query_as_csv task.
+    job = Job.objects.create(
+        type=Job.EXPORT_QUERY_AS_CSV,
+        creator_id=user_id
+    );
+    attachment = Attachment.create_from_job(job, extension='csv')
+
+    export_query_as_csv_progress.delay(job_id=job.pk, query=query)
+    # return job, to be seen in info
+    return serializers.serialize('json', (job,))
+
+
+
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
