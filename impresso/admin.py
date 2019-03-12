@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from .models import Profile, Issue, Job, Page, Newspaper, SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
-
+from .models import Attachment
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
@@ -50,8 +50,20 @@ class TaggableItemAdmin(admin.ModelAdmin):
     autocomplete_fields = ('tag',)
 
 
+class AttachmentInline(admin.StackedInline):
+    model = Attachment
+    can_delete = True
+    verbose_name_plural = 'attachments'
+    #
+    # def get_readonly_fields(self, request, user=None):
+    #     if hasattr(user, 'profile'):
+    #         return ['uid',]
+    #     else:
+    #         return []
+
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
+    inlines = (AttachmentInline,)
     list_display = ('id', 'creator', 'type', 'date_created', 'status',)
 
 
