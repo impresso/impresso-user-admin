@@ -33,3 +33,7 @@ class Attachment(models.Model):
         )
         attachment.upload.save(attachment.generate_filename(extension), ContentFile(''))
         return attachment
+
+    class Meta:
+        db_table = 'attachments'
+        verbose_name_plural = 'attachments'
