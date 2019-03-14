@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from django.urls import reverse
+from django.utils.html import escape
+
 from .models import Profile, Issue, Job, Page, Newspaper, SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment
@@ -64,8 +67,7 @@ class AttachmentInline(admin.StackedInline):
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     inlines = (AttachmentInline,)
-    list_display = ('id', 'creator', 'type', 'date_created', 'status',)
-
+    list_display = ('id', 'creator', 'type', 'date_created', 'status', 'attachment')
 
 class ProfileInline(admin.StackedInline):
     model = Profile
