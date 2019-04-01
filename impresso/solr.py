@@ -15,3 +15,18 @@ def find_all(q='*:*', fl=settings.IMPRESSO_SOLR_ID_FIELD,
     })
     res.raise_for_status()
     return res.json()
+
+def solr_doc_to_article(doc):
+    result = {}
+    field = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
+
+    for k,v in doc.items():
+        prop = field.get(k, None)
+        if prop is None:
+            prop = k
+        if isinstance(v, list):
+            result[prop] = ','.join(str(x) for x in v)
+        elif not result.get(prop, ''):
+            result[prop] = v
+
+    return result
