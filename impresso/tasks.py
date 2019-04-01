@@ -9,7 +9,7 @@ from django.db.utils import IntegrityError
 
 from .celery import app
 from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
-from .solr import find_all
+from .solr import find_all, solr_doc_to_article
 
 from celery.utils.log import get_task_logger
 
@@ -82,6 +82,7 @@ def test(self, user_id):
     return serializers.serialize('json', (job,))
 
 
+
 @app.task(bind=True)
 def export_query_as_csv_progress(self, job_id, query, skip=0):
     # get the job so that we can update its status
@@ -102,7 +103,7 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
          return serializers.serialize('json', (job,))
 
     # do find_all
-    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_ARTICLE_FIELDS)
+    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_FIELDS)
 
     # get limit from settings
     limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
@@ -119,20 +120,22 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
     logger.info('  export_query_as_csv, numFound: %s' % total)
     logger.info('  export_query_as_csv, loops needed: {0}, allocated: {1}'.format(math.ceil(total / limit), loops))
 
+    taskstate = 'ERROR'
+
     if total == 0:
         taskstate = 'SUCCESS'
         job.status = Job.DONE
         logger.info('  export_query_as_csv, nothing to do!' % total)
-    elif page <= loops:
+    else:
         logger.info('  export_query_as_csv, page: %s / %s' % (page, loops))
         with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
             w = csv.DictWriter(csvfile, delimiter=';',
                 quotechar='|', quoting=csv.QUOTE_MINIMAL,
-                fieldnames=settings.IMPRESSO_SOLR_ARTICLE_FIELDS.split(',') + ['[total:{0}]'.format(total)])
+                fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
             if page == 1:
                 w.writeheader()
-            else:
-                w.writerows(contents['response']['docs'])
+            # write the first page already.
+            w.writerows(map(solr_doc_to_article, contents['response']['docs']))
         # next loop!
         if page < loops:
             taskstate = 'PROGRESS'
@@ -154,7 +157,8 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
         'limit': limit,
         'page': page,
         'loops': loops,
-        'query': query
+        'query': query,
+        'attachment': job.attachment.upload.url
     })
     job.extra = json.dumps(meta)
     job.save()
