@@ -46,10 +46,12 @@ class Job(models.Model):
 
     def get_task_meta(self, taskname, progress=0.0, extra = {}):
         meta = {
-            'task': taskname,
+            'task': self.type,
+            'taskname': taskname,
             'progress': progress,
             'job_id': self.pk,
             'job_status': self.status,
+            'job_created': self.date_created.isoformat(),
             'user_id': self.creator.pk,
             'user_uid': self.creator.profile.uid,
             'extra': extra
