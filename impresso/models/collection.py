@@ -41,14 +41,16 @@ class Collection(Bucket):
 
     def add_items_to_index(self, items_ids=[]):
         # get te desired items from SOLR along with their version
-        print('collection %s add_items_to_index requests items ...' % self.pk)
         # check if status is bin exit otherwise
         if self.status == Collection.DELETED:
+            print('collection %s add_items_to_index failed, collection has been deleted ...' % self.pk)
+
             return {
                 'message': 'collection is in BIN',
                 'docs': [],
                 'todos': [],
             }
+        print('collection %s add_items_to_index requests items ...' % self.pk)
 
         docs = get_indexed_items(items_ids=items_ids)
         todos = []
@@ -61,7 +63,7 @@ class Collection(Bucket):
             # remove collection otherwise
 
             # create the indexable name for current collection
-            ucoll = '%s:%s' % (self.creator.profile.uid, self.pk)
+            ucoll = self.pk
 
             if ucoll not in ucoll_list:
                 ucoll_list.append(ucoll)
