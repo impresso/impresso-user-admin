@@ -237,26 +237,15 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
             taskname = taskname
         )
 
-    # update status meta
-    meta = {
-        'task': taskname,
-        'progress': progress,
-        'job_id': job.pk,
-        'job_status': job.status,
-        'user_id': job.creator.pk,
-        'user_uid': job.creator.profile.uid,
-        'extra': {
-            # 'QTime': qtime,
-            'total': total,
-            # here we put the actual loops needed.
-            'loops':  loops,
-            'page': page,
-            'limit': limit,
-            'skip': skip,
-        },
+    meta = job.get_task_meta(taskname=taskname, progress=progress, extra = {
+        'total': total,
+        'skip': skip,
+        'limit': limit,
+        'page': page,
+        'loops': loops,
+        'collection_id': collection.pk,
         'ids': [id for id in items_ids],
-    }
-
+    })
     job.extra = json.dumps(meta)
     job.save()
 
