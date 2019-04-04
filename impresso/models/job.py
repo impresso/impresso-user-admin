@@ -43,6 +43,7 @@ class Job(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
 
     extra = models.TextField()
+    description = models.TextField(default='')
 
     def get_task_meta(self, taskname, progress=0.0, extra = {}):
         meta = {
