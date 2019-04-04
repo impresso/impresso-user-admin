@@ -103,7 +103,7 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
          return serializers.serialize('json', (job,))
 
     # do find_all
-    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_FIELDS)
+    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip)
 
     # get limit from settings
     limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
@@ -158,7 +158,7 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
         'page': page,
         'loops': loops,
         'query': query,
-        'attachment': job.attachment.upload.url
+        'attachment': job.attachment.upload is not None,
     })
     job.extra = json.dumps(meta)
     job.save()
