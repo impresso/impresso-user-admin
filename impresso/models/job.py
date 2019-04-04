@@ -50,6 +50,7 @@ class Job(models.Model):
             'taskname': taskname,
             'progress': progress,
             'job_id': self.pk,
+            'job_type': self.type,
             'job_status': self.status,
             'job_created': self.date_created.isoformat(),
             'user_id': self.creator.pk,
