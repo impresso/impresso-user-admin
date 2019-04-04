@@ -83,7 +83,7 @@ def test(self, user_id):
 
 
 
-@app.task(bind=True)
+@app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
 def export_query_as_csv_progress(self, job_id, query, skip=0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
@@ -103,6 +103,7 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
          return serializers.serialize('json', (job,))
 
     # do find_all
+    logger.info('  export_query_as_csv, loading query: %s' % query)
     contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip)
 
     # get limit from settings
