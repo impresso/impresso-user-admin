@@ -169,12 +169,14 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
 
 
 @app.task(bind=True)
-def export_query_as_csv(self, query, user_id):
+def export_query_as_csv(self, query, user_id, description):
     # save current job then start export_query_as_csv task.
     job = Job.objects.create(
         type=Job.EXPORT_QUERY_AS_CSV,
-        creator_id=user_id
+        creator_id=user_id,
+        description=description,
     );
+
     attachment = Attachment.create_from_job(job, extension='csv')
 
     export_query_as_csv_progress.delay(job_id=job.pk, query=query)
