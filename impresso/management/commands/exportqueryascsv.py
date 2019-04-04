@@ -28,6 +28,6 @@ class Command(BaseCommand):
         self.stdout.write('found docs: (%s)' % results['response']['numFound'])
         if results['response']['numFound'] > 0:
             self.stdout.write('row example: (%s)' % solr_doc_to_article(results['response']['docs'][0]))
-            export_query_as_csv.delay(query=q, user_id=user_id)
+            export_query_as_csv.delay(query=q, user_id=user_id, description='from command management')
             self.stdout.write('"test" task launched, check celery.')
         self.stdout.write('---- end ----\n\n')
