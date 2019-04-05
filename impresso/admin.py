@@ -67,7 +67,7 @@ class AttachmentInline(admin.StackedInline):
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     inlines = (AttachmentInline,)
-    list_display = ('id', 'creator', 'type', 'date_created', 'status', 'attachment')
+    list_display = ('id', 'creator', 'type', 'description', 'date_created', 'status', 'attachment')
 
 class ProfileInline(admin.StackedInline):
     model = Profile
