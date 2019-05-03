@@ -41,4 +41,20 @@ ENV=dev ./manage.py createsuperuser
 Once pip installed celery:
 
 ```
-ENV=dev celery -A impresso worker -l info
+
+### Index collections in SOLR with celery (local test only)
+In production, we run the celery worker as a subprocess of impresso-user-admin vassal.
+Check UWSGI logging with:
+```
+tail -f /var/log/uwsgi-emperor.log
+```
+In your local context, you may not have uwsgi running.  
+According to your env file, you can launch the worker using `celery` command:
+```
+ENV=local celery -A impresso worker -l info
+```
+
+Index collection using:
+```
+ENV=local ./manage.py synccollection test-abcd
+``
