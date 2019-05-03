@@ -12,6 +12,7 @@ class Command(BaseCommand):
         parser.add_argument('collection_id', nargs='+', type=str)
 
     def handle(self, *args, **options):
+        self.stdout.write('sync: %s' % options['collection_id'])
         collections = Collection.objects.filter(pk__in=options['collection_id'])
         self.stdout.write('n. collection to sync: %s' % collections.count())
 
