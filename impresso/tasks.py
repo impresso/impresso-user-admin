@@ -189,7 +189,7 @@ def export_query_as_csv(self, query, user_id, description):
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskname='store_collectable_items', method='add_to_index'):
+def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskname='store_collectable_items', method='add_to_index'):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
@@ -199,7 +199,8 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
     # get the collection status
     items = CollectableItem.objects.filter(
         collection = collection,
-        content_type = CollectableItem.ARTICLE
+        content_type = CollectableItem.ARTICLE,
+        indexed = False if method == 'add_to_index' else True,
     )
     total = items.count()
 
@@ -216,10 +217,17 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=10, taskn
         page = skip / limit + 1
         progress = page / loops
         # get the collectableItems ids in the collection
-        items_ids = items.values_list('item_id', flat=True)[skip:limit]
+        items_ids = items.values_list('item_id', flat=True)[0:limit]
+        logger.info('items_ids: %s' %  items_ids)
+        # logger.info('skip: %s; limit: %s' % (skip,limit))
         # add items to the index
         if method == 'add_to_index':
-            collection.add_items_to_index(items_ids=items_ids)
+            d = collection.add_items_to_index(items_ids=items_ids)
+            items_ids_to_add = [doc.get('id') for doc in d.get('docs')]
+            CollectableItem.objects.filter(
+                collection = collection,
+                item_id__in=items_ids_to_add
+            ).update(indexed=True)
         else:
             collection.remove_items_to_index(items_ids=items_ids)
 
