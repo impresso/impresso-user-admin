@@ -130,9 +130,7 @@ def export_query_as_csv_progress(self, job_id, query, skip=0):
     else:
         logger.info('  export_query_as_csv, page: %s / %s' % (page, loops))
         with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
-            w = csv.DictWriter(csvfile, delimiter=';',
-                quotechar='|', quoting=csv.QUOTE_MINIMAL,
-                fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
+            w = csv.DictWriter(csvfile,  delimiter=';', fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
             if page == 1:
                 w.writeheader()
             # write the first page already.

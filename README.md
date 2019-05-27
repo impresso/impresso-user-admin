@@ -57,4 +57,9 @@ ENV=local celery -A impresso worker -l info
 Index collection using:
 ```
 ENV=local ./manage.py synccollection test-abcd
-``
+```
+
+Export query as csv using (first argument being `user_id`):
+```
+ENV=local ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
+```
