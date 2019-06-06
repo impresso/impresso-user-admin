@@ -6,7 +6,7 @@ from django.utils.html import escape
 
 from .models import Profile, Issue, Job, Page, Newspaper, SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
-from .models import Attachment
+from .models import Attachment, UploadedImage
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
@@ -51,6 +51,10 @@ class TagAdmin(admin.ModelAdmin):
 class TaggableItemAdmin(admin.ModelAdmin):
     list_display = ('item_id', 'tag', 'content_type', 'date_added',)
     autocomplete_fields = ('tag',)
+
+@admin.register(UploadedImage)
+class UploadImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'creator', 'name', 'date_last_modified')
 
 
 class AttachmentInline(admin.StackedInline):
