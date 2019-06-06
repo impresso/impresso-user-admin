@@ -13,3 +13,4 @@ from .taggableItem import TaggableItem
 from .profile import Profile
 from .job import Job
 from .attachment import Attachment
+from .uploadedImage import UploadedImage

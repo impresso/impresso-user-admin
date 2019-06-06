@@ -8,11 +8,13 @@ class CollectableItem(models.Model):
     ARTICLE = 'A'
     PAGE = 'P'
     ISSUE = 'I'
+    IMAGE = 'M'
 
     CONTENT_TYPE_CHOICES = (
         (ARTICLE, 'Article'),
         (PAGE, 'Page'),
         (ISSUE, 'Issue'),
+        (IMAGE, 'Image'),
     )
 
     item_id = models.CharField(max_length=50, db_index=True)
