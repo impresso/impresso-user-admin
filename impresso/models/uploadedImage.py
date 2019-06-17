@@ -11,7 +11,7 @@ class UploadedImage(models.Model):
     name = models.CharField(max_length=100)
     signature = models.TextField()
     md5_checksum = models.CharField(max_length=32, db_index=True)
-    thumbnail = models.FileField(upload_to=user_directory_path, null=True, blank=True)
+    thumbnail = models.TextField(default='')
 
     date_created       = models.DateTimeField(auto_now_add=True)
     date_last_modified = models.DateTimeField(auto_now=True)
