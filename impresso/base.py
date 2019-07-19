@@ -8,7 +8,7 @@ dotenv_filename = '.{0}.env'.format(os.environ.get('ENV', '')) if 'ENV' in os.en
 dotenv_path = Path('.') / dotenv_filename
 dotenv_dict = dotenv_values(dotenv_path=dotenv_path, verbose=True)
 
-print('loading env file: {0}'.format(dotenv_filename))
+# print('loading env file: {0}'.format(dotenv_filename))
 
 def get_env_variable(var_name, default=None):
     if var_name in dotenv_dict:
