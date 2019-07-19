@@ -187,7 +187,7 @@ def export_query_as_csv(self, query, user_id, description):
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskname='store_collectable_items', method='add_to_index'):
+def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskname='store_collectable_items', method='add_to_index', items_ids=None):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
@@ -200,6 +200,10 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskn
         content_type = CollectableItem.ARTICLE,
         indexed = False if method == 'add_to_index' else True,
     )
+
+    if items_ids:
+        items = items.filter(item_id__in=items_ids)
+
     total = items.count()
 
     logger.info('n. of items to store: %s' %  total)
@@ -295,6 +299,41 @@ def store_collection(self, collection_id):
     self.update_state(state = "INIT", meta = meta)
 
     return serializers.serialize('json', (job,))
+
+
+@app.task(bind=True)
+def store_selected_collectable_items(self, collection_id, items_ids=[]):
+    # get the collection
+    collection = Collection.objects.get(pk=collection_id)
+    # save current job!
+    job = Job.objects.create(
+        type=Job.SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR,
+        creator=collection.creator
+    );
+    logger.info('selected items to store: %s' %  items_ids)
+
+    meta = {
+        'task': 'sync_selected_collectable_items_to_solr',
+        'progress': 0,
+        'job_id': job.pk,
+        'job_status': job.status,
+        'user_id': collection.creator.pk,
+        'user_uid': collection.creator.profile.uid,
+    }
+
+    job.extra = json.dumps(meta)
+    job.save()
+    # if alles gut
+    self.update_state(state = "INIT", meta = meta)
+    # start update chain
+    store_collectable_items.delay(
+        job_id = job.pk,
+        collection_id = collection.pk,
+        items_ids = items_ids
+    )
+
+    return serializers.serialize('json', (job,))
+
 
 
 @app.task(bind=True)
