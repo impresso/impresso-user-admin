@@ -1,5 +1,6 @@
 # user exports in media files, if media folder is present
 media/**/*.csv
+media/**/*.jpg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -112,3 +113,4 @@ venv.bak/
 ___*
 *.out
 *.rdb
+*.json
