@@ -10,6 +10,8 @@ pip = "*"
 pymysql = "*"
 celery = "*"
 python-dotenv = "*"
+requests = "*"
+redis = "*"
 
 [dev-packages]
 "flake8" = "*"
