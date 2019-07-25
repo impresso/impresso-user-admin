@@ -5,7 +5,7 @@ from pathlib import Path  # python3 only
 
 # e.g. set ENV=production to get .production.env file
 dotenv_filename = '.{0}.env'.format(os.environ.get('ENV', '')) if 'ENV' in os.environ else '.env'
-dotenv_path = Path('.') / dotenv_filename
+dotenv_path = str(Path('.') / dotenv_filename)
 dotenv_dict = dotenv_values(dotenv_path=dotenv_path, verbose=True)
 
 # print('loading env file: {0}'.format(dotenv_filename))
