@@ -127,6 +127,7 @@ STATIC_ROOT = get_env_variable('STATIC_ROOT', os.path.join(BASE_DIR, 'static'))
 
 MEDIA_URL = get_env_variable('MEDIA_URL', '/media/')
 MEDIA_ROOT = get_env_variable('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+LOGS_ROOT = get_env_variable('LOGS_ROOT', os.path.join(BASE_DIR, 'logs'))
 
 
 # Celery
@@ -175,3 +176,32 @@ IMPRESSO_SOLR_ARTICLE_PROPS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD', 'u
 
 IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(get_env_variable('IMPRESSO_SOLR_EXEC_MAX_LOOPS', 100000)) # aka 500000 docs
 IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable('IMPRESSO_SOLR_EXEC_LIMIT', 100))
+
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            # exact format is not important, this is the minimum information
+            'format': '%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 15728640,  # 1024 * 1024 * 15B = 15MB
+            'filename': os.path.join(LOGS_ROOT, 'debug.log'),
+            'formatter': 'verbose'
+        },
+    },
+    'loggers': {
+        'impresso': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        }
+    },
+}
