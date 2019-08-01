@@ -6,7 +6,7 @@ def find_all(q='*:*', fl=settings.IMPRESSO_SOLR_ID_FIELD,
     limit=settings.IMPRESSO_SOLR_EXEC_LIMIT,
     url=settings.IMPRESSO_SOLR_URL_SELECT,
     auth=settings.IMPRESSO_SOLR_AUTH):
-    res = requests.get(url, auth=auth, params={
+    res = requests.post(url, auth=auth, data={
         'q': q,
         'fl': fl,
         'start': skip,
@@ -30,3 +30,10 @@ def solr_doc_to_article(doc):
             result[prop] = v
 
     return result
+
+def find_collections_by_ids(ids):
+    res = find_all(
+        q=' OR '.join(map(lambda id: 'id:%s' % id, ids)),
+        fl='id,ucoll_ss,_version_',
+        limit=len(ids))
+    return res.get('response').get('docs')
