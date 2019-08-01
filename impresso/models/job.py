@@ -5,17 +5,21 @@ class Job(models.Model):
     BULK_COLLECTION_FROM_QUERY = 'BCQ'
     DELETE_COLLECTION = 'DCO'
     SYNC_COLLECTION_TO_SOLR = 'IDX'
+    SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR = 'IDL'
     EXPORT_COLLECTION_AS_CSV = 'EXP'
     EXPORT_QUERY_AS_CSV = 'EXP'
     TEST = 'TES'
+    CREATE_UPLOADED_IMAGE = 'IMG'
 
     TYPE_CHOICES = (
         (BULK_COLLECTION_FROM_QUERY, 'Bulk collection from query'),
         (DELETE_COLLECTION, 'Delete collection'),
         (SYNC_COLLECTION_TO_SOLR, 'Index collection in search engine'),
+        (SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR, 'Index only collection for a few content items'),
         (EXPORT_COLLECTION_AS_CSV, 'Export collection as CSV'),
         (EXPORT_QUERY_AS_CSV, 'Export query as CSV'),
         (TEST, '10 minutes countdown, 1 percent every 6 seconds'),
+        (CREATE_UPLOADED_IMAGE, 'Generate vector signature for the image and store the result in the db')
     )
 
     READY = 'REA'
