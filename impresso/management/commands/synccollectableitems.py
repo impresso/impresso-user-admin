@@ -8,9 +8,6 @@ from impresso.solr import find_collections_by_ids
 
 # choose the right logger
 logger = logging.getLogger(__name__)
-print(__name__)
-logger.error('AttributeError')
-
 
 class Command(BaseCommand):
     help = 'store all collections for each collected items'
