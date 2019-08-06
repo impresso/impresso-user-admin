@@ -12,8 +12,11 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'store all collections for each collected items'
 
-    def handle(self, *args, **options):
-        self.stdout.write('sync all items!')
+    def add_arguments(self, parser):
+        parser.add_argument('skip', nargs='?', type=int, default=0)
+
+    def handle(self, skip, *args, **options):
+        self.stdout.write('sync all items! SKIP=%s'% skip)
         items = CollectableItem.objects.values_list('item_id', flat=True).order_by('item_id').distinct()
         total = items.count()
         self.stdout.write('total items %s' % total)
@@ -28,9 +31,11 @@ class Command(BaseCommand):
         self.stdout.write('total loops %s' % paginator.num_pages)
         logger.debug('loops needed: %s (%s per loop)' % (paginator.num_pages, chunksize))
         # for page in pages
-        for page in range(1, paginator.num_pages + 1):
+        for page in range(skip + 1, paginator.num_pages + 1):
             if c == 0:
                 start = timeit.default_timer()
+                # add initial skipped elements
+                c = skip * chunksize
 
             self.stdout.write('\nloop n. %s of %s\n---' % (page, paginator.num_pages))
             # get object list
