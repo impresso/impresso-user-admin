@@ -105,6 +105,6 @@ class Command(BaseCommand):
 
             self.stdout.write('runtime: %s s' % runtime)
             self.stdout.write('completion: %s %%' % (completion * 100))
-            self.stdout.write('ETA: %s s.' % datetime.timedelta(seconds=(runtime * total / c)))
+            self.stdout.write('ETA: %s s.' % datetime.timedelta(seconds=(runtime * (total - c) / c)))
             # group by uid
         logger.debug('syncing completed on %s items in %s s' % (total, runtime))
