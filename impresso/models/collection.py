@@ -55,7 +55,7 @@ class Collection(Bucket):
 
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
 
-    def add_items_to_index(self, items_ids=[]):
+    def add_items_to_index(self, items_ids=[], logger=None):
         # get te desired items from SOLR along with their version
         # check if status is bin exit otherwise
         if self.status == Collection.DELETED:
@@ -66,7 +66,11 @@ class Collection(Bucket):
                 'docs': [],
                 'todos': [],
             }
-        print('collection %s add_items_to_index requests items ...' % self.pk)
+        if logger:
+            logger.info('Collection pk:{} add_items_to_index - change {} items'.format(
+                self.pk,
+                len(items_ids),
+            ))
 
         docs = get_indexed_items(items_ids=items_ids)
         todos = []
@@ -74,16 +78,11 @@ class Collection(Bucket):
         for doc in docs:
             # get list of collection in ucoll_ss field
             ucoll_list = doc.get('ucoll_ss', [])
-
-            # TODO update list of collections for this item
-            # remove collection otherwise
-
             # create the indexable name for current collection
             ucoll = self.pk
 
             if ucoll not in ucoll_list:
                 ucoll_list.append(ucoll)
-
                 todos.append({
                     'id': doc.get('id'),
                     '_version_': doc.get('_version_'),
@@ -93,37 +92,29 @@ class Collection(Bucket):
                 })
 
         if not todos:
-            return {
-                'message': 'nothing to do',
-                'docs': docs,
-                'todos': [],
-            }
+            if logger:
+                logger.info('Collection {} add_items_to_index nothing to do :)'.format(self.pk))
+            return
 
-        res = requests.post(settings.IMPRESSO_SOLR_URL_UPDATE,
-            auth = settings.IMPRESSO_SOLR_AUTH_WRITE,
-            params = {
-                'commit': 'true',
-                'versions': 'true',
-            },
-            data = json.dumps(todos),
-            json=True,
-            headers = {
-                'content-type': 'application/json; charset=UTF-8'
-            },
-        )
-        # 5382743
-        res.raise_for_status()
-        contents = res.json()
-        return {
-            'message': contents,
-            'docs': docs,
-            'todos': todos,
-        }
+        contents = set_indexed_items(todos=todos)
+        if logger:
+            logger.info('Collection {} add_items_to_index SUCCESS for {} items ({} docs updated)!'.format(
+                self.pk,
+                len(items_ids),
+                len(todos),
+            ))
+
+        print(contents);
+
 
     def remove_items_from_index(self, items_ids=[], logger=None):
         '''
         Remove selected items_ids from this collection
         '''
+        if not items_ids:
+            if logger:
+                logger.info('Collection {} remove_items_from_index, for {} items ..., nothing to do'.format(self.pk, len(items_ids)))
+            return
         # get te desired items from SOLR along with their version
         if logger:
             logger.info('Collection {} remove_items_from_index for {} items ...'.format(self.pk, len(items_ids)))
@@ -158,7 +149,7 @@ class Collection(Bucket):
                 len(items_ids),
                 len(todos),
             ))
-        
+
         print(contents);
 
 
