@@ -12,8 +12,8 @@ class SearchQuery(models.Model):
 
     name = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    data = models.TextField(null=True, blank=True, default=json.dumps([], indent=1))
-
+    data = models.TextField(null=True, blank=True)
+    
     creator = models.ForeignKey(User, on_delete=models.CASCADE);
 
     date_created       = models.DateTimeField(auto_now_add=True)
