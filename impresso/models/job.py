@@ -28,6 +28,7 @@ class Job(models.Model):
     ERR = 'ERR'
     ARCHIVED = 'ARC'
     STOP = 'STO'
+    RIP = 'RIP'
 
     STATUS_CHOICES = (
         (READY, 'ready'),
@@ -35,6 +36,7 @@ class Job(models.Model):
         (DONE, 'Finished, no errors!'),
         (ARCHIVED, 'Finished, archived by the user'),
         (STOP, 'Please stop'),
+        (RIP, 'Stopped by user! Rest IN Peace...'),
         (ERR, 'Ops, errors!'),
     )
 
