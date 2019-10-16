@@ -44,7 +44,7 @@ def is_task_stopped(task, job, progress, extra={}):
     '''
     if job.status != Job.STOP:
         return False
-    job.status = Job.DONE
+    job.status = Job.RIP
     extra.update({
         'stopped': True
     })
@@ -77,32 +77,32 @@ def echo(self, message):
 
 
 @app.task(bind=True)
-def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
-    # do heavy stuff during this time
-    if progress > 0:
-        time.sleep(sleep)
+def test_progress(self, job_id, sleep=5, pace=0.01, progress=0.0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    # check if job needs to be stopped
-    if job.status == Job.STOP:
-         job.status = Job.DONE
-         taskstate = 'STOPPED'
-         meta = job.get_task_meta(taskname='test', progress=progress, extra={
-             'pace': pace,
-             'sleep': sleep,
-             'stopped': True
-         })
-         job.extra = json.dumps(meta)
-         job.save()
-         # update state
-         self.update_state(state = taskstate, meta = meta)
-         # return job, to be seen in info
-         return serializers.serialize('json', (job,))
+
+    extra = {
+        'pace': pace,
+        'sleep': sleep,
+    }
+
+    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
+        logger.info('TEST job id:{} STOPPED for user id:{}. Bye!'.format(job.pk, job.creator.pk))
+        return
+
+    job.status = Job.RUN
+    # update pregress accordingly
+    update_job_progress(task=self, job=job, progress=progress, extra=extra)
 
     if progress < 1.0:
-        taskstate = 'PROGRESS'
-        job.status = Job.RUN
-        # call the same function and
+        logger.info('TEST job id:{} still running PROGRESS {} for user id:{}...!'.format(
+            job.pk,
+            progress,
+            job.creator.pk,
+        ))
+        # do heavy stuff during this time
+        time.sleep(sleep)
+        # call the same function right after
         test_progress.delay(
             job_id=job.pk,
             sleep=sleep,
@@ -110,19 +110,11 @@ def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
             progress=progress + pace
         )
     else:
-        taskstate = 'SUCCESS'
-        job.status = Job.DONE
-    # update job status and meta
-    meta = job.get_task_meta(taskname='test', progress=progress, extra = {
-        'pace': pace,
-        'sleep': sleep
-    })
-    job.extra = json.dumps(meta)
-    job.save()
-    # update state
-    self.update_state(state = taskstate, meta = meta)
-    # return job, to be seen in info
-    return serializers.serialize('json', (job,))
+        logger.info('TEST job id:{} DONE for user id:{}'.format(
+            job.pk,
+            job.creator.pk,
+        ))
+        update_job_completed(task=self, job=job, extra=extra)
 
 
 @app.task(bind=True)
@@ -132,8 +124,11 @@ def test(self, user_id):
         type=Job.TEST,
         creator_id=user_id
     );
+    logger.info('TEST job id:{} launched for user id:{}...'.format(job.pk, user_id))
+    # stat loop
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
     test_progress.delay(job_id=job.pk)
-    return serializers.serialize('json', (job,))
+
 
 
 
@@ -542,7 +537,6 @@ def remove_collection(self, collection_id, user_id):
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
 def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=100, items_ids=[]):
     job = Job.objects.get(pk=job_id) # get the job so that we can update its status
-    job.status = Job.RUN
     collection = Collection.objects.get(pk=collection_id) # get the collection!
     items = CollectableItem.objects.filter(
         collection = collection,
@@ -565,6 +559,8 @@ def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=1
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         logger.info('Collection {}, task STOPPED. Bye!'.format(collection.pk))
         return
+
+    job.status = Job.RUN
 
     logger.info('Collection {}, {} total CollectableItems, loop {} of {} (using {} skip, {} limit)'.format(
         collection.pk,
