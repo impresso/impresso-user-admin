@@ -5,12 +5,15 @@ def find_all(q='*:*', fl=settings.IMPRESSO_SOLR_ID_FIELD,
     skip=0,
     limit=settings.IMPRESSO_SOLR_EXEC_LIMIT,
     url=settings.IMPRESSO_SOLR_URL_SELECT,
-    auth=settings.IMPRESSO_SOLR_AUTH):
+    auth=settings.IMPRESSO_SOLR_AUTH, logger=None):
+    if logger:
+        logger.info('query:{} skip:{}'.format(q, skip))
+
     res = requests.post(url, auth=auth, data={
         'q': q,
         'fl': fl,
-        'start': skip,
-        'rows': limit,
+        'start': int(skip),
+        'rows': int(limit),
         'wt': 'json',
     })
     res.raise_for_status()
