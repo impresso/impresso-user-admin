@@ -109,8 +109,11 @@ ENV=local ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre port
 
 # UWSGI installation
 
-Install uwsgi in your system: `pip install uwsgi` from inside `pipenv shell`
+Install uwsgi in your system: `pip install uwsgi` from inside `pipenv shell`.
+The uwsgi file should run the `celery` worker along with the main app from within the virtual enviromnent,
+so the resulting ini file would be:
 
+```
 [uwsgi]
 uid = impresso
 # www-data
@@ -118,19 +121,19 @@ gid = impresso
 # www-data
 
 
-chdir        = /opt/impresso-user-admin
+chdir        = /path/to/impresso-user-admin
 module       = impresso.wsgi:application
-home         = /home/impresso/.virtualenvs/impresso
+home         = /path/to/.virtualenvs/impresso
 master       = true
 processes    = 2
-socket       = /opt/impresso/impresso-user-admin.wsgi.sock
+socket       = /path/to/impresso-user-admin.wsgi.sock
 chmod-socket = 777
 env          = DJANGO_SETTINGS_MODULE=impresso.settings
 env          = ENV=prod
 vacuum       = true
-# daemonize    = /opt/impresso/impresso-user-admin.uwsgi.log
 
-safe-pidfile = /opt/impresso/impresso-user-admin.pid
+safe-pidfile = /path/to/impresso-user-admin.pid
 harakiri = 20
-attach-daemon2= cmd=ENV=prod /home/impresso/.virtualenvs/impresso/bin/celery -A impresso worker -l info -c 1
-~                                                                                                               
+attach-daemon2= cmd=ENV=prod /path/to/.virtualenvs/impresso/bin/celery -A impresso worker -l info -c 1
+```   
+Note that the property `home` points to the virtual environment folder.                                                                                                         

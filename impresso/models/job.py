@@ -28,6 +28,7 @@ class Job(models.Model):
     ERR = 'ERR'
     ARCHIVED = 'ARC'
     STOP = 'STO'
+    RIP = 'RIP'
 
     STATUS_CHOICES = (
         (READY, 'ready'),
@@ -35,6 +36,7 @@ class Job(models.Model):
         (DONE, 'Finished, no errors!'),
         (ARCHIVED, 'Finished, archived by the user'),
         (STOP, 'Please stop'),
+        (RIP, 'Stopped by user! Rest IN Peace...'),
         (ERR, 'Ops, errors!'),
     )
 
@@ -54,14 +56,16 @@ class Job(models.Model):
             'task': self.type,
             'taskname': taskname,
             'progress': progress,
-            'job_id': self.pk,
-            'job_type': self.type,
-            'job_status': self.status,
-            'job_created': self.date_created.isoformat(),
+            'job': {
+                'id': self.pk,
+                'type': self.type,
+                'status': self.status,
+                'date_created': self.date_created.isoformat()
+            },
             'user_id': self.creator.pk,
             'user_uid': self.creator.profile.uid,
-            'extra': extra
         }
+        meta.update(extra);
         return meta
 
     class Meta:

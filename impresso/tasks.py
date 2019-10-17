@@ -13,6 +13,8 @@ from .solr import find_all, solr_doc_to_article
 
 from celery.utils.log import get_task_logger
 
+from zipfile import ZipFile, ZIP_DEFLATED
+
 logger = get_task_logger(__name__)
 
 TASKSTATE_INIT = 'INIT'
@@ -44,7 +46,7 @@ def is_task_stopped(task, job, progress, extra={}):
     '''
     if job.status != Job.STOP:
         return False
-    job.status = Job.DONE
+    job.status = Job.RIP
     extra.update({
         'stopped': True
     })
@@ -69,6 +71,15 @@ def get_job_stats(job, skip, limit, total):
     ))
     return page, loops, progress
 
+def get_collection_as_obj(collection):
+    return {
+        'id': collection.pk,
+        'name': collection.name,
+        'description': collection.description,
+        'status': collection.status,
+        'date_created': collection.date_created.isoformat()
+    }
+
 @app.task(bind=True)
 def echo(self, message):
     print('Request: {0!r}'.format(self.request))
@@ -77,32 +88,32 @@ def echo(self, message):
 
 
 @app.task(bind=True)
-def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
-    # do heavy stuff during this time
-    if progress > 0:
-        time.sleep(sleep)
+def test_progress(self, job_id, sleep=5, pace=0.01, progress=0.0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    # check if job needs to be stopped
-    if job.status == Job.STOP:
-         job.status = Job.DONE
-         taskstate = 'STOPPED'
-         meta = job.get_task_meta(taskname='test', progress=progress, extra={
-             'pace': pace,
-             'sleep': sleep,
-             'stopped': True
-         })
-         job.extra = json.dumps(meta)
-         job.save()
-         # update state
-         self.update_state(state = taskstate, meta = meta)
-         # return job, to be seen in info
-         return serializers.serialize('json', (job,))
+
+    extra = {
+        'pace': pace,
+        'sleep': sleep,
+    }
+
+    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
+        logger.info('TEST job id:{} STOPPED for user id:{}. Bye!'.format(job.pk, job.creator.pk))
+        return
+
+    job.status = Job.RUN
+    # update pregress accordingly
+    update_job_progress(task=self, job=job, progress=progress, extra=extra)
 
     if progress < 1.0:
-        taskstate = 'PROGRESS'
-        job.status = Job.RUN
-        # call the same function and
+        logger.info('TEST job id:{} still running PROGRESS {} for user id:{}...!'.format(
+            job.pk,
+            progress,
+            job.creator.pk,
+        ))
+        # do heavy stuff during this time
+        time.sleep(sleep)
+        # call the same function right after
         test_progress.delay(
             job_id=job.pk,
             sleep=sleep,
@@ -110,19 +121,11 @@ def test_progress(self, job_id, sleep=5, pace=0.1, progress=0.0):
             progress=progress + pace
         )
     else:
-        taskstate = 'SUCCESS'
-        job.status = Job.DONE
-    # update job status and meta
-    meta = job.get_task_meta(taskname='test', progress=progress, extra = {
-        'pace': pace,
-        'sleep': sleep
-    })
-    job.extra = json.dumps(meta)
-    job.save()
-    # update state
-    self.update_state(state = taskstate, meta = meta)
-    # return job, to be seen in info
-    return serializers.serialize('json', (job,))
+        logger.info('TEST job id:{} DONE for user id:{}'.format(
+            job.pk,
+            job.creator.pk,
+        ))
+        update_job_completed(task=self, job=job, extra=extra)
 
 
 @app.task(bind=True)
@@ -132,97 +135,83 @@ def test(self, user_id):
         type=Job.TEST,
         creator_id=user_id
     );
+    logger.info('TEST job id:{} launched for user id:{}...'.format(job.pk, user_id))
+    # stat loop
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
     test_progress.delay(job_id=job.pk)
-    return serializers.serialize('json', (job,))
+
 
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def export_query_as_csv_progress(self, job_id, query, skip=0):
+def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, limit=100):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-
-    # check if job needs to be stopped
-    if job.status == Job.STOP:
-         job.status = Job.DONE
-         taskstate = 'STOPPED'
-         meta = job.get_task_meta(taskname='export_query_as_csv', progress=progress, extra={
-             'stopped': True
-         })
-         job.extra = json.dumps(meta)
-         job.save()
-         # update state
-         self.update_state(state = taskstate, meta = meta)
-         # return job, to be seen in info
-         return serializers.serialize('json', (job,))
-
+    extra = {
+        'query': query
+    }
     # do find_all
-    logger.info('  export_query_as_csv, loading query: %s' % query)
-    contents = find_all(q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip)
-
-    # get limit from settings
-    limit = settings.IMPRESSO_SOLR_EXEC_LIMIT
-    max_loops = min(job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS)
-
-    # calculate remaining loops
+    logger.info('[job:{}] Executing query: {}'.format(job.pk, query))
+    contents = find_all(
+        q=query,
+        fl=settings.IMPRESSO_SOLR_FIELDS,
+        skip=skip
+    )
     total = contents['response']['numFound']
+    logger.info('[job:{}] Query success: {} results found'.format(job.pk, total))
+    # generate extra from job stats
+    page, loops, progress = get_job_stats(job=job, skip=skip, limit=limit, total=total)
 
-    qtime = contents['responseHeader']['QTime']
-    page = skip / limit + 1
-    loops = min(math.ceil(total / limit), max_loops)
-    progress = page / loops
-
-    logger.info('  export_query_as_csv, numFound: %s' % total)
-    logger.info('  export_query_as_csv, loops needed: {0}, allocated: {1}'.format(math.ceil(total / limit), loops))
-
-    taskstate = 'ERROR'
+    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
+        logger.info('[job:{}] Task STOPPED. Bye!'.format(job.pk))
+        return
 
     if total == 0:
-        taskstate = 'SUCCESS'
-        job.status = Job.DONE
-        logger.info('  export_query_as_csv, nothing to do!' % total)
-    else:
-        logger.info('  export_query_as_csv, page: %s / %s' % (page, loops))
-        with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
-            w = csv.DictWriter(csvfile,  delimiter=';', fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
-            if page == 1:
-                w.writeheader()
-            # write the first page already.
-            w.writerows(map(solr_doc_to_article, contents['response']['docs']))
-        # next loop!
-        if page < loops:
-            taskstate = 'PROGRESS'
-            job.status = Job.RUN
-            # call the same function and
-            export_query_as_csv_progress.delay(
-                job_id=job.pk,
-                query=query,
-                skip=skip + limit,
-            )
-        else:
-            taskstate = 'SUCCESS'
-            job.status = Job.DONE
+        update_job_completed(task=self, job=job, extra=extra)
+        return
+    # update status to RUN
+    job.status = Job.RUN
 
-    # update job status and meta
-    meta = job.get_task_meta(taskname='test', progress=progress, extra = {
-        'total': total,
-        'skip': skip,
-        'limit': limit,
-        'page': page,
-        'loops': loops,
-        'query': query,
+    extra.update({
+        'qtime': contents['responseHeader']['QTime'],
         'attachment': job.attachment.upload is not None,
     })
-    job.extra = json.dumps(meta)
-    job.save()
-    # update state
-    self.update_state(state = taskstate, meta = meta)
-    # return job, to be seen in info
-    return serializers.serialize('json', (job,))
+
+    logger.info('[job:{}] Opening file in APPEND mode: {}'.format(job.pk, job.attachment.upload.path))
+
+    with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
+        w = csv.DictWriter(csvfile,  delimiter=';', fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
+        if page == 1:
+            w.writeheader()
+        # write the first page already.
+        w.writerows(map(solr_doc_to_article, contents['response']['docs']))
+
+    # update pregress accordingly
+    update_job_progress(task=self, job=job, progress=progress, extra=extra)
+    # next loop!
+    if page < loops:
+        export_query_as_csv_progress.delay(
+            job_id=job.pk,
+            query=query,
+            query_hash=query_hash,
+            skip=page*limit,
+            limit=limit,
+        )
+    else:
+        zipped = '%s.zip' % job.attachment.upload.path;
+        logger.info('[job:{}] Loops completed, creating the corresponding zip file: {}.zip ...'.format(job.pk, job.attachment.upload.path))
+        with ZipFile(zipped, 'w', ZIP_DEFLATED) as zip:
+            zip.write(job.attachment.upload.path)
+        logger.info('[job:{}] Loops completed, corresponding zip file: {}.zip created.'.format(job.pk, job.attachment.upload.path))
+        # substitute the job attachment
+        job.attachment.upload.name = '%s.zip' % job.attachment.upload.name;
+        job.attachment.save()
+        # if everything is fine, delete the original file
+        update_job_completed(task=self, job=job, extra=extra)
 
 
 @app.task(bind=True)
-def export_query_as_csv(self, query, user_id, description):
+def export_query_as_csv(self, user_id, query, description='', query_hash=''):
     # save current job then start export_query_as_csv task.
     job = Job.objects.create(
         type=Job.EXPORT_QUERY_AS_CSV,
@@ -232,9 +221,13 @@ def export_query_as_csv(self, query, user_id, description):
 
     attachment = Attachment.create_from_job(job, extension='csv')
 
-    export_query_as_csv_progress.delay(job_id=job.pk, query=query)
-    # return job, to be seen in info
-    return serializers.serialize('json', (job,))
+    # add query to extra. Job status should be INIT
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+        'query': query,
+    })
+
+    export_query_as_csv_progress.delay(job_id=job.pk, query=query, query_hash=query_hash)
+
 
 
 
@@ -415,12 +408,12 @@ def count_items_in_collection(self, collection_id):
 def execute_solr_query(self, query, fq, job_id, collection_id, content_type, skip=0, limit=100):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    job.status = Job.RUN
     # get the collection so that we can see its status
     collection = Collection.objects.get(pk=collection_id)
     if collection.status == Collection.DELETED:
         logger.info('Collection {} status has been set to DEL, skipping.'.format(collection_id, collection.status))
         update_job_completed(task=self, job=job, extra={
+            'collection': get_collection_as_obj(collection),
             'cleared': True,
             'reason': 'Collection has status:DEL'
         })
@@ -452,11 +445,14 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         'qtime': contents['responseHeader']['QTime'],
         'qheaders': contents['responseHeader'],
         'collection_id': collection_id,
+        'collection': get_collection_as_obj(collection),
     }
     # check if the job has been stopped
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         logger.info('Collection {}, task STOPPED. Bye!'.format(collection_id))
         return
+
+    job.status = Job.RUN
 
     logger.info('Collection {}, {} total items to save, loop {} of {} (using {} skip, {} limit)'.format(
         collection_id,
@@ -515,6 +511,7 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         logger.info('Collection {}, last stand: count!'.format(collection_id))
         count_items_in_collection.delay(collection_id = collection_id)
         # store_collection.delay(collection_id = collection_id)
+        update_job_completed(task=self, job=job, progress=progress, extra=extra)
 
 
 @app.task(bind=True)
@@ -531,7 +528,9 @@ def remove_collection(self, collection_id, user_id):
     );
     logger.info('Collection %s, launch "remove_from_collection" task...' %  collection.pk)
     # stat loop
-    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+        'collection': get_collection_as_obj(collection),
+    })
     remove_from_collection.delay(
         job_id = job.pk,
         collection_id = collection.pk,
@@ -542,7 +541,6 @@ def remove_collection(self, collection_id, user_id):
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
 def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=100, items_ids=[]):
     job = Job.objects.get(pk=job_id) # get the job so that we can update its status
-    job.status = Job.RUN
     collection = Collection.objects.get(pk=collection_id) # get the collection!
     items = CollectableItem.objects.filter(
         collection = collection,
@@ -560,11 +558,14 @@ def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=1
         'page': page,
         'loops': loops,
         'collection_id': collection.pk,
+        'collection': get_collection_as_obj(collection),
     }
 
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         logger.info('Collection {}, task STOPPED. Bye!'.format(collection.pk))
         return
+    # update status if it is not stopped
+    job.status = Job.RUN
 
     logger.info('Collection {}, {} total CollectableItems, loop {} of {} (using {} skip, {} limit)'.format(
         collection.pk,
@@ -614,8 +615,10 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
         type=Job.BULK_COLLECTION_FROM_QUERY,
         creator=collection.creator
     );
-
-    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
+    # add collection to extra.
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+        'collection': get_collection_as_obj(collection),
+    })
     # execute premiminary query
     execute_solr_query.delay(
         query  = query,
