@@ -69,6 +69,15 @@ def get_job_stats(job, skip, limit, total):
     ))
     return page, loops, progress
 
+def get_collection_as_obj(collection):
+    return {
+        'id': collection.pk,
+        'name': collection.name,
+        'description': collection.description,
+        'status': collection.status,
+        'date_created': collection.date_created.isoformat()
+    }
+
 @app.task(bind=True)
 def echo(self, message):
     print('Request: {0!r}'.format(self.request))
@@ -410,12 +419,12 @@ def count_items_in_collection(self, collection_id):
 def execute_solr_query(self, query, fq, job_id, collection_id, content_type, skip=0, limit=100):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    job.status = Job.RUN
     # get the collection so that we can see its status
     collection = Collection.objects.get(pk=collection_id)
     if collection.status == Collection.DELETED:
         logger.info('Collection {} status has been set to DEL, skipping.'.format(collection_id, collection.status))
         update_job_completed(task=self, job=job, extra={
+            'collection': get_collection_as_obj(collection),
             'cleared': True,
             'reason': 'Collection has status:DEL'
         })
@@ -447,11 +456,14 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         'qtime': contents['responseHeader']['QTime'],
         'qheaders': contents['responseHeader'],
         'collection_id': collection_id,
+        'collection': get_collection_as_obj(collection),
     }
     # check if the job has been stopped
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         logger.info('Collection {}, task STOPPED. Bye!'.format(collection_id))
         return
+
+    job.status = Job.RUN
 
     logger.info('Collection {}, {} total items to save, loop {} of {} (using {} skip, {} limit)'.format(
         collection_id,
@@ -510,6 +522,7 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         logger.info('Collection {}, last stand: count!'.format(collection_id))
         count_items_in_collection.delay(collection_id = collection_id)
         # store_collection.delay(collection_id = collection_id)
+        update_job_completed(task=self, job=job, progress=progress, extra=extra)
 
 
 @app.task(bind=True)
@@ -526,7 +539,9 @@ def remove_collection(self, collection_id, user_id):
     );
     logger.info('Collection %s, launch "remove_from_collection" task...' %  collection.pk)
     # stat loop
-    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+        'collection': get_collection_as_obj(collection),
+    })
     remove_from_collection.delay(
         job_id = job.pk,
         collection_id = collection.pk,
@@ -554,12 +569,13 @@ def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=1
         'page': page,
         'loops': loops,
         'collection_id': collection.pk,
+        'collection': get_collection_as_obj(collection),
     }
 
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         logger.info('Collection {}, task STOPPED. Bye!'.format(collection.pk))
         return
-
+    # update status if it is not stopped
     job.status = Job.RUN
 
     logger.info('Collection {}, {} total CollectableItems, loop {} of {} (using {} skip, {} limit)'.format(
@@ -610,8 +626,10 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
         type=Job.BULK_COLLECTION_FROM_QUERY,
         creator=collection.creator
     );
-
-    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
+    # add collection to extra.
+    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+        'collection': get_collection_as_obj(collection),
+    })
     # execute premiminary query
     execute_solr_query.delay(
         query  = query,
