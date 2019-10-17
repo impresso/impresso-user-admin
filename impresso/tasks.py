@@ -59,7 +59,8 @@ def get_job_stats(job, skip, limit, total):
     page = 1 + skip / limit
     loops = min(math.ceil(total / limit), max_loops)
     progress = page / loops if loops > 0 else 1.0 # NOthing to do if there's no loops...
-    logger.info('get_job_stats: page:{}, limit:{}, total:{}, progress:{}, loops:{}, max_loops:{}, user_loops:{}, settings_loops: {}'.format(
+    logger.info('[job:{}] get_job_stats: page:{}, limit:{}, total:{}, progress:{}, loops:{}, max_loops:{}, user_loops:{}, settings_loops: {}'.format(
+        job.pk,
         page,
         limit,
         total,
@@ -152,11 +153,14 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
     }
     # do find_all
     logger.info('[job:{}] Executing query: {}'.format(job.pk, query))
+
     contents = find_all(
         q=query,
         fl=settings.IMPRESSO_SOLR_FIELDS,
-        skip=skip
+        skip=skip,
+        logger=logger
     )
+
     total = contents['response']['numFound']
     logger.info('[job:{}] Query success: {} results found'.format(job.pk, total))
     # generate extra from job stats
