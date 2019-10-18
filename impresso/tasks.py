@@ -151,7 +151,7 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
     extra = {
-        'query': query
+        'query': query_hash,
     }
     # do find_all
     logger.info('[job:{}] Executing query: {}'.format(job.pk, query))
@@ -229,7 +229,7 @@ def export_query_as_csv(self, user_id, query, description='', query_hash=''):
 
     # add query to extra. Job status should be INIT
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
-        'query': query,
+        'query': query_hash,
     })
 
     export_query_as_csv_progress.delay(job_id=job.pk, query=query, query_hash=query_hash)
