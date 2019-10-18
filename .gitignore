@@ -1,6 +1,7 @@
 # user exports in media files, if media folder is present
 media/**/*.csv
 media/**/*.jpg
+media/**/*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
