@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from os.path import basename
+
 import json, time, math, csv
 import requests
 
@@ -205,7 +207,7 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
         zipped = '%s.zip' % job.attachment.upload.path;
         logger.info('[job:{}] Loops completed, creating the corresponding zip file: {}.zip ...'.format(job.pk, job.attachment.upload.path))
         with ZipFile(zipped, 'w', ZIP_DEFLATED) as zip:
-            zip.write(job.attachment.upload.path)
+            zip.write(job.attachment.upload.path, basename(job.attachment.upload.path))
         logger.info('[job:{}] Loops completed, corresponding zip file: {}.zip created.'.format(job.pk, job.attachment.upload.path))
         # substitute the job attachment
         job.attachment.upload.name = '%s.zip' % job.attachment.upload.name;
@@ -515,7 +517,7 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         logger.info('Collection {}, last stand: count!'.format(collection_id))
         count_items_in_collection.delay(collection_id = collection_id)
         # store_collection.delay(collection_id = collection_id)
-        update_job_completed(task=self, job=job, progress=progress, extra=extra)
+        update_job_completed(task=self, job=job, extra=extra)
 
 
 @app.task(bind=True)
