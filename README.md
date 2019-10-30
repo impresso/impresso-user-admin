@@ -61,28 +61,6 @@ If you skip this passage the static folder will be
 ```
 ENV=dev ./manage.py collectstatic
 ```
-[uwsgi]
-uid = impresso
-# www-data
-gid = impresso
-# www-data
-
-
-chdir        = /opt/impresso/impresso-user-admin
-module       = impresso.wsgi:application
-home         = /opt/impresso/.local/share/virtualenvs/impresso-user-admin-zSElDo3l
-master       = true
-processes    = 2
-socket       = /opt/impresso/impresso-user-admin.wsgi.sock
-chmod-socket = 777
-env          = DJANGO_SETTINGS_MODULE=impresso.settings
-env          = ENV=dev
-vacuum       = true
-# daemonize    = /opt/impresso/impresso-user-admin.uwsgi.log
-
-safe-pidfile = /opt/impresso/impresso-user-admin.pid
-harakiri = 20
-attach-daemon2= cmd=ENV=dev /opt/impresso/.local/share/virtualenvs/impresso-user-admin-zSElDo3l/bin/celery -A impresso worker -l info -c 1
 
 
 ### Index collections in SOLR with celery (local test only)
