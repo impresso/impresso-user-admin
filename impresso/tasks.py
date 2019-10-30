@@ -608,6 +608,7 @@ def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=1
         )
     else:
         print('update_job_completed', page, loops)
+        collection.delete()
         update_job_completed(task=self, job=job, extra=extra)
 
 
