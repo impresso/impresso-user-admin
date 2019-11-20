@@ -35,7 +35,8 @@ class ContentItemAdmin(admin.ModelAdmin):
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
     search_fields = ['name', 'creator', 'id']
-    list_display = ('id', 'creator', 'name', 'status',)
+    list_display = ('id', 'creator', 'name', 'status', 'date_created', )
+    readonly_fields = ('date_created', 'date_last_modified', )
 
 @admin.register(CollectableItem)
 class CollectableItemAdmin(admin.ModelAdmin):
