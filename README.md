@@ -8,15 +8,27 @@ Install python 3.6 following [digitalocean tutorial](https://www.digitalocean.co
 
 ### setup with pyenv + pipenv
 Follow the instruction to install [pyenv](https://github.com/pyenv/pyenv), motivation on this choice can be found on [hackernoon "Why you should use pyenv + Pipenv for your Python projects"](https://hackernoon.com/reaching-python-development-nirvana-bb5692adf30c)
+and more details on pyenv on [Managing Multiple Python Versions with pyenv](http://akbaribrahim.com/managing-multiple-python-versions-with-pyenv/)
 
 ```
 eval "$(pyenv init -)"
 cd /path/to/impresso-user-admin/
-pyenv install 3.6.8
-pip install -U pipenv
+pyenv version
 ```
-Then run `pipenv install --dev`
-
+The last command gives you the version of the local python. If it doesn't meet the version number specified in Pipfile,
+use pyenv install command:
+```
+pyenv install 3.5.8
+```
+Use pip to install Pipenv:
+```
+pip install --user pipenv
+```
+Then run
+```
+pipenv --python 3.5.8 install
+```
+To create and activate the virtualenv. Once in the shell, you can go back with the `exit` command and reactivate the virtualenv simply `pipenv shell`
 
 ### setup impresso virtualenv
 We assume that virtualenvs are stored in user home dir:
