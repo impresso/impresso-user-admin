@@ -155,6 +155,7 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
     }
     # do find_all
     logger.info('[job:{}] Executing query: {}'.format(job.pk, query))
+    logger.info('[job:{}] User: {} is_staff:{}'.format(job.pk, job.creator.pk, job.creator.is_staff))
 
     contents = find_all(
         q=query,
@@ -185,12 +186,22 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
 
     logger.info('[job:{}] Opening file in APPEND mode: {}'.format(job.pk, job.attachment.upload.path))
 
+    def doc_filter_contents(doc):
+        doc_year = int(doc['year'])
+        if doc_year >= settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
+            doc['content'] = ''
+        return doc
+
     with open(job.attachment.upload.path, mode='a', encoding='utf-8') as csvfile:
         w = csv.DictWriter(csvfile,  delimiter=';', fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(',') + ['[total:{0},available:{1}]'.format(total, loops*limit)])
         if page == 1:
             w.writeheader()
-        # write the first page already.
-        w.writerows(map(solr_doc_to_article, contents['response']['docs']))
+        rows = map(solr_doc_to_article, contents['response']['docs'])
+        if not job.creator.is_staff:
+            rows = map(doc_filter_contents, rows)
+        # remove content for the rows if their date is below a threshold
+
+        w.writerows(rows)
 
     # update pregress accordingly
     update_job_progress(task=self, job=job, progress=progress, extra=extra)
