@@ -131,8 +131,9 @@ LOGS_ROOT = get_env_variable('LOGS_ROOT', os.path.join(BASE_DIR, 'logs'))
 
 
 # Celery
-CELERY_BROKER_URL = 'redis://localhost/4'
-CELERY_RESULT_BACKEND = 'redis://localhost/5'
+REDIS_HOST = get_env_variable('REDIS_HOST', 'localhost')
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}/4'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}/5'
 CELERYD_PREFETCH_MULTIPLIER = 2
 CELERYD_CONCURRENCY = 2
 
