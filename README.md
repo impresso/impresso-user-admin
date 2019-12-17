@@ -22,7 +22,7 @@ pyenv install 3.5.8
 ```
 Use pip to install Pipenv:
 ```
-pip install --user pipenv
+python -m pip install pipenv
 ```
 Then run
 ```
