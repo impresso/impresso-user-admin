@@ -6,14 +6,14 @@ from django.contrib.auth.models import User
 class SearchQuery(models.Model):
     """
     Please save as
-    SearchQuery.objects.create(id=generate_id(creator_id=123, query='*:*'), creator_id=123)
+    SearchQuery.objects.create(id=SearchQuery.generate_id(creator_id=123, query='*:*'), creator_id=123)
     """
     id = models.CharField(primary_key=True, max_length=50)
 
     name = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     data = models.TextField(null=True, blank=True)
-    
+
     creator = models.ForeignKey(User, on_delete=models.CASCADE);
 
     date_created       = models.DateTimeField(auto_now_add=True)
