@@ -25,7 +25,7 @@ class NewspaperAdmin(admin.ModelAdmin):
 
 @admin.register(SearchQuery)
 class SearchQueryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'creator', 'name',)
+    list_display = ('id', 'creator', 'description', 'date_created',)
 
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
