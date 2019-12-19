@@ -5,13 +5,12 @@ verify_ssl = true
 
 [packages]
 pytz = "==2018.7"
-Django = "==2.1.15"
 pip = "*"
-pymysql = "*"
 celery = "*"
-python-dotenv = "*"
 requests = "*"
 redis = "*"
+django = "==3.0.1"
+pymysql = "*"
 
 [dev-packages]
 "flake8" = "*"
