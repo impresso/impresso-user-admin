@@ -147,11 +147,12 @@ def test(self, user_id):
 
 
 @app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, limit=100):
+def export_query_as_csv_progress(self, job_id, query, search_query_id, query_hash='', skip=0, limit=100):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
     extra = {
         'query': query_hash,
+        'search_query_id': search_query_id,
     }
     # do find_all
     logger.info('[job:{}] Executing query: {}'.format(job.pk, query))
@@ -188,7 +189,13 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
 
     def doc_filter_contents(doc):
         doc_year = int(doc['year'])
-        if doc_year >= settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
+        if 'is_content_available' in doc:
+            if doc['is_content_available'] != "true":
+                doc['content'] = ''
+                doc['is_content_available'] = ''
+            else:
+                doc['is_content_available'] = 'y'
+        elif doc_year >= settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
             doc['content'] = ''
         return doc
 
@@ -211,6 +218,7 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
             job_id=job.pk,
             query=query,
             query_hash=query_hash,
+            search_query_id=search_query_id,
             skip=page*limit,
             limit=limit,
         )
@@ -228,7 +236,7 @@ def export_query_as_csv_progress(self, job_id, query, query_hash='', skip=0, lim
 
 
 @app.task(bind=True)
-def export_query_as_csv(self, user_id, query, description='', query_hash=''):
+def export_query_as_csv(self, user_id, query, description='', query_hash='', search_query_id=None):
     # save current job then start export_query_as_csv task.
     job = Job.objects.create(
         type=Job.EXPORT_QUERY_AS_CSV,
@@ -238,12 +246,27 @@ def export_query_as_csv(self, user_id, query, description='', query_hash=''):
 
     attachment = Attachment.create_from_job(job, extension='csv')
 
+    if not search_query_id:
+        search_query, created = SearchQuery.objects.get_or_create(
+            id=SearchQuery.generate_id(creator_id=user_id, query=query_hash),
+            defaults={
+                'data': query_hash,
+                'description': description,
+                'creator_id':user_id
+            }
+        )
+        print(search_query)
+        print(search_query.pk)
+        search_query_id = search_query.pk
+    logger.info('[job:{}] started, search_query_id:{} created:{}...'.format(job.pk, search_query_id, created))
+
     # add query to extra. Job status should be INIT
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
         'query': query_hash,
+        'search_query_id': search_query_id,
     })
 
-    export_query_as_csv_progress.delay(job_id=job.pk, query=query, query_hash=query_hash)
+    export_query_as_csv_progress.delay(job_id=job.pk, query=query, query_hash=query_hash, search_query_id=search_query_id)
 
 
 
