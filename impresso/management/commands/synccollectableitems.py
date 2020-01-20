@@ -13,11 +13,29 @@ class Command(BaseCommand):
     help = 'store all collections for each collected items'
 
     def add_arguments(self, parser):
-        parser.add_argument('skip', nargs='?', type=int, default=0)
+        parser.add_argument('--skip', nargs='?', type=int, default=0)
+        parser.add_argument('--newspaper', nargs='?', type=str, default=None)
+        parser.add_argument('--collection_id', nargs='?', type=str, default=None)
+        parser.add_argument('--user_id', nargs='?', type=int, default=0)
 
-    def handle(self, skip, *args, **options):
+    def handle(self, skip, newspaper, collection_id, user_id, *args, **options):
         self.stdout.write('sync all items! SKIP=%s'% skip)
-        items = CollectableItem.objects.values_list('item_id', flat=True).order_by('item_id').distinct()
+        self.stdout.write('solr target: %s' % settings.IMPRESSO_SOLR_URL_SELECT)
+        self.stdout.write('mysql port: %s' % settings.DATABASES['default']['PORT'])
+        self.stdout.write('mysql name: %s' % settings.DATABASES['default']['NAME'])
+        self.stdout.write('-- opt arg SKIP=%s'% skip)
+        self.stdout.write('-- opt arg newspaper=%s' % newspaper)
+        self.stdout.write('-- opt arg collection_id=%s' % collection_id)
+        self.stdout.write('-- opt arg user_id=%s' % user_id)
+        items_queryset = CollectableItem.objects.filter()
+        if newspaper:
+            items_queryset = items_queryset.filter(item_id__startswith=newspaper)
+        if collection_id:
+            items_queryset = items_queryset.filter(collection_id=collection_id)
+        if user_id:
+            items_queryset = items_queryset.filter(collection__creator_id=user_id)
+        self.stdout.write('-- query %s' % items_queryset.query)
+        items = items_queryset.values_list('item_id', flat=True).order_by('item_id').distinct()
         total = items.count()
         self.stdout.write('total items %s' % total)
         logger.debug('starting sync %s items' % total)
@@ -105,6 +123,6 @@ class Command(BaseCommand):
 
             self.stdout.write('runtime: %s s' % runtime)
             self.stdout.write('completion: %s %%' % (completion * 100))
-            self.stdout.write('ETA: %s s.' % datetime.timedelta(seconds=(runtime * (total - c) / c)))
+            self.stdout.write('ETA: %s s.' % datetime.timedelta(seconds=(runtime * 100 / completion)))
             # group by uid
         logger.debug('syncing completed on %s items in %s s' % (total, runtime))

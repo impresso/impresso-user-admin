@@ -18,7 +18,7 @@ pyenv version
 The last command gives you the version of the local python. If it doesn't meet the version number specified in Pipfile,
 use pyenv install command:
 ```
-pyenv install 3.5.8
+pyenv install 3.6.9
 ```
 Use pip to install Pipenv:
 ```
@@ -26,7 +26,7 @@ python -m pip install pipenv
 ```
 Then run
 ```
-pipenv --python 3.5.8 install
+pipenv --python 3.6.9 install
 ```
 To create and activate the virtualenv. Once in the shell, you can go back with the `exit` command and reactivate the virtualenv simply `pipenv shell`
 
