@@ -308,15 +308,17 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskn
         # get the collectableItems ids in the collection
         items_ids = items.values_list('item_id', flat=True)[0:limit]
         logger.info('items_ids: %s' %  items_ids)
-        # logger.info('skip: %s; limit: %s' % (skip,limit))
+        logger.info('skip: %s; limit: %s; method: %s' % (skip,limit,method))
         # add items to the index
         if method == 'add_to_index':
-            d = collection.add_items_to_index(items_ids=items_ids)
+            result = collection.add_items_to_index(items_ids=items_ids, logger=logger)
+            logger.info(result)
             items_ids_to_add = [doc.get('id') for doc in d.get('docs')]
-            CollectableItem.objects.filter(
+            indexed = CollectableItem.objects.filter(
                 collection = collection,
                 item_id__in=items_ids_to_add
             ).update(indexed=True)
+            logger.info('CollectableItem updated: %s' %  indexed)
         else:
             collection.remove_items_to_index(items_ids=items_ids)
 
