@@ -293,9 +293,16 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskn
 
     total = items.count()
 
-    logger.info('n. of items to store: %s' %  total)
+    logger.info('Collection(pk:{}) n. of items to store: {} (skip: {}; limit: {}; method: {})'.format(
+        collection.pk,
+        total,
+        skip,
+        limit,
+        method,
+    ))
 
     if total == 0:
+        logger.info('Collection(pk:{}) nothing to do!'.format(collection.pk))
         # nothing to do! return an error
         progress = 0
         loops = 0
@@ -307,16 +314,32 @@ def store_collectable_items(self, job_id, collection_id, skip=0, limit=50, taskn
         progress = page / loops
         # get the collectableItems ids in the collection
         items_ids = items.values_list('item_id', flat=True)[0:limit]
-        logger.info('items_ids: %s' %  items_ids)
-        # logger.info('skip: %s; limit: %s' % (skip,limit))
+        logger.info('Collection(pk:{}) store {} items_ids, first three ids: {}'.format(
+            collection.pk,
+            len(items_ids),
+            items_ids[:3],
+        ))
+
         # add items to the index
         if method == 'add_to_index':
-            d = collection.add_items_to_index(items_ids=items_ids)
-            items_ids_to_add = [doc.get('id') for doc in d.get('docs')]
-            CollectableItem.objects.filter(
+            result = collection.add_items_to_index(items_ids=items_ids, logger=logger)
+            logger.info('Collection(pk:{}) n.items to update in db with (indexed=True): {}, first three ids: {}, added to solr: {}'.format(
+                collection.pk,
+                len(result.get('docs')),
+                result.get('docs')[:3],
+                len(result.get('todos')),
+            ))
+            items_ids_to_add = [doc.get('id') for doc in result.get('docs')]
+            # perform query
+            indexed = CollectableItem.objects.filter(
                 collection = collection,
                 item_id__in=items_ids_to_add
             ).update(indexed=True)
+
+            logger.info('Collection(pk:{}) success, {} items updated in db.'.format(
+                collection.pk,
+                indexed,
+            ))
         else:
             collection.remove_items_to_index(items_ids=items_ids)
 
