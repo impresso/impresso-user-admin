@@ -91,6 +91,10 @@ Index collection using:
 ```
 ENV=local ./manage.py synccollection test-abcd
 ```
+Or using pipenv:
+```
+ENV=local pipenv run ./manage.py synccollection test-abcd
+```
 
 Export query as csv using (first argument being `user_id`):
 ```
