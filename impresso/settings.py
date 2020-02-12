@@ -196,6 +196,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'file': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
@@ -205,6 +209,10 @@ LOGGING = {
         },
     },
     'loggers': {
+        'console': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
         'impresso': {
             'handlers': ['file'],
             'level': 'DEBUG',
