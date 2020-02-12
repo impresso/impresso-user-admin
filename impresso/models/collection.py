@@ -20,12 +20,15 @@ def get_indexed_items(items_ids=[]):
     res.raise_for_status()
     return res.json().get('response').get('docs')
 
-def set_indexed_items(todos):
+def set_indexed_items(todos, logger=None):
+    if not logger:
+        logger = defaultLogger
     res = requests.post(settings.IMPRESSO_SOLR_URL_UPDATE,
         auth = settings.IMPRESSO_SOLR_AUTH_WRITE,
         params = {
             'commit': 'true',
             'versions': 'true',
+            'fl': 'id',
         },
         data = json.dumps(todos),
         json=True,
@@ -34,7 +37,14 @@ def set_indexed_items(todos):
         },
     )
     # 5382743
-    res.raise_for_status()
+    try:
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        logger.info('sending data: {}'.format(json.dumps(todos)))
+        logger.info('error on url {}'.format(settings.IMPRESSO_SOLR_URL_UPDATE))
+        logger.info(res.text)
+        logger.exception(err)
+        raise
     return res.json()
 
 
