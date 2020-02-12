@@ -109,7 +109,7 @@ class Collection(Bucket):
                 len(todos),
             ))
             contents = set_indexed_items(todos=todos)
-            logger.info('Collection {} add_items_to_index SUCCESS for {} items ({} docs updated)!'.format(
+            logger.info('Collection(pk:{}) add_items_to_index SUCCESS for {} items ({} docs updated)!'.format(
                 self.pk,
                 len(items_ids),
                 len(todos),
