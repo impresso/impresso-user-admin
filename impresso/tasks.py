@@ -392,59 +392,16 @@ def store_collection(self, collection_id, items_ids=None):
 
 
 @app.task(bind=True)
-def store_selected_collectable_items(self, collection_id, items_ids=[]):
-    # get the collection
-    collection = Collection.objects.get(pk=collection_id)
-    # save current job!
-    job = Job.objects.create(
-        type=Job.SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR,
-        creator=collection.creator
-    );
-    logger.info('selected items to store: %s' %  items_ids)
-
-    meta = {
-        'task': 'sync_selected_collectable_items_to_solr',
-        'progress': 0,
-        'job_id': job.pk,
-        'job_status': job.status,
-        'user_id': collection.creator.pk,
-        'user_uid': collection.creator.profile.uid,
-    }
-
-    job.extra = json.dumps(meta)
-    job.save()
-    # if alles gut
-    self.update_state(state = "INIT", meta = meta)
-    # start update chain
-    store_collectable_items.delay(
-        job_id = job.pk,
-        collection_id = collection.pk,
-        items_ids = items_ids
-    )
-
-    return serializers.serialize('json', (job,))
-
-
-
-@app.task(bind=True)
 def count_items_in_collection(self, collection_id):
     # get the collection
     collection = Collection.objects.get(pk=collection_id)
-
-    # count the items, per content type
-    items = CollectableItem.objects.filter(
-        collection = collection,
-        content_type = CollectableItem.ARTICLE
-    )
-
-    count = items.count()
-    items_ids = items.values_list('item_id', flat=True)
-
-    print('  items count: %s' % count)
-    print('  items sample: %s' % ','.join(items_ids[:3]))
-    # save collection count
-    collection.count_items = count
-    collection.save()
+    count_in_solr = collection.update_count_items(logger=logger)
+    count_in_db = CollectableItem.objects.filter(collection = collection).count()
+    logger.info('Collection(pk:{}) received {} in solr, {} in db.'.format(
+        collection.pk,
+        count_in_solr,
+        count_in_db,
+    ))
 
 
 @app.task(bind=True)
@@ -464,18 +421,25 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
 
     logger.info('Collection {}(status:{}), saving query: q={}'.format(collection_id, collection.status, query))
     # now execute solr query, along with first `limit` rows
-    res = requests.post(settings.IMPRESSO_SOLR_URL_SELECT, auth=settings.IMPRESSO_SOLR_AUTH, data = {
-        'q': query,
-        'fl': settings.IMPRESSO_SOLR_ID_FIELD,
-        'hl': 'off',
-        'start': skip,
-        'rows': limit,
+    res = requests.post(settings.IMPRESSO_SOLR_URL_SELECT, auth=settings.IMPRESSO_SOLR_AUTH, params={
+        'start': int(skip),
+        'rows': int(limit),
+        'fl': '%s,score' % settings.IMPRESSO_SOLR_ID_FIELD,
         'wt': 'json',
+        'sort': 'id ASC',
+        'hl': 'off',
+    }, data={
+        'q': query
     })
     # should repeat until this gets None
-    res.raise_for_status()
+    try:
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        print(res.text)
+        raise
     contents = res.json()
     total = contents['response']['numFound']
+    start = contents['response']['start']
     # generate extra from job stats
     page, loops, progress = get_job_stats(job=job, skip=skip, limit=limit, total=total)
     extra = {
@@ -492,28 +456,32 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
     }
     # check if the job has been stopped
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-        logger.info('Collection {}, task STOPPED. Bye!'.format(collection_id))
+        logger.info('Collection(pk:{}), task STOPPED. Bye!'.format(collection_id))
         return
 
     job.status = Job.RUN
 
-    logger.info('Collection {}, {} total items to save, loop {} of {} (using {} skip, {} limit)'.format(
+    logger.info('Collection(pk:{}), total: {}, start: {}, loop {} of {} (using {} skip, {} limit), headers: {}'.format(
         collection_id,
         total,
+        start,
         page,
         loops,
         skip,
         limit,
+        contents['responseHeader'],
     ))
 
     # is there actually something to do?
     if total < 1:
-        logger.info('Collection {}, query returned empty results. Bye!'.format(collection_id))
+        logger.info('Collection(pk:{}), query returned empty results. Bye!'.format(collection_id))
         update_job_completed(task=self, job=job, extra=extra)
         return
 
-    items_ids = [*map(lambda doc: doc.get(settings.IMPRESSO_SOLR_ID_FIELD), contents['response']['docs'])]
-    logger.info('Collection {}, items_ids: {}'.format(
+    items = [*map(lambda doc: {'id': doc.get(settings.IMPRESSO_SOLR_ID_FIELD),'score': doc.get('score')}, contents['response']['docs'])]
+    items_ids = [*map(lambda doc: doc.get('id'), items)]
+
+    logger.info('Collection(pk:{}), bulk_create CollectableItem from {} items_ids'.format(
         collection_id,
         len(items_ids),
     ))
@@ -526,8 +494,9 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
                 collection = collection,
             ),
             items_ids
-        ))
+        ), ignore_conflicts=True)
     except IntegrityError as e:
+        logger.exception(e)
         extra.update({
             'warnings':str(e)
         })
