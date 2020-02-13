@@ -1,8 +1,10 @@
-import json, requests
+import json, requests, logging
 from django.db import models
 from django.contrib.auth.models import User
 from . import Bucket
 from django.conf import settings
+
+defaultLogger = logging.getLogger('console')
 
 def get_indexed_items(items_ids=[]):
     res = requests.post(settings.IMPRESSO_SOLR_URL_SELECT,
@@ -18,12 +20,15 @@ def get_indexed_items(items_ids=[]):
     res.raise_for_status()
     return res.json().get('response').get('docs')
 
-def set_indexed_items(todos):
+def set_indexed_items(todos, logger=None):
+    if not logger:
+        logger = defaultLogger
     res = requests.post(settings.IMPRESSO_SOLR_URL_UPDATE,
         auth = settings.IMPRESSO_SOLR_AUTH_WRITE,
         params = {
             'commit': 'true',
             'versions': 'true',
+            'fl': 'id',
         },
         data = json.dumps(todos),
         json=True,
@@ -32,7 +37,14 @@ def set_indexed_items(todos):
         },
     )
     # 5382743
-    res.raise_for_status()
+    try:
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        logger.info('sending data: {}'.format(json.dumps(todos)))
+        logger.info('error on url {}'.format(settings.IMPRESSO_SOLR_URL_UPDATE))
+        logger.info(res.text)
+        logger.exception(err)
+        raise
     return res.json()
 
 
@@ -56,23 +68,32 @@ class Collection(Bucket):
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
 
     def add_items_to_index(self, items_ids=[], logger=None):
+        """
+        return always docs
+        """
+        if not logger:
+            logger = defaultLogger
         # get te desired items from SOLR along with their version
         # check if status is bin exit otherwise
         if self.status == Collection.DELETED:
-            print('collection %s add_items_to_index failed, collection has been deleted ...' % self.pk)
+            logger.info('Collection(pk:{}).add_items_to_index() failed, collection has been deleted ...' % self.pk)
 
             return {
                 'message': 'collection is in BIN',
                 'docs': [],
                 'todos': [],
             }
-        if logger:
-            logger.info('Collection pk:{} add_items_to_index - change {} items'.format(
-                self.pk,
-                len(items_ids),
-            ))
+
+        logger.info('Collection(pk:{}).add_items_to_index() - change {} items'.format(
+            self.pk,
+            len(items_ids),
+        ))
 
         docs = get_indexed_items(items_ids=items_ids)
+        logger.info('Collection(pk:{}).add_items_to_index() - received {} docs from solr.'.format(
+            self.pk,
+            len(docs),
+        ))
         todos = []
 
         for doc in docs:
@@ -80,7 +101,6 @@ class Collection(Bucket):
             ucoll_list = doc.get('ucoll_ss', [])
             # create the indexable name for current collection
             ucoll = self.pk
-
             if ucoll not in ucoll_list:
                 ucoll_list.append(ucoll)
                 todos.append({
@@ -90,21 +110,29 @@ class Collection(Bucket):
                         'set': list(set(ucoll_list))
                     }
                 })
+            else:
+                print('%s already in %s' % (ucoll,ucoll_list))
 
-        if not todos:
-            if logger:
-                logger.info('Collection {} add_items_to_index nothing to do :)'.format(self.pk))
-            return
-
-        contents = set_indexed_items(todos=todos)
-        if logger:
-            logger.info('Collection {} add_items_to_index SUCCESS for {} items ({} docs updated)!'.format(
+        if todos:
+            logger.info('Collection(pk:{}).add_items_to_index() for {} items ({} solr docs to update)...'.format(
                 self.pk,
                 len(items_ids),
                 len(todos),
             ))
+            contents = set_indexed_items(todos=todos)
+            logger.info('Collection(pk:{}) add_items_to_index() SUCCESS for {} items ({} docs updated)!'.format(
+                self.pk,
+                len(items_ids),
+                len(todos),
+            ))
+        else:
+            logger.info('Collection(pk:{}).add_items_to_index() Nothing to do, all items are there already.'.format(self.pk))
 
-        print(contents);
+        return {
+            'message': 'done',
+            'docs': [{ 'id': id } for id in items_ids],
+            'todos': todos,
+        }
 
 
     def remove_items_from_index(self, items_ids=[], logger=None):
@@ -151,6 +179,33 @@ class Collection(Bucket):
             ))
 
         print(contents);
+
+
+    def update_count_items(self, logger=None):
+        if not logger:
+            logger = defaultLogger
+        logger.info('Collection(pk:{}).update_count_items ...'.format(self.pk))
+        res = requests.post(settings.IMPRESSO_SOLR_URL_SELECT,
+            auth = settings.IMPRESSO_SOLR_AUTH,
+            data = {
+                'q': 'ucoll_ss:{}'.format(self.pk),
+                'fl': 'id',
+                'rows': 0,
+                'wt': 'json',
+            }
+        )
+        res.raise_for_status()
+
+        count_items = int(res.json().get('response').get('numFound'));
+        logger.info('Collection(pk:{}).update_count_items SUCCESS total:{}'.format(
+            self.pk,
+            count_items,
+        ))
+
+        self.count_items = count_items
+        self.save()
+        return count_items
+
 
 
     class Meta(Bucket.Meta):

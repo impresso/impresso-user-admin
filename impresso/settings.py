@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 
-VERSION = (1, 1, 0)
+VERSION = (1, 2, 1)
 
 import os
 from .base import get_env_variable
@@ -196,6 +196,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'file': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
@@ -205,6 +209,10 @@ LOGGING = {
         },
     },
     'loggers': {
+        'console': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
         'impresso': {
             'handlers': ['file'],
             'level': 'DEBUG',
