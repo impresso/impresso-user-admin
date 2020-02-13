@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 
-VERSION = (1, 2, 0)
+VERSION = (1, 2, 1)
 
 import os
 from .base import get_env_variable
