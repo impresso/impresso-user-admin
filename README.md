@@ -1,10 +1,16 @@
 # impresso-user-admin
 
 A basic django application to manage user-related information contained in [Impresso's Master DB](https://github.com/impresso/impresso-master-db).
+We use `pipenv`for development and `docker` for production. Please look at the relevant sections in the documentation.
 
+To start *django admin* in development with pipenv:
 
-## installation on CENTOS 7
-Install python 3.6 following [digitalocean tutorial](https://www.digitalocean.com/community/tutorials/how-to-install-python-3-and-set-up-a-local-programming-environment-on-centos-7)
+    ENV=dev pipenv run ./manage.py runserver
+
+To start *celery* task manager in development with pipenv:
+
+    ENV=dev pipenv run celery -A impresso worker -l info
+
 
 ### setup with pyenv + pipenv
 Follow the instruction to install [pyenv](https://github.com/pyenv/pyenv), motivation on this choice can be found on [hackernoon "Why you should use pyenv + Pipenv for your Python projects"](https://hackernoon.com/reaching-python-development-nirvana-bb5692adf30c)
@@ -30,107 +36,49 @@ pipenv --python 3.6.9 install
 ```
 To create and activate the virtualenv. Once in the shell, you can go back with the `exit` command and reactivate the virtualenv simply `pipenv shell`
 
-### setup impresso virtualenv
-We assume that virtualenvs are stored in user home dir:
-```
-cd ~/.virtualenvs
-python3.6 -m venv impresso
-source impresso/bin/activate
-```
-with **pipenv** simply do:
-```
-cd /path/to/impresso-user-admin/
-pipenv install --dev
-```
-and your're all set. Activate pipenv virtualenv with `pipenv shell`.
 
-
-### setup dotenv files
+## configure: setup dotenv files
 Django settings.py is enriched via `dotenv` files, special and simple configuration files.
 We use a dotenv file to store sensitive settings and to store settings for a specific environment ("development" or "production"). A dotenv file is parsed when we set its prefix in the `ENV` environment variable, that is, `.dev.env` is used when we have `ENV=dev`:
+
+```sh
+ENV=dev pipenv run ./manage.py runserver
 ```
-ENV=dev ./manage.py runserver
-```
+
 This command runs the development server enriching the settings file with the cofiguration stored in the `.dev.env` file.
-Please use the `.example.env` file as astarting point to generate specific environment configuration (e.g. `prod`or `sandbox`).
+Please use the `.example.env` file as astarting point to generate specific environment configuration (e.g. `prod` or `sandbox`).
 
-
-### add new superuser
+If needed (that is for local development), run:
 ```
-cd /path/to/impresso-user-admin/
-source ~/.virtualenvs/impresso/bin/activate
-ENV=dev ./manage.py createsuperuser
-
-### setup celery
-Once pip installed celery:
-
+ENV=dev pipenv run ./manage.py migrate
 ```
 
-### django in production
-Set the `STATIC_ROOT` variable in your `dotenv` file as absolute path.
-If you skip this passage the static folder will be
+### Useful commands
+Create a new admin user in the database
 
-```
-ENV=dev ./manage.py collectstatic
-```
-
-
-### Index collections in SOLR with celery (local test only)
-In production, we run the celery worker as a subprocess of impresso-user-admin vassal.
-Check UWSGI logging with:
-```
-tail -f /var/log/uwsgi-emperor.log
-```
-In your local context, you may not have uwsgi running.  
-According to your env file, you can launch the worker using `celery` command:
-```
-ENV=local celery -A impresso worker -l info
+```sh
+ENV=dev pipenv run ./manage.py createsuperuser
 ```
 
-Index collection using:
-```
-ENV=local ./manage.py synccollection test-abcd
-```
-Or using pipenv:
-```
-ENV=local pipenv run ./manage.py synccollection test-abcd
+Index a collection stored in the db using its <id>:
+```sh
+ENV=dev ./manage.py synccollection test-abcd
 ```
 
-Export query as csv using (first argument being `user_id`):
+Export query as csv using (first argument being `user_id` then the solr query):
+```sh
+ENV=dev ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
 ```
-ENV=local ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
+
+## Use in production
+Please check the included Dockerfile to generate your own docker image or use the docker image available on impresso dockerhub.
+
+Test image locally:
+```
+make run
 ```
 
-# UWSGI installation
-
-Install uwsgi in your system: `pip install uwsgi` from inside `pipenv shell`.
-The uwsgi file should run the `celery` worker along with the main app from within the virtual enviromnent,
-so the resulting ini file would be:
-
-```
-[uwsgi]
-uid = impresso
-# www-data
-gid = impresso
-# www-data
-
-
-chdir        = /path/to/impresso-user-admin
-module       = impresso.wsgi:application
-home         = /path/to/.virtualenvs/impresso
-master       = true
-processes    = 2
-socket       = /path/to/impresso-user-admin.wsgi.sock
-chmod-socket = 777
-env          = DJANGO_SETTINGS_MODULE=impresso.settings
-env          = ENV=prod
-vacuum       = true
-
-safe-pidfile = /path/to/impresso-user-admin.pid
-harakiri = 20
-attach-daemon2= cmd=ENV=prod /path/to/.virtualenvs/impresso/bin/celery -A impresso worker -l info -c 1
-```   
-Note that the property `home` points to the virtual environment folder.                                                                                                         
+                       
 ## Project
 The 'impresso - Media Monitoring of the Past' project is funded by the Swiss National Science Foundation (SNSF) under  grant number [CRSII5_173719](http://p3.snf.ch/project-173719) (Sinergia program). The project aims at developing tools to process and explore large-scale collections of historical newspapers, and at studying the impact of this new tooling on historical research practices. More information at https://impresso-project.ch.
 ## License
