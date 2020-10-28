@@ -2,10 +2,12 @@ from __future__ import absolute_import
 
 from os.path import basename
 
-import json, time, math, csv
+import json
+import time
+import math
+import csv
 import requests
 
-from django.core import serializers
 from django.conf import settings
 from django.db.utils import IntegrityError
 
@@ -16,6 +18,8 @@ from .solr import find_all, solr_doc_to_article
 from celery.utils.log import get_task_logger
 
 from zipfile import ZipFile, ZIP_DEFLATED
+
+from .utils.tasks.collection import sync_collections_in_tr_passages
 
 logger = get_task_logger(__name__)
 
@@ -639,4 +643,77 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
         job_id = job.pk,
         collection_id = collection.pk,
         content_type = content_type,
+    )
+
+
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def update_collections_in_tr_passages_progress(
+    self, job_id, collection_prefix, progress=0.0,
+    skip=0, limit=100
+):
+    # get the job so that we can update its status
+    job = Job.objects.get(pk=job_id)
+    extra = {}
+
+    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
+        logger.info(f'job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!')
+        return
+    page, loops, progress = sync_collections_in_tr_passages(
+        collection_id=collection_prefix,
+        skip=skip,
+        limit=limit)
+    logger.info(
+        f'job({job.pk}) running on prefix={collection_prefix}'
+        f'{page}/{loops} {progress}%'
+    )
+    # update pregress accordingly
+    job.status = Job.RUN
+    update_job_progress(task=self, job=job, progress=progress, extra=extra)
+
+    if progress < 1.0:
+        logger.info(f'job({job.pk}) still running!')
+        update_collections_in_tr_passages_progress.delay(
+            collection_prefix=collection_prefix,
+            job_id=job.pk,
+            skip=skip+limit
+        )
+    else:
+        logger.info(f'job({job.pk}) COMPLETED! Bye!')
+        update_job_completed(task=self, job=job, extra=extra)
+
+
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def update_collections_in_tr_passages(
+    self, collection_prefix
+):
+    collections = Collection.objects.filter(pk__startswith=collection_prefix.replace('*', ''))
+    total = collections.count()
+    if total == 0:
+        logger.info(
+            f'Collections pk__startswith={collection_prefix}'
+            f'count={total}, exit.'
+        )
+        return
+    logger.info(
+        f'Collections pk__startswith={collection_prefix}'
+        f'count={total} ready'
+    )
+    # save current job!
+    job = Job.objects.create(
+        type=Job.SYNC_COLLECTIONS_TO_SOLR_TR,
+        creator=collections.first().creator
+    )
+    # initialize job
+    update_job_progress(
+        task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0
+    )
+    update_collections_in_tr_passages_progress.delay(
+        collection_prefix=collection_prefix,
+        job_id=job.pk,
     )
