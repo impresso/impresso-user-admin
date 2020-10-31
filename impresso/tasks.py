@@ -20,6 +20,7 @@ from celery.utils.log import get_task_logger
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .utils.tasks.collection import sync_collections_in_tr_passages
+from .utils.tasks.collection import delete_collection
 
 logger = get_task_logger(__name__)
 
@@ -28,36 +29,50 @@ TASKSTATE_PROGRESS = 'PROGRESS'
 TASKSTATE_SUCCESS = 'SUCCESS'
 TASKSTATE_STOPPED = 'STOPPED'
 
+
 def update_job_completed(task, job, extra={}):
     '''
-    Call update_job_progress for one last time. This method sets the job status to Job.DONE
+    Call update_job_progress for one last time.
+    This method sets the job status to Job.DONE
     '''
     job.status = Job.DONE
     job.save()
-    update_job_progress(task=task, job=job, taskstate=TASKSTATE_SUCCESS, progress=1.0, extra=extra)
+    update_job_progress(
+        task=task, job=job, taskstate=TASKSTATE_SUCCESS,
+        progress=1.0, extra=extra
+    )
 
-def update_job_progress(task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={}):
+
+def update_job_progress(
+    task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={}
+):
     '''
     generic function to update a job
     '''
-    meta = job.get_task_meta(taskname=task.name, progress=progress, extra=extra)
+    meta = job.get_task_meta(
+        taskname=task.name, progress=progress, extra=extra
+    )
     job.extra = json.dumps(meta)
     job.save()
     task.update_state(state=taskstate, meta=meta)
 
+
 def is_task_stopped(task, job, progress, extra={}):
     '''
-    Check if a job has been stopped by the user. If yes, this methos sets the job status to STOPPED for you,
+    Check if a job has been stopped by the user.
+    If yes, this methos sets the job status to STOPPED for you,
     then call update_job_progress one last time.
     '''
     if job.status != Job.STOP:
         return False
     job.status = Job.RIP
-    extra.update({
-        'stopped': True
-    })
-    update_job_progress(task=task, job=job, progress=progress, taskstate=TASKSTATE_STOPPED, extra=extra)
+    extra.update({'stopped': True})
+    logger.info(f'job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!')
+    update_job_progress(
+        task=task,
+        job=job, progress=progress, taskstate=TASKSTATE_STOPPED, extra=extra)
     return True
+
 
 def get_job_stats(job, skip, limit, total):
     limit = min(limit, settings.IMPRESSO_SOLR_EXEC_LIMIT)
@@ -78,6 +93,7 @@ def get_job_stats(job, skip, limit, total):
     ))
     return page, loops, progress
 
+
 def get_collection_as_obj(collection):
     return {
         'id': collection.pk,
@@ -86,6 +102,7 @@ def get_collection_as_obj(collection):
         'status': collection.status,
         'date_created': collection.date_created.isoformat()
     }
+
 
 @app.task(bind=True)
 def echo(self, message):
@@ -530,96 +547,81 @@ def execute_solr_query(self, query, fq, job_id, collection_id, content_type, ski
         update_job_completed(task=self, job=job, extra=extra)
 
 
-@app.task(bind=True)
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
 def remove_collection(self, collection_id, user_id):
     '''
-    Remove a collection. Its status should be set to DEL
+    Remove a collection only if its status is DEL
     '''
-    # check that the collection (still) exists!
-    collection = Collection.objects.get(pk=collection_id, creator__id=user_id, status=Collection.DELETED);
-    # save current job!
     job = Job.objects.create(
-        type=Job.DELETE_COLLECTION,
-        creator=collection.creator
-    );
-    logger.info('Collection %s, launch "remove_from_collection" task...' %  collection.pk)
+        type=Job.DELETE_COLLECTION, creator_id=user_id, status=Job.RUN)
+    # check that the collection (still) exists!
+    try:
+        collection = Collection.objects.get(
+            pk=collection_id
+        )
+        collection_to_delete = collection.status == Collection.DELETED
+        collection_seralized = get_collection_as_obj(collection)
+        logger.info(
+            f'Collection found with pk={collection_id}, '
+            f'status={collection_to_delete}'
+        )
+    except Collection.DoesNotExist:
+        collection_seralized = {'pk': collection_id}
+        collection_to_delete = True
+        logger.info(f'Collection.DoesNotExist in DB with pk={collection_id}')
+    if not collection_to_delete:
+        logger.info(f'Cannot delete collection pk={collection_id},not to DEL!')
+        update_job_completed(task=self, job=job)
+        return
+    logger.info(f'Delete collection pk={collection_id}...')
     # stat loop
-    update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
-        'collection': get_collection_as_obj(collection),
-    })
-    remove_from_collection.delay(
-        job_id = job.pk,
-        collection_id = collection.pk,
-        user_id = user_id,
+    update_job_progress(
+        task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+            'collection': collection_seralized
+        }
+    )
+    remove_collection_progress.delay(
+        job_id=job.pk,
+        collection_id=collection_id,
+        user_id=user_id
     )
 
 
-@app.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=True)
-def remove_from_collection(self, job_id, collection_id, user_id, skip=0, limit=100, items_ids=[]):
-    job = Job.objects.get(pk=job_id) # get the job so that we can update its status
-    collection = Collection.objects.get(pk=collection_id) # get the collection!
-    items = CollectableItem.objects.filter(
-        collection = collection,
-    )
-    # calculate total
-    if items_ids:
-        items = items.filter(item_id__in=items_ids)
-    total = items.count()
-    # generate extra from job stats
-    page, loops, progress = get_job_stats(job=job, skip=skip, limit=limit, total=total)
-    extra = {
-        'total': total,
-        'skip': skip,
-        'limit': limit,
-        'page': page,
-        'loops': loops,
-        'collection_id': collection.pk,
-        'collection': get_collection_as_obj(collection),
-    }
-
-    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-        logger.info('Collection {}, task STOPPED. Bye!'.format(collection.pk))
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def remove_collection_progress(
+    self, job_id, collection_id, user_id, skip=0, limit=100, progress=0.0,
+):
+    job = Job.objects.get(pk=job_id)
+    if is_task_stopped(task=self, job=job, progress=progress):
         return
-    # update status if it is not stopped
-    job.status = Job.RUN
+    page, loops, progress = delete_collection(
+        collection_id=collection_id,
+        limit=limit)
+    update_job_progress(task=self, job=job, progress=progress, extra={})
 
-    logger.info('Collection {}, {} total CollectableItems, loop {} of {} (using {} skip, {} limit)'.format(
-        collection.pk,
-        total,
-        page,
-        loops,
-        skip,
-        limit,
-    ))
-
-    # perform deletion of collections uids in SOLR documents:
-    current_items_ids = items.values_list('item_id', flat=True)[int(skip):int(limit + skip)]
-    logger.info('Collection {}, n. of current_items_ids: {}'.format(collection.pk, len(current_items_ids)))
-
-    if not current_items_ids:
-        update_job_completed(task=self, job=job, extra=extra)
-        return
-
-    # The cool class method which performs the actual deletion from solr index.
-    collection.remove_items_from_index(items_ids=list(current_items_ids), logger=logger)
-    # Now we can safely remove the collectableItems.
-    result = CollectableItem.objects.filter(collection=collection).filter(item_id__in=list(current_items_ids)).delete()
-    logger.info('Collection {}, items_ids: {} REMOVED! result {}'.format(collection.pk, list(current_items_ids), result))
-    # update pregress accordingly
-    update_job_progress(task=self, job=job, progress=progress, extra=extra)
-
-    if page < loops:
-        remove_from_collection.delay(
+    if progress < 1.0:
+        logger.info(f'job({job.pk}) still running!')
+        remove_collection_progress.delay(
             job_id=job.pk,
-            collection_id=collection.pk,
-            user_id=user_id,
-            limit=limit,
-            skip=page*limit
+            collection_id=collection_id,
+            user_id=user_id
         )
     else:
-        print('update_job_completed', page, loops)
-        collection.delete()
-        update_job_completed(task=self, job=job, extra=extra)
+        logger.info(
+            f'remove_collection_progress completed page={page} loops={loops}'
+        )
+        try:
+            removed = Collection.objects.get(pk=collection_id).delete()
+            logger.info(f'Collection removed: {removed}')
+        except Collection.DoesNotExist:
+            logger.info('Collection has already been deleted from db. Bye!')
+        update_job_completed(task=self, job=job)
 
 
 @app.task(bind=True)
@@ -630,7 +632,8 @@ def add_to_collection_from_query(self, collection_id, user_id, query, content_ty
     # save current job!
     job = Job.objects.create(
         type=Job.BULK_COLLECTION_FROM_QUERY,
-        creator=collection.creator
+        creator=collection.creator,
+        status=Job.RUN
     );
     # add collection to extra.
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
@@ -669,8 +672,6 @@ def update_collections_in_tr_passages_progress(
         f'job({job.pk}) running on prefix={collection_prefix}'
         f'{page}/{loops} {progress}%'
     )
-    # update pregress accordingly
-    job.status = Job.RUN
     update_job_progress(task=self, job=job, progress=progress, extra=extra)
 
     if progress < 1.0:
@@ -690,24 +691,21 @@ def update_collections_in_tr_passages_progress(
     retry_kwargs={'max_retries': 5}, retry_jitter=True
 )
 def update_collections_in_tr_passages(
-    self, collection_prefix
+    self, collection_prefix, user_id=None
 ):
-    collections = Collection.objects.filter(pk__startswith=collection_prefix.replace('*', ''))
+    collections = Collection.objects.filter(
+        pk__startswith=collection_prefix.replace('*', '')
+    )
     total = collections.count()
-    if total == 0:
-        logger.info(
-            f'Collections pk__startswith={collection_prefix}'
-            f'count={total}, exit.'
-        )
-        return
     logger.info(
         f'Collections pk__startswith={collection_prefix}'
-        f'count={total} ready'
+        f'count={total}'
     )
     # save current job!
     job = Job.objects.create(
         type=Job.SYNC_COLLECTIONS_TO_SOLR_TR,
-        creator=collections.first().creator
+        creator_id=user_id if user_id else collections.first().creator.pk,
+        status=Job.RUN
     )
     # initialize job
     update_job_progress(
