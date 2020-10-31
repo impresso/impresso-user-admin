@@ -2,7 +2,7 @@ import logging
 from django.conf import settings
 from . import get_pagination, get_list_diff
 from ...solr import find_all, update
-# from ..models import Job
+from ...models import Collection, CollectableItem
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def update_collections_in_tr_passages(
 def sync_collections_in_tr_passages(
     collection_id=None, skip=0, limit=100
 ) -> (int, int, float):
-    """
+    '''
     Add collections id in corresponding tr_passages (given their content items)
     :param collection_id: if no collection_id is given, all collections are
         loaded.
@@ -86,7 +86,7 @@ def sync_collections_in_tr_passages(
     :param int limit: limit n content items from the query (solr `rows` param)
     :return: a pagination tuple
     :rtype: tuple
-    """
+    '''
     query = f'ucoll_ss:{collection_id}' if collection_id else 'ucoll_ss:*'
     # 1. get all content items having at least a collection
     content_items = find_all(
@@ -107,4 +107,76 @@ def sync_collections_in_tr_passages(
         solr_content_items=content_items['response']['docs'],
         limit=50)
     # save all items there!
+    return (page, loops, progress)
+
+
+def delete_collection(collection_id, limit=100) -> (int, int, float):
+    '''
+    '''
+    try:
+        collection = Collection.objects.get(pk=collection_id)
+        query = f'ucoll_ss:{collection.pk}'
+    except Collection.DoesNotExist:
+        logger.info('Collection does not exist in DB, remove from SOLR.')
+        query = f'ucoll_ss:{collection_id}'
+    # 1. get all collection related content items
+    content_items = find_all(
+        q=query,
+        url=settings.IMPRESSO_SOLR_URL_SELECT,
+        fl='id,ucoll_ss,_version_',
+        skip=0,
+        limit=limit,
+        logger=logger)
+    total_content_items = content_items['response']['numFound']
+    page, loops, progress = get_pagination(
+        skip=0, limit=limit, total=total_content_items)
+    logger.info(
+        f'q={query} numFound={total_content_items} '
+        f'skip=0 limit={limit} ({progress * 100}% compl.)')
+    solr_updates_needed = []
+    solr_content_items = content_items.get('response').get('docs', [])
+    for doc in solr_content_items:
+        # get list of collection in ucoll_ss field
+        ucoll_list = doc.get('ucoll_ss', [])
+        if collection_id not in ucoll_list:
+            continue
+        ucoll_list.remove(collection_id)
+        solr_updates_needed.append({
+            'id': doc.get('id'),
+            '_version_': doc.get('_version_'),
+            'ucoll_ss': {
+                'set': ucoll_list
+            }
+        })
+    logger.info(f'(update) solr updates needed: {len(solr_updates_needed)}')
+    # more than one
+    if solr_updates_needed:
+        result = update(
+            url=settings.IMPRESSO_SOLR_URL_UPDATE,
+            todos=solr_updates_needed, logger=logger)
+        result_response_header = result.get('responseHeader')
+        result_adds = len(result.get('adds'))
+        logger.info(
+            f'(update) solr updates response={result_response_header}, '
+            f'adds={result_adds}')
+    # remove collectable items from db
+    items_ids = [doc['id'] for doc in solr_content_items]
+    logger.info(f'(db) db CollectableItem to delete={len(items_ids)}')
+    db_removal = CollectableItem.objects.filter(
+        collection_id=collection_id
+    ).filter(
+        item_id__in=items_ids
+    ).delete()
+    logger.info(f'(db) db CollectableItem deleted={db_removal}')
+    # remove collections from text passages
+    updated_content_items = find_all(
+        q=' OR '.join(map(lambda id: f'id:{id}', items_ids)),
+        url=settings.IMPRESSO_SOLR_URL_SELECT,
+        fl='id,ucoll_ss,_version_',
+        skip=0,
+        limit=limit,
+        logger=logger)
+    update_collections_in_tr_passages(
+        solr_content_items=updated_content_items.get('response').get('docs'),
+        limit=50)
     return (page, loops, progress)
