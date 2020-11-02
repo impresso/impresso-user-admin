@@ -1,14 +1,16 @@
 import logging
 from django.conf import settings
+from django.db.utils import IntegrityError
 from . import get_pagination, get_list_diff
 from ...solr import find_all, update
 from ...models import Collection, CollectableItem
 
-logger = logging.getLogger(__name__)
+default_logger = logging.getLogger(__name__)
 
 
 def update_collections_in_tr_passages(
-    solr_content_items=[], skip=0, limit=100
+    solr_content_items=[], skip=0, limit=100,
+    logger=default_logger
 ):
     """
     :param int skip_trp: Skip n TR passages from the query (solr `start` param)
@@ -75,7 +77,8 @@ def update_collections_in_tr_passages(
 
 
 def sync_collections_in_tr_passages(
-    collection_id=None, skip=0, limit=100
+    collection_id=None, skip=0, limit=100,
+    logger=default_logger
 ) -> (int, int, float):
     '''
     Add collections id in corresponding tr_passages (given their content items)
@@ -110,7 +113,9 @@ def sync_collections_in_tr_passages(
     return (page, loops, progress)
 
 
-def delete_collection(collection_id, limit=100) -> (int, int, float):
+def delete_collection(
+    collection_id, limit=100, logger=default_logger
+) -> (int, int, float):
     '''
     '''
     try:
@@ -180,3 +185,73 @@ def delete_collection(collection_id, limit=100) -> (int, int, float):
         solr_content_items=updated_content_items.get('response').get('docs'),
         limit=50)
     return (page, loops, progress)
+
+
+def add_to_collection(
+    collection_id, query, content_type, skip=0, limit=100,
+    logger=default_logger
+) -> (int, int, float, int, int):
+    collection = Collection.objects.get(pk=collection_id)
+    content_items = find_all(
+        q=query,
+        url=settings.IMPRESSO_SOLR_URL_SELECT,
+        fl='id,ucoll_ss,_version_,score',
+        skip=skip,
+        limit=limit,
+        sort='score DESC,id ASC',
+        logger=logger)
+    total_content_items = content_items['response']['numFound']
+    logger.info(content_items['responseHeader'])
+    page, loops, progress = get_pagination(
+        skip=skip, limit=limit, total=total_content_items)
+
+    solr_content_items = content_items.get('response').get('docs', [])
+    collection.count_items = int(skip * limit + int(len(solr_content_items)))
+    collection.save()
+    logger.info(
+        f'coll={collection.pk} q={query} numFound={total_content_items} '
+        f'count_items={collection.count_items} '
+        f'skip={skip} limit={limit} ({progress * 100}% compl.)')
+    try:
+        CollectableItem.objects.bulk_create(map(
+            lambda doc: CollectableItem(
+                item_id=doc.get('id'),
+                content_type=content_type,
+                collection_id=collection_id,
+                search_query_score=doc.get('score')
+            ),
+            solr_content_items
+        ), ignore_conflicts=True)
+    except IntegrityError as e:
+        logger.exception(e)
+    # add collection id to solr items.
+    # collection.add_items_to_index(items_ids=items_ids, logger=logger)
+    solr_updates_needed = []
+    for doc in solr_content_items:
+        # get list of collection in ucoll_ss field
+        ucoll_list = doc.get('ucoll_ss', [])
+        if collection_id in ucoll_list:
+            continue
+        ucoll_list.append(collection_id)
+        solr_updates_needed.append({
+            'id': doc.get('id'),
+            '_version_': doc.get('_version_'),
+            'ucoll_ss': {
+                'set': ucoll_list
+            }
+        })
+    logger.info(f'(update) solr updates needed: {len(solr_updates_needed)}')
+    # more than one
+    if solr_updates_needed:
+        result = update(
+            url=settings.IMPRESSO_SOLR_URL_UPDATE,
+            todos=solr_updates_needed, logger=logger)
+        result_response_header = result.get('responseHeader')
+        result_adds = len(result.get('adds'))
+        logger.info(
+            f'(update) solr updates response={result_response_header}, '
+            f'adds={result_adds}')
+    return (page, loops, progress, total_content_items, min(
+        total_content_items,
+        loops * limit
+    ))
