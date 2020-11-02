@@ -1,3 +1,4 @@
+import json
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -71,6 +72,12 @@ class Job(models.Model):
         }
         meta.update(extra)
         return meta
+
+    def get_progress(self):
+        try:
+            json.loads(self.extra).get('progress', 0.0)
+        except json.JSONDecodeError:
+            return 0.0
 
     class Meta:
         db_table = 'jobs'
