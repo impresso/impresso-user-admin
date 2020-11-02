@@ -8,19 +8,31 @@ def find_all(
     skip=0,
     limit=settings.IMPRESSO_SOLR_EXEC_LIMIT,
     url=settings.IMPRESSO_SOLR_URL_SELECT,
-    auth=settings.IMPRESSO_SOLR_AUTH, logger=None
+    auth=settings.IMPRESSO_SOLR_AUTH, logger=None,
+    sort='id ASC'
 ):
     if logger:
         logger.info('query:{} skip:{}'.format(q, skip))
 
-    res = requests.post(url, auth=auth, data={
-        'q': q,
+    res = requests.post(url, auth=auth, params={
         'fl': fl,
         'start': int(skip),
         'rows': int(limit),
         'wt': 'json',
+        'hl': 'off',
+        'sort': sort
+    }, data={
+        'q': q
     })
-    res.raise_for_status()
+    try:
+        res.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        if logger:
+            logger.info(res.text)
+            logger.exception(err)
+        else:
+            print(res.text)
+        raise
     return res.json()
 
 
