@@ -1,6 +1,4 @@
-import json
 from django.db import models
-from django.contrib.auth.models import User
 from . import Collection, SearchQuery
 
 
@@ -25,7 +23,11 @@ class CollectableItem(models.Model):
     # Foreing key: the collection
     collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
     # Foreing key: the search query if any when the item was added
-    search_query = models.ForeignKey(SearchQuery, null=True, blank=True, verbose_name="search query", on_delete=models.SET_NULL)
+    search_query = models.ForeignKey(
+        SearchQuery, null=True, blank=True,
+        verbose_name="search query", on_delete=models.SET_NULL)
+    search_query_score = models.FloatField(
+        default=0.0, null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'collectable_items'
