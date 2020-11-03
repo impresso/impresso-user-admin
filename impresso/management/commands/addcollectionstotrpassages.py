@@ -7,7 +7,7 @@ from ...tasks import update_collections_in_tr_passages
 
 class Command(BaseCommand):
     """
-    usage ENV=dev pipenv run python ./manage.py sync_collections_in_tr_passages
+    usage ENV=dev pipenv run python ./manage.py addcollectionstotrpassages
     """
     help = 'Add valid collection ids in TR_PASSAGES.'
 
