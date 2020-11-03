@@ -7,6 +7,9 @@ from ...models import Collection, CollectableItem
 
 default_logger = logging.getLogger(__name__)
 
+METHOD_ADD_TO_INDEX = 'METHOD_ADD_TO_INDEX'
+METHOD_DEL_FROM_INDEX = 'METHOD_DEL_FROM_INDEX'
+
 
 def update_collections_in_tr_passages(
     solr_content_items=[], skip=0, limit=100,
@@ -20,7 +23,7 @@ def update_collections_in_tr_passages(
     items_ids = [doc['id'] for doc in solr_content_items]
     # 3. get collection per content item as a dict
     items_dict = {
-        doc['id']: doc['ucoll_ss']
+        doc['id']: doc.get('ucoll_ss', [])
         for doc in solr_content_items}
     # 3. get current collection and _version_ from
     #    IMPRESSO_SOLR_PASSAGES_URL_SELECT endpoint
@@ -187,8 +190,9 @@ def delete_collection(
     return (page, loops, progress)
 
 
-def add_to_collection(
+def sync_query_to_collection(
     collection_id, query, content_type, skip=0, limit=100,
+    method=METHOD_ADD_TO_INDEX,
     logger=default_logger
 ) -> (int, int, float, int, int):
     collection = Collection.objects.get(pk=collection_id)
@@ -212,27 +216,33 @@ def add_to_collection(
         f'coll={collection.pk} q={query} numFound={total_content_items} '
         f'count_items={collection.count_items} '
         f'skip={skip} limit={limit} ({progress * 100}% compl.)')
-    try:
-        CollectableItem.objects.bulk_create(map(
-            lambda doc: CollectableItem(
-                item_id=doc.get('id'),
-                content_type=content_type,
-                collection_id=collection_id,
-                search_query_score=doc.get('score')
-            ),
-            solr_content_items
-        ), ignore_conflicts=True)
-    except IntegrityError as e:
-        logger.exception(e)
+    if method == METHOD_ADD_TO_INDEX:
+        try:
+            CollectableItem.objects.bulk_create(map(
+                lambda doc: CollectableItem(
+                    item_id=doc.get('id'),
+                    content_type=content_type,
+                    collection_id=collection_id,
+                    search_query_score=doc.get('score')
+                ),
+                solr_content_items
+            ), ignore_conflicts=True)
+        except IntegrityError as e:
+            logger.exception(e)
     # add collection id to solr items.
     # collection.add_items_to_index(items_ids=items_ids, logger=logger)
     solr_updates_needed = []
     for doc in solr_content_items:
         # get list of collection in ucoll_ss field
         ucoll_list = doc.get('ucoll_ss', [])
-        if collection_id in ucoll_list:
-            continue
-        ucoll_list.append(collection_id)
+        if method == METHOD_ADD_TO_INDEX:
+            if collection_id in ucoll_list:
+                continue
+            ucoll_list.append(collection_id)
+        elif method == METHOD_DEL_FROM_INDEX:
+            if collection_id not in ucoll_list:
+                continue
+            ucoll_list.remove(collection_id)
         solr_updates_needed.append({
             'id': doc.get('id'),
             '_version_': doc.get('_version_'),
@@ -251,6 +261,19 @@ def add_to_collection(
         logger.info(
             f'(update) solr updates response={result_response_header}, '
             f'adds={result_adds}')
+    # get updated collections.
+    items_ids = [doc['id'] for doc in solr_content_items]
+    updated_content_items = find_all(
+        q=' OR '.join(map(lambda id: f'id:{id}', items_ids)),
+        url=settings.IMPRESSO_SOLR_URL_SELECT,
+        fl='id,ucoll_ss,_version_',
+        skip=0,
+        limit=len(items_ids),
+        logger=logger)
+    update_collections_in_tr_passages(
+        solr_content_items=updated_content_items.get('response').get('docs'),
+        limit=50)
+
     return (page, loops, progress, total_content_items, min(
         total_content_items,
         loops * limit
