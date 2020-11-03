@@ -14,12 +14,11 @@ class Command(BaseCommand):
         self.stdout.write(f'delete: {collection_ids}')
         collections = Collection.objects.filter(pk__in=collection_ids)
         self.stdout.write(f'n. collection to delete: {collections.count()}')
-        for collection in collections:
+        for collection_id in collection_ids:
             self.stdout.write(
-                f'delay task: remove_collection "{collection.name}"'
-                f'(pk={collection.pk})...'
+                f'delay task: remove_collection (pk={collection_id})...'
             )
             remove_collection.delay(
-                collection_id=collection.pk,
+                collection_id=collection_id,
                 user_id=user_id
             )
