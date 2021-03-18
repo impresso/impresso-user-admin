@@ -9,7 +9,7 @@ pip = "*"
 celery = "*"
 requests = "*"
 redis = "*"
-django = "==3.0.7"
+django = "==3.1.6"
 pymysql = "*"
 
 [dev-packages]
