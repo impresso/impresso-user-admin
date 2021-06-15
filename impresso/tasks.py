@@ -21,6 +21,7 @@ from .utils.tasks.collection import sync_collections_in_tr_passages
 from .utils.tasks.textreuse import remove_collection_from_tr_passages
 from .utils.tasks.collection import delete_collection, sync_query_to_collection
 from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
+from .utils.tasks.account import send_emails_after_user_registration
 
 logger = get_task_logger(__name__)
 
@@ -714,3 +715,16 @@ def remove_collection_in_tr_progress(
         )
     else:
         update_job_completed(task=self, job=job)
+
+
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def after_user_registered(self, user_id):
+    logger.info(
+        f'user({user_id}) just registered'
+    )
+    # send confirmation email to the registered user
+    # and send email to impresso admins
+    send_emails_after_user_registration(user_id=user_id, logger=logger)
