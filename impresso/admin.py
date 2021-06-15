@@ -102,7 +102,9 @@ class ProfileInline(admin.StackedInline):
 
 class UserAdmin(BaseUserAdmin):
     inlines = (ProfileInline,)
-    list_display = ('username', 'uid', 'is_staff', 'is_active', 'email')
+    list_display = (
+        'username', 'uid', 'is_staff', 'is_active',
+        'email', 'date_joined', 'last_login')
 
     def uid(self, user):
         return user.profile.uid if hasattr(user, 'profile') else None
