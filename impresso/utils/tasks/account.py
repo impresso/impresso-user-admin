@@ -41,7 +41,7 @@ def send_emails_after_user_registration(
         emailMessage = EmailMultiAlternatives(
             subject='Access to the impresso interface',
             body=txt_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=f'Impresso Team <{settings.DEFAULT_FROM_EMAIL}>',
             to=[user.email, ],
             cc=[settings.DEFAULT_FROM_EMAIL, ],
             reply_to=[settings.DEFAULT_FROM_EMAIL, ])
