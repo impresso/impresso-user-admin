@@ -1,0 +1,17 @@
+Dear {{user.first_name}},
+
+Thank you for your interest in the the impresso App!
+
+To gain access to the full corpus, we require
+- a signed Non-Disclosure-Agreement (NDA)
+- a copy of your ID card.
+
+Please email both documents to info@impresso-project.ch.
+
+Link to download the Non-Disclosure-Agreement:
+https://impresso-project.ch/assets/documents/impresso_NDA.pdf
+
+You will receive a notification once we have received both documents and created your user account, this typically takes between 1 and 2 days.
+
+With best wishes,
+The impresso team
