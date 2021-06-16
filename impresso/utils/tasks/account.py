@@ -59,3 +59,43 @@ def send_emails_after_user_registration(
             'It looks like the mail settings is not a TEST environment :)')
         pass
     # send email to the user to confirm the subscription
+
+
+def send_emails_after_user_activation(
+    user_id, logger=default_logger
+):
+    logger.info(f'looking for user={user_id}...')
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        logger.info(f'user={user_id} NOT FOUND!')
+        raise
+    logger.info(f'user={user_id} active={user.is_active}')
+    txt_content, html_content = getEmailsContents(
+        prefix='account_activated_mailto_user',
+        context=({
+            'user': user,
+        })
+    )
+    try:
+        emailMessage = EmailMultiAlternatives(
+            subject='Access granted to the impresso interface',
+            body=txt_content,
+            from_email=f'Impresso Team <{settings.DEFAULT_FROM_EMAIL}>',
+            to=[user.email, ],
+            cc=[settings.DEFAULT_FROM_EMAIL, ],
+            reply_to=[settings.DEFAULT_FROM_EMAIL, ])
+        emailMessage.attach_alternative(html_content, 'text/html')
+        emailMessage.send(fail_silently=False)
+
+    except Exception:
+        raise
+    try:
+        first_message = mail.outbox[0]
+        logger.info('READING email in THE FAKE OUTBOX:')
+        print(first_message.subject)
+        print(first_message.body)
+    except Exception:
+        logger.info(
+            'It looks like the mail settings is not a TEST environment :)')
+        pass
