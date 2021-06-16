@@ -1,6 +1,6 @@
 Dear {{user.first_name}},
 
-Thank you for your interest in the the impresso App!
+Thank you for your interest in the impresso App!
 
 To gain access to the full corpus, we require
 - a signed Non-Disclosure-Agreement (NDA)
