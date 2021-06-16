@@ -1,11 +1,15 @@
 from django.contrib import admin
+from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from django.utils.translation import ngettext
 
 from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
+
+from impresso.tasks import after_user_activation
 
 
 @admin.register(Issue)
@@ -105,6 +109,28 @@ class UserAdmin(BaseUserAdmin):
     list_display = (
         'username', 'uid', 'is_staff', 'is_active',
         'email', 'date_joined', 'last_login')
+    actions = ['make_active', 'make_suspended']
+
+    @admin.action(description='ACTIVATE selected users')
+    def make_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        # send email!
+        for user in queryset:
+            after_user_activation.delay(user_id=user.pk)
+        self.message_user(request, ngettext(
+            '%d user was successfully activated.',
+            '%d users were successfully activated.',
+            updated,
+        ) % updated, messages.SUCCESS)
+
+    @admin.action(description='SUSPEND selected users')
+    def make_suspended(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, ngettext(
+            '%d user was successfully SUSPENDED. No email has been sent.',
+            '%d users were successfully SUSPENDED. No email has been sent.',
+            updated,
+        ) % updated, messages.SUCCESS)
 
     def uid(self, user):
         return user.profile.uid if hasattr(user, 'profile') else None
