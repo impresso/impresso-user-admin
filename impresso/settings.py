@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_registration',
     'impresso',
 ]
 
@@ -131,7 +132,15 @@ MEDIA_URL = get_env_variable('MEDIA_URL', '/media/')
 MEDIA_ROOT = get_env_variable('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 LOGS_ROOT = get_env_variable('LOGS_ROOT', os.path.join(BASE_DIR, 'logs'))
 
+# django registration
+ACCOUNT_ACTIVATION_DAYS = int(get_env_variable('ACCOUNT_ACTIVATION_DAYS', '7'))
 
+# email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# 'django.core.mail.backends.locmem.EmailBackend' 
+EMAIL_HOST = get_env_variable('EMAIL_HOST', 'smtp.')
+EMAIL_PORT = get_env_variable('EMAIL_PORT', 0)
+DEFAULT_FROM_EMAIL = get_env_variable('DEFAULT_FROM_EMAIL', 'info@')
 # Celery
 REDIS_HOST = get_env_variable('REDIS_HOST', 'localhost')
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}/4'

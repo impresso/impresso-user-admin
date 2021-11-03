@@ -1,10 +1,7 @@
-import requests, json
 from django.contrib.auth.models import User
-from django.core.management.base import BaseCommand, CommandError
-
+from django.core.management.base import BaseCommand
 
 from impresso.tasks import test
-from django.conf import settings
 
 
 class Command(BaseCommand):
@@ -20,8 +17,7 @@ class Command(BaseCommand):
         self.stdout.write('user id: "%s"' % user.pk)
         self.stdout.write('user uid: "%s"' % user.profile.uid)
 
-        test.delay(
-            user_id = user.pk,
-        )
+        test.delay(user_id=user.pk)
+
         self.stdout.write('"test" task launched, check celery.')
         self.stdout.write('---- end ----\n\n')
