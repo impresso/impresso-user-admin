@@ -137,7 +137,7 @@ ACCOUNT_ACTIVATION_DAYS = int(get_env_variable('ACCOUNT_ACTIVATION_DAYS', '7'))
 
 # email
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# 'django.core.mail.backends.locmem.EmailBackend' 
+# 'django.core.mail.backends.locmem.EmailBackend'
 EMAIL_HOST = get_env_variable('EMAIL_HOST', 'smtp.')
 EMAIL_PORT = get_env_variable('EMAIL_PORT', 0)
 DEFAULT_FROM_EMAIL = get_env_variable('DEFAULT_FROM_EMAIL', 'info@')
@@ -211,6 +211,10 @@ IMPRESSO_SOLR_PASSAGES_URL_UPDATE = os.path.join(
     get_env_variable('IMPRESSO_SOLR_PASSAGES_URL'),
     'update'
 )
+
+IMPRESSO_GIT_TAG = get_env_variable('IMPRESSO_GIT_TAG', '?')
+IMPRESSO_GIT_BRANCH = get_env_variable('IMPRESSO_GIT_BRANCH', '?')
+IMPRESSO_GIT_REVISION = get_env_variable('IMPRESSO_GIT_REVISION', '?')
 
 # Logging
 LOGGING = {

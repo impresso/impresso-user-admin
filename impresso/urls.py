@@ -15,6 +15,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.utils.safestring import mark_safe
+from django.conf import settings
+
+admin.site.site_header = mark_safe(
+    '<b style="color:white">Impresso</b>'
+    f' &middot {settings.IMPRESSO_GIT_TAG}'
+    f' (/{settings.IMPRESSO_GIT_BRANCH}/{settings.IMPRESSO_GIT_REVISION})'
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
