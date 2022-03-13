@@ -1,8 +1,6 @@
-import requests, json
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from impresso.models import Collection, CollectableItem
 from impresso.tasks import add_to_collection_from_query
-from django.conf import settings
 
 
 class Command(BaseCommand):
@@ -14,15 +12,13 @@ class Command(BaseCommand):
 
     def handle(self, collection_id, q, *args, **options):
         collection = Collection.objects.get(pk=collection_id)
-        self.stdout.write('\n\n--- start ---')
         self.stdout.write('collection to fill: "%s"' % collection.pk)
         self.stdout.write('query: "%s"' % q)
 
         add_to_collection_from_query.delay(
-            collection_id = collection.pk,
-            user_id = collection.creator.pk,
-            query = q,
-            content_type = CollectableItem.ARTICLE
+            collection_id=collection.pk,
+            user_id=collection.creator.pk,
+            query=q,
+            content_type=CollectableItem.ARTICLE
         )
-        self.stdout.write('"add_to_collection_from_query" launched, check celery.')
-        self.stdout.write('---- end ----\n\n')
+        self.stdout.write('"add_to_collection_from_query" task launched.')

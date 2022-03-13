@@ -1,3 +1,6 @@
+import os
+from .base import get_env_variable
+
 """
 Django settings for impresso project.
 
@@ -12,9 +15,6 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 
 VERSION = (1, 2, 1)
 
-import os
-from .base import get_env_variable
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -28,7 +28,7 @@ SECRET_KEY = get_env_variable('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_env_variable('DEBUG') == 'True'
 
-ALLOWED_HOSTS = [ get_env_variable('ALLOWED_HOSTS') ]
+ALLOWED_HOSTS = [get_env_variable('ALLOWED_HOSTS')]
 
 
 # Application definition
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_registration',
     'impresso',
 ]
 
@@ -88,6 +89,7 @@ DATABASES = {
     }
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # Password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -131,7 +133,15 @@ MEDIA_URL = get_env_variable('MEDIA_URL', '/media/')
 MEDIA_ROOT = get_env_variable('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 LOGS_ROOT = get_env_variable('LOGS_ROOT', os.path.join(BASE_DIR, 'logs'))
 
+# django registration
+ACCOUNT_ACTIVATION_DAYS = int(get_env_variable('ACCOUNT_ACTIVATION_DAYS', '7'))
 
+# email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# 'django.core.mail.backends.locmem.EmailBackend'
+EMAIL_HOST = get_env_variable('EMAIL_HOST', 'smtp.')
+EMAIL_PORT = get_env_variable('EMAIL_PORT', 0)
+DEFAULT_FROM_EMAIL = get_env_variable('DEFAULT_FROM_EMAIL', 'info@')
 # Celery
 REDIS_HOST = get_env_variable('REDIS_HOST', 'localhost')
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}/4'
@@ -166,24 +176,46 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     'meta_partnerid_s': 'content_provider',
     'score': 'relevance',
     'exportable_plain': 'is_content_available',
+    'ucoll_ss': 'collections',
 }
 
-IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable('IMPRESSO_SOLR_URL'), 'select')
-IMPRESSO_SOLR_URL_UPDATE = os.path.join(get_env_variable('IMPRESSO_SOLR_URL'), 'update')
+IMPRESSO_SOLR_URL_SELECT = os.path.join(
+    get_env_variable('IMPRESSO_SOLR_URL'), 'select')
+IMPRESSO_SOLR_URL_UPDATE = os.path.join(
+    get_env_variable('IMPRESSO_SOLR_URL'), 'update')
 IMPRESSO_SOLR_USER = get_env_variable('IMPRESSO_SOLR_USER')
 IMPRESSO_SOLR_USER_WRITE = get_env_variable('IMPRESSO_SOLR_USER_WRITE')
 IMPRESSO_SOLR_PASSWORD = get_env_variable('IMPRESSO_SOLR_PASSWORD')
 IMPRESSO_SOLR_PASSWORD_WRITE = get_env_variable('IMPRESSO_SOLR_PASSWORD_WRITE')
 IMPRESSO_SOLR_AUTH = (IMPRESSO_SOLR_USER, IMPRESSO_SOLR_PASSWORD,)
-IMPRESSO_SOLR_AUTH_WRITE = (IMPRESSO_SOLR_USER_WRITE, IMPRESSO_SOLR_PASSWORD_WRITE,)
+IMPRESSO_SOLR_AUTH_WRITE = (
+    IMPRESSO_SOLR_USER_WRITE, IMPRESSO_SOLR_PASSWORD_WRITE,)
 IMPRESSO_SOLR_ID_FIELD = get_env_variable('IMPRESSO_SOLR_ID_FIELD', 'id')
-IMPRESSO_SOLR_FIELDS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD', 'id,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score')
-IMPRESSO_SOLR_ARTICLE_PROPS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD', 'uid,type,language,title,size,country,newspaper,issue,pages,nb_pages,relevance,year,is_on_front,date,persons_mentioned,locations_mentioned,content,access_right,content_provider,is_content_available')
+IMPRESSO_SOLR_FIELDS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD',
+    'id,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss')
+
+IMPRESSO_SOLR_ARTICLE_PROPS = get_env_variable('IMPRESSO_SOLR_EXPORTS_FIELD',
+    'uid,type,language,title,size,country,newspaper,issue,pages,nb_pages,relevance,year,is_on_front,date,persons_mentioned,locations_mentioned,content,access_right,content_provider,is_content_available,collections')
 
 IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(get_env_variable('IMPRESSO_SOLR_EXEC_MAX_LOOPS', 100000)) # aka 500000 docs
 IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable('IMPRESSO_SOLR_EXEC_LIMIT', 100))
 
 IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR = int(get_env_variable('IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR', 1871))
+
+# SOLR passages. Requires IMPRESSO_SOLR_PASSAGES_URL env variables.
+IMPRESSO_SOLR_PASSAGES_URL_SELECT = os.path.join(
+    get_env_variable('IMPRESSO_SOLR_PASSAGES_URL'),
+    'select'
+)
+
+IMPRESSO_SOLR_PASSAGES_URL_UPDATE = os.path.join(
+    get_env_variable('IMPRESSO_SOLR_PASSAGES_URL'),
+    'update'
+)
+
+IMPRESSO_GIT_TAG = get_env_variable('IMPRESSO_GIT_TAG', '?')
+IMPRESSO_GIT_BRANCH = get_env_variable('IMPRESSO_GIT_BRANCH', '?')
+IMPRESSO_GIT_REVISION = get_env_variable('IMPRESSO_GIT_REVISION', '?')
 
 # Logging
 LOGGING = {
@@ -217,6 +249,11 @@ LOGGING = {
             'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': True,
+        },
+        'impresso.utils': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False
         }
     },
 }

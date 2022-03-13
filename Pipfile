@@ -9,8 +9,10 @@ pip = "*"
 celery = "*"
 requests = "*"
 redis = "*"
-django = "==3.0.1"
+django = "==3.2.5"
 pymysql = "*"
+django-registration = "*"
+gunicorn = "*"
 
 [dev-packages]
 "flake8" = "*"
