@@ -1,17 +1,32 @@
 Dear {{user.first_name}},
 
-Thank you for your interest in the impresso App!
+Thank you for your interest in the the impresso App!
 
-To gain access to the full corpus, we require
-- a signed Non-Disclosure-Agreement (NDA)
-- a copy of your ID card.
+To gain access to the full corpus including copyright-protected content,
+we are required to ask you for a signed Non-Disclosure-Agreement (NDA).
 
-Please email both documents to info@impresso-project.ch.
+Please download it here: https://impresso-project.ch/assets/documents/impresso_NDA.pdf,
+sign it electronically or manually and email it back to info@impresso-project.ch.
 
-Link to download the Non-Disclosure-Agreement:
-https://impresso-project.ch/assets/documents/impresso_NDA.pdf
+Once we have verified your signed NDA we will activate your account - note that this may take up to two working days.
 
-You will receive a notification once we have received both documents and created your user account, this typically takes between 1 and 2 days.
+In the meantime, we invite you to explore the publicly available impresso corpus (https://impresso-project.ch/app/search?sq=)
+as well as the accompanying documentation and learning materials (https://impresso-project.ch/theapp/usage/) designed to
+foster the critical and methodologically reflected usage of the app.
+
+They cover source criticism for digitized and semantically enriched newspapers,
+tips for impresso expert users, documentation of the methods and decisions made
+during the creation of the impresso corpus as well as a range of of Frequently
+Asked Questions.
+
+We compiled an overview of all materials here: https://impresso-project.ch/theapp/usage/
+
+We hope you will enjoy working with impresso and do let us know how you get on. To reach us,
+you can reply to this email, join the impresso community Slack group (link below) or click
+the feedback button in the lower right of the interface.
 
 With best wishes,
 The impresso team
+
+Join the impresso community Slack group
+https://impresso-community.slack.com/join/shared_invite/enQtNTg5MzY2NDg2NTAyLTdiMmI2ZWU5ZjliNGNjN2M4NTgxM2UzOTQyYTkxYWU4MTgwN2I1MzQxMzg3N2Y0NGU3OGFjMzFmMGIyNGRlZmQ#/shared-invite/email
