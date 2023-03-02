@@ -19,6 +19,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from .utils.tasks.collection import sync_collections_in_tr_passages
 from .utils.tasks.textreuse import remove_collection_from_tr_passages
+from .utils.tasks.textreuse import add_tr_passages_query_results_to_collection
 from .utils.tasks.collection import delete_collection, sync_query_to_collection
 from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
 from .utils.tasks.account import send_emails_after_user_registration
@@ -32,22 +33,21 @@ TASKSTATE_SUCCESS = 'SUCCESS'
 TASKSTATE_STOPPED = 'STOPPED'
 
 
-def update_job_completed(task, job, extra={}):
+def update_job_completed(task, job, extra={}, message=''):
     '''
     Call update_job_progress for one last time.
     This method sets the job status to Job.DONE
     '''
     job.status = Job.DONE
-    job.save()
-    logger.info(f'update_job_completed. job {job.pk} {job.status}')
     update_job_progress(
         task=task, job=job, taskstate=TASKSTATE_SUCCESS,
-        progress=1.0, extra=extra
+        progress=1.0, extra=extra, message=message
     )
 
 
 def update_job_progress(
-    task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={}
+    task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={},
+    message=''
 ):
     '''
     generic function to update a job
@@ -56,7 +56,10 @@ def update_job_progress(
         taskname=task.name, progress=progress, extra=extra
     )
     logger.info(
-        f'update_job_progress. job {job.pk} {job.status}')
+        f'Job pk={job.pk} '
+        f'type={job.type} status={job.status} taskstate={taskstate} '
+        f'progress={progress * 100:.2f}% - {message}'
+    )
     job.extra = json.dumps(meta)
     job.save()
     task.update_state(state=taskstate, meta=meta)
@@ -742,3 +745,98 @@ def after_user_activation(self, user_id):
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_emails_after_user_activation(user_id=user_id, logger=logger)
+
+
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def add_to_collection_from_tr_passages_query(
+    self, collection_id, user_id, query,
+    serialized_query=None,
+    skip=0,
+    limit=100
+):
+    # check that the collection exists and user has access.
+    collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
+    # save current job!
+    job = Job.objects.create(
+        type=Job.BULK_COLLECTION_FROM_QUERY_TR,
+        creator=collection.creator,
+        status=Job.RUN
+    )
+    # add current collection to extra.
+    update_job_progress(
+        task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0, extra={
+            'collection': get_collection_as_obj(collection),
+            'query': query,
+            'serializedQuery': serialized_query,
+        },
+        message=f'Add to collection {collection_id} from tr_passages query {query}'
+    )
+    # execute premiminary query
+    add_to_collection_from_tr_passages_query_progress.delay(
+        query=query,
+        job_id=job.pk,
+        collection_id=collection_id,
+        skip=skip,
+        limit=limit
+    )
+
+
+@app.task(
+    bind=True, autoretry_for=(Exception,), exponential_backoff=2,
+    retry_kwargs={'max_retries': 5}, retry_jitter=True
+)
+def add_to_collection_from_tr_passages_query_progress(
+    self, query, job_id, collection_id,
+    skip=0, limit=100,
+):
+    """
+    Add the content item id resulting from given solr search query on tr_passages index to a collection.
+
+    Args:
+        query: The query string to execute on tr_passages index. 
+        job_id: The job id to update.
+        collection_id: The collection id to add the content items to.
+        skip: The number of results to skip.
+        limit: The number of results to return.
+        prev_progress: The previous progress value.
+
+    Returns:
+        The result of the task.
+    """
+    # get the job so that we can update its status
+    job = Job.objects.get(pk=job_id)
+    if is_task_stopped(task=self, job=job):
+        logger.info(f'job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!')
+        return
+    (page, loops, progress, result) = add_tr_passages_query_results_to_collection(
+        collection_id=collection_id,
+        query=query,
+        skip=skip,
+        limit=limit,
+    )
+    update_job_progress(
+        task=self,
+        job=job,
+        progress=progress,
+        message=f'loop {page} of {loops} collection={collection_id}'
+    )
+
+    if progress < 1.0:
+        # call the task again, updating the skip and limit
+        add_to_collection_from_tr_passages_query_progress.delay(
+            query=query,
+            job_id=job_id,
+            collection_id=collection_id,
+            skip=skip+limit,
+            limit=limit
+        )
+    else:
+        # save number of item added to collection
+        collection = Collection.objects.get(pk=collection_id, creator__id=job.creator.pk)
+        total = collection.update_count_items()
+        update_job_completed(task=self, job=job, message=f'loop {page} of {loops} collection={collection_id} items={total}')
+        # sync collection with tr.
+        update_collections_in_tr_passages.delay(collection_prefix=collection_id, user_id=job.creator.pk)

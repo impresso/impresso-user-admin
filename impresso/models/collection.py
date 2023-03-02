@@ -111,7 +111,7 @@ class Collection(Bucket):
                     }
                 })
             else:
-                print('%s already in %s' % (ucoll,ucoll_list))
+                logger.info(f'{ucoll} already in the ucoll list of {doc.get("id")}')
 
         if todos:
             logger.info('Collection(pk:{}).add_items_to_index() for {} items ({} solr docs to update)...'.format(

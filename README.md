@@ -91,6 +91,12 @@ Export query as csv using (first argument being `user_id` then the solr query):
 ENV=dev ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
 ```
 
+Index a collection from a list of tr-passages ids resulting from a solr query:
+
+```sh
+ENV=dev pipenv run python ./manage.py addtocollectionfromtrpassagesquery local-dg-abcde "cluster_id_s:tr-nobp-all-v01-c8590083914"
+```
+
 ## Use in production
 
 Please check the included Dockerfile to generate your own docker image or use the docker image available on impresso dockerhub.
