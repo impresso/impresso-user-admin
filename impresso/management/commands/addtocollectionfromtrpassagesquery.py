@@ -45,7 +45,12 @@ class Command(BaseCommand):
         self, collection_id, q, immediate=False, skip=0, limit=10, *args, **options
     ):
         self.stdout.write(
-            f"Command launched with args: collection_id={collection_id}"
+            self.style.SUCCESS(
+                "addtocollectionfromtrpassagesquery collection_id={collection_id}"
+            )
+        )
+        self.stdout.write(
+            f"Command launched with args: \n"
             f" query={q} immediate={immediate} skip={skip} limit={limit}"
         )
 
@@ -53,43 +58,31 @@ class Command(BaseCommand):
         self.stdout.write(f"Collection found: collection.pk={collection.pk}")
         if immediate:
             loop_skip = skip
-            (
-                page,
-                loops,
-                progress,
-                result,
-            ) = add_tr_passages_query_results_to_collection(
+            page, loops, progress = add_tr_passages_query_results_to_collection(
                 collection_id=collection.pk,
                 query=q,
                 skip=loop_skip,
                 limit=limit,
                 # logger=logger,
             )
-            self.stdout.write(
-                f"progress={progress} page={page} loops={loops} result={result}"
-            )
+            self.stdout.write(f"progress={progress} page={page} loops={loops}")
             while page < loops:
                 loop_skip = loop_skip + limit
-                (
-                    page,
-                    loops,
-                    progress,
-                    result,
-                ) = add_tr_passages_query_results_to_collection(
+                page, loops, progress = add_tr_passages_query_results_to_collection(
                     collection_id=collection.pk,
                     query=q,
                     skip=loop_skip,
                     limit=limit,
                     # logger=logger,
                 )
-                self.stdout.write(
-                    f"progress={progress} page={page} loops={loops} result={result}"
-                )
+                self.stdout.write(f"progress={progress} page={page} loops={loops}")
+            # update collection count_items
+            collection.update_count_items()
         else:
             add_to_collection_from_tr_passages_query.delay(
                 collection_id=collection.pk,
                 user_id=collection.creator.pk,
                 query=q,
                 skip=skip,
-                limit=limit
+                limit=limit,
             )
