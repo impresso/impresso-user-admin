@@ -840,7 +840,15 @@ def after_user_activation(self, user_id):
     retry_jitter=True,
 )
 def add_to_collection_from_tr_passages_query(
-    self, collection_id, user_id, query, serialized_query=None, skip=0, limit=100
+    self,
+    collection_id,
+    user_id,
+    query,
+    content_type="A",
+    fq=None,
+    serialized_query=None,
+    skip=0,
+    limit=100,
 ):
     # check that the collection exists and user has access.
     collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
