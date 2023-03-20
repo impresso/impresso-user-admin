@@ -933,7 +933,6 @@ def add_to_collection_from_tr_passages_query_progress(
             collection_id=collection_id,
             skip=skip + limit,
             limit=limit,
-            job=job,
         )
     else:
         # save number of item added to collection
