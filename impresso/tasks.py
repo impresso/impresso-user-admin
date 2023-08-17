@@ -24,6 +24,7 @@ from .utils.tasks.collection import delete_collection, sync_query_to_collection
 from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
 from .utils.tasks.account import send_emails_after_user_registration
 from .utils.tasks.account import send_emails_after_user_activation
+from .utils.tasks.account import send_email_password_reset
 
 logger = get_task_logger(__name__)
 
@@ -830,6 +831,27 @@ def after_user_activation(self, user_id):
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_emails_after_user_activation(user_id=user_id, logger=logger)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def email_password_reset(
+    self,
+    user_id,
+    token="nonce",
+    callback_url="https://impresso-project.ch/app/reset-password",
+):
+    logger.info(f"user({user_id}) requested password reset!")
+    # send confirmation email to the registered user
+    # and send email to impresso admins
+    send_email_password_reset(
+        user_id=user_id, token=token, callback_url=callback_url, logger=logger
+    ),
 
 
 @app.task(
