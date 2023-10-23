@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 
 class Job(models.Model):
     BULK_COLLECTION_FROM_QUERY = 'BCQ'
+    BULK_COLLECTION_FROM_QUERY_TR = 'BCT'
     DELETE_COLLECTION = 'DCO'
     SYNC_COLLECTION_TO_SOLR = 'IDX'
     SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR = 'IDL'
@@ -18,6 +19,7 @@ class Job(models.Model):
 
     TYPE_CHOICES = (
         (BULK_COLLECTION_FROM_QUERY, 'Bulk collection from query'),
+        (BULK_COLLECTION_FROM_QUERY_TR, 'Bulk collection from query TR passages'),
         (DELETE_COLLECTION, 'Delete collection'),
         (SYNC_COLLECTION_TO_SOLR, 'Index collection in search engine'),
         (SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR, 'Index only collection for a few content items'), # noqa
