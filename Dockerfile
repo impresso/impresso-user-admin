@@ -3,7 +3,7 @@ FROM python:3.12.2-alpine
 RUN set -ex \
   # Create a non-root user
   && addgroup --system --gid 1001 appgroup \
-  && adduser --system --uid 1001 --gid 1001 --no-create-home appuser \
+  && adduser --system --uid 1001  --no-create-home appuser -G appgroup \
   # Upgrade the package index and install security upgrades
   && apk update \
   && apk upgrade \
@@ -11,7 +11,7 @@ RUN set -ex \
   && rm -rf /var/cache/apk/*
 
 WORKDIR /impresso-user-admin
-RUN chown -R appuser:appuser /impresso-user-admin
+RUN chown -R appuser:appgroup /impresso-user-admin
 
 ARG GIT_TAG
 ARG GIT_BRANCH
