@@ -13,6 +13,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
+from django import __version__ as django_version
 from django.contrib import admin
 from django.urls import path
 from django.utils.safestring import mark_safe
@@ -20,10 +22,11 @@ from django.conf import settings
 
 admin.site.site_header = mark_safe(
     '<b style="color:white">Impresso</b>'
-    f' &middot {settings.IMPRESSO_GIT_TAG}'
-    f' (/{settings.IMPRESSO_GIT_BRANCH}/{settings.IMPRESSO_GIT_REVISION})'
+    f" &middot {settings.IMPRESSO_GIT_TAG}"
+    f" (/{settings.IMPRESSO_GIT_BRANCH}/{settings.IMPRESSO_GIT_REVISION})"
+    f" &middot Django {django_version}"
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
 ]

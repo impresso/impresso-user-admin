@@ -1,6 +1,17 @@
-FROM python:3.6.9-alpine
+FROM python:3.12.2-alpine
+
+RUN set -ex \
+  # Create a non-root user
+  && addgroup --system --gid 1001 appgroup \
+  && adduser --system --uid 1001 --gid 1001 --no-create-home appuser \
+  # Upgrade the package index and install security upgrades
+  && apk update \
+  && apk upgrade \
+  && apk --no-cache add ca-certificates \
+  && rm -rf /var/cache/apk/*
 
 WORKDIR /impresso-user-admin
+RUN chown -R appuser:appuser /impresso-user-admin
 
 ARG GIT_TAG
 ARG GIT_BRANCH
@@ -18,3 +29,5 @@ COPY . .
 ENV IMPRESSO_GIT_TAG=${GIT_TAG}
 ENV IMPRESSO_GIT_BRANCH=${GIT_BRANCH}
 ENV IMPRESSO_GIT_REVISION=${GIT_REVISION}
+# Set the user to run the application
+USER appuser
