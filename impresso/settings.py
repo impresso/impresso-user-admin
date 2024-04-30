@@ -152,7 +152,9 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
     get_env_variable("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", False) == "True"
 )
 
+
 # Solr
+# this is the complete mapping. Please check that the values of your IMPRESSO_SOLR_FIELDS are correctly spelled, as well as the IMPRESSO_SOLR_ARTICLE_PROPS
 IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "id": "uid",
     "item_type_s": "type",
@@ -165,9 +167,15 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "content_txt_en": "content",
     "content_length_i": "size",
     "meta_country_code_s": "country",
+    "meta_province_code_s": "province",
+    "meta_periodicity_s": "periodicity",
     "meta_year_i": "year",
     "meta_journal_s": "newspaper",
     "meta_issue_id_s": "issue",
+    "meta_partnerid_s": "content_provider",
+    "meta_topics_s": "newspaper_topics",
+    "meta_polorient_s": "political_orientation",
+    "olr_b": "is_olr",
     "page_id_ss": "pages_uids",
     "page_nb_is": "pages",
     "nb_pages_i": "nb_pages",
@@ -176,7 +184,6 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "pers_mentions": "persons_mentioned",
     "loc_mentions": "locations_mentioned",
     "access_right_s": "access_right",
-    "meta_partnerid_s": "content_provider",
     "score": "relevance",
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
@@ -198,12 +205,12 @@ IMPRESSO_SOLR_AUTH_WRITE = (
 )
 IMPRESSO_SOLR_ID_FIELD = get_env_variable("IMPRESSO_SOLR_ID_FIELD", "id")
 IMPRESSO_SOLR_FIELDS = get_env_variable(
-    "IMPRESSO_SOLR_EXPORTS_FIELD",
-    "id,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss",
+    "IMPRESSO_SOLR_FIELDS",
+    "id,item_type_s,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss",
 )
 
 IMPRESSO_SOLR_ARTICLE_PROPS = get_env_variable(
-    "IMPRESSO_SOLR_EXPORTS_FIELD",
+    "IMPRESSO_SOLR_ARTICLE_PROPS",
     "uid,type,language,title,size,country,newspaper,issue,pages,nb_pages,relevance,year,is_on_front,date,persons_mentioned,locations_mentioned,content,access_right,content_provider,is_content_available,collections",
 )
 
@@ -273,3 +280,18 @@ LOGGING = {
         },
     },
 }
+
+
+# check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
+# settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
+# raise an error if not
+impresso_solr_fields = IMPRESSO_SOLR_FIELDS.split(",")
+# check that every item in impresso_solr_fields is in the keys of IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
+impresso_solr_fields_to_article_props_keys = (
+    IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()
+)
+for field in impresso_solr_fields:
+    if field not in impresso_solr_fields_to_article_props_keys:
+        raise ValueError(
+            f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
+        )
