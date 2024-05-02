@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from os.path import basename
 
+import os
 import json
 import time
 import math
@@ -284,6 +285,7 @@ def export_query_as_csv_progress(
         )
     else:
         zipped = "%s.zip" % job.attachment.upload.path
+        uncompressed = job.attachment.upload.path
         logger.info(
             "[job:{}] Loops completed, creating the corresponding zip file: {}.zip ...".format(
                 job.pk, job.attachment.upload.path
@@ -300,6 +302,13 @@ def export_query_as_csv_progress(
         job.attachment.upload.name = "%s.zip" % job.attachment.upload.name
         job.attachment.save()
         # if everything is fine, delete the original file
+        logger.info("[job:{}] Deleting original file: {}".format(job.pk, uncompressed))
+        # // remove CSV file
+        if os.path.exists(uncompressed):
+            os.remove(uncompressed)
+        else:
+            print(f"The file does not exist: {uncompressed}")
+
         update_job_completed(task=self, job=job, extra=extra)
 
 
@@ -328,8 +337,8 @@ def export_query_as_csv(
 
         search_query_id = search_query.pk
     logger.info(
-        "[job:{}] started, search_query_id:{} created:{}...".format(
-            job.pk, search_query_id, created
+        "[job:{}] started, search_query_id:{} created:{}, attachment:{}...".format(
+            job.pk, search_query_id, created, attachment.upload.path
         )
     )
 
