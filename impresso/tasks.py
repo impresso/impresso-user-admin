@@ -243,6 +243,7 @@ def export_query_as_csv_progress(
 
     def doc_filter_contents(doc):
         doc_year = int(doc["year"])
+        # @todo to be changed according to user settings
         if "is_content_available" in doc:
             if doc["is_content_available"] != "true":
                 doc["content"] = ""
@@ -257,7 +258,7 @@ def export_query_as_csv_progress(
         w = csv.DictWriter(
             csvfile,
             delimiter=";",
-            fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(",")
+            fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS
             + ["[total:{0},available:{1}]".format(total, loops * limit)],
         )
         if page == 1:
@@ -324,8 +325,7 @@ def export_query_as_csv(
                 "creator_id": user_id,
             },
         )
-        print(search_query)
-        print(search_query.pk)
+
         search_query_id = search_query.pk
     logger.info(
         "[job:{}] started, search_query_id:{} created:{}...".format(
