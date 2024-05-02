@@ -208,11 +208,24 @@ IMPRESSO_SOLR_FIELDS = get_env_variable(
     "IMPRESSO_SOLR_FIELDS",
     "id,item_type_s,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss",
 )
-
-IMPRESSO_SOLR_ARTICLE_PROPS = get_env_variable(
-    "IMPRESSO_SOLR_ARTICLE_PROPS",
-    "uid,type,language,title,size,country,newspaper,issue,pages,nb_pages,relevance,year,is_on_front,date,persons_mentioned,locations_mentioned,content,access_right,content_provider,is_content_available,collections",
+# check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
+# settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
+# raise an error if not
+impresso_solr_fields = IMPRESSO_SOLR_FIELDS.split(",")
+# check that every item in impresso_solr_fields is in the keys of IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
+impresso_solr_fields_to_article_props_keys = (
+    IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()
 )
+for field in impresso_solr_fields:
+    if field not in impresso_solr_fields_to_article_props_keys:
+        raise ValueError(
+            f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
+        )
+
+IMPRESSO_SOLR_ARTICLE_PROPS = [
+    IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields
+]
+
 
 IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(
     get_env_variable("IMPRESSO_SOLR_EXEC_MAX_LOOPS", 100000)
@@ -280,18 +293,3 @@ LOGGING = {
         },
     },
 }
-
-
-# check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
-# settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
-# raise an error if not
-impresso_solr_fields = IMPRESSO_SOLR_FIELDS.split(",")
-# check that every item in impresso_solr_fields is in the keys of IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
-impresso_solr_fields_to_article_props_keys = (
-    IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()
-)
-for field in impresso_solr_fields:
-    if field not in impresso_solr_fields_to_article_props_keys:
-        raise ValueError(
-            f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
-        )

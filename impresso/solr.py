@@ -41,14 +41,15 @@ def find_all(
     return res.json()
 
 
-def solr_doc_to_article(doc):
+def solr_doc_to_article(
+    doc, field_mapping=settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
+):
     result = {}
-    field = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
 
     for k, v in doc.items():
-        prop = field.get(k, None)
+        prop = field_mapping.get(k, None)
         if prop is None:
-            prop = k
+            continue
         if isinstance(v, list):
             result[prop] = ",".join(str(x) for x in v)
         elif not result.get(prop, ""):
