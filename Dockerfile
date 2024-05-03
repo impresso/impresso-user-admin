@@ -12,7 +12,9 @@ RUN set -ex \
 
 WORKDIR /impresso-user-admin
 RUN chown -R appuser:appgroup /impresso-user-admin
-
+RUN mkdir -p /impresso-user-admin/logs
+RUN touch /impresso-user-admin/logs/debug.log
+RUN chown appuser:appgroup /impresso-user-admin/logs/debug.log
 ARG GIT_TAG
 ARG GIT_BRANCH
 ARG GIT_REVISION
