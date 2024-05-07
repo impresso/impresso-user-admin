@@ -128,9 +128,9 @@ def get_collection_as_obj(collection):
 
 @app.task(bind=True)
 def echo(self, message):
-    print("Request: {0!r}".format(self.request))
-    print("Message: {0}".format(message))
-    return message
+    logger.info("Request: f{message}")
+    response = f"You: {message}"
+    return response
 
 
 @app.task(bind=True)
@@ -183,7 +183,7 @@ def test(self, user_id):
     logger.info(f"TEST job id:{job.pk} launched for user id:{user_id}...")
     # stat loop
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
-    test_progress.delay(job_id=job.pk)
+    test_progress.delay(job_id=job.pk, sleep=0.1, pace=0.5)
 
 
 @app.task(
