@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from os.path import basename
 
+import os
 import json
 import time
 import math
@@ -127,9 +128,9 @@ def get_collection_as_obj(collection):
 
 @app.task(bind=True)
 def echo(self, message):
-    print("Request: {0!r}".format(self.request))
-    print("Message: {0}".format(message))
-    return message
+    logger.info("Request: f{message}")
+    response = f"You: {message}"
+    return response
 
 
 @app.task(bind=True)
@@ -182,7 +183,7 @@ def test(self, user_id):
     logger.info(f"TEST job id:{job.pk} launched for user id:{user_id}...")
     # stat loop
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
-    test_progress.delay(job_id=job.pk)
+    test_progress.delay(job_id=job.pk, sleep=0.1, pace=0.5)
 
 
 @app.task(
@@ -243,6 +244,8 @@ def export_query_as_csv_progress(
 
     def doc_filter_contents(doc):
         doc_year = int(doc["year"])
+       
+        # @todo to be changed according to user settings
         if "is_content_available" in doc:
             if doc["is_content_available"] != "true":
                 doc["content"] = ""
@@ -253,19 +256,29 @@ def export_query_as_csv_progress(
             doc["content"] = ""
         return doc
 
+    def doc_filter_collections(doc):
+        if "collections" in doc:
+            # remove collection from the doc if they do not start wirh job creator id
+            collections = [d for d in doc["collections"].split(",") if d.startswith(str(job.creator.profile.uid))]
+            doc["collections"] = ",".join(collections)
+        return doc
+
     with open(job.attachment.upload.path, mode="a", encoding="utf-8") as csvfile:
         w = csv.DictWriter(
             csvfile,
             delimiter=";",
-            fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS.split(",")
+            quoting=csv.QUOTE_MINIMAL,
+            fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS
             + ["[total:{0},available:{1}]".format(total, loops * limit)],
         )
         if page == 1:
             w.writeheader()
         rows = map(solr_doc_to_article, contents["response"]["docs"])
+        # remove collections for the rows if they do not start with the job creator id
+        rows = map(doc_filter_collections, rows)
+            
         if not job.creator.is_staff:
             rows = map(doc_filter_contents, rows)
-        # remove content for the rows if their date is below a threshold
 
         w.writerows(rows)
 
@@ -283,6 +296,7 @@ def export_query_as_csv_progress(
         )
     else:
         zipped = "%s.zip" % job.attachment.upload.path
+        uncompressed = job.attachment.upload.path
         logger.info(
             "[job:{}] Loops completed, creating the corresponding zip file: {}.zip ...".format(
                 job.pk, job.attachment.upload.path
@@ -299,6 +313,13 @@ def export_query_as_csv_progress(
         job.attachment.upload.name = "%s.zip" % job.attachment.upload.name
         job.attachment.save()
         # if everything is fine, delete the original file
+        logger.info("[job:{}] Deleting original file: {}".format(job.pk, uncompressed))
+        # // remove CSV file
+        if os.path.exists(uncompressed):
+            os.remove(uncompressed)
+        else:
+            print(f"The file does not exist: {uncompressed}")
+
         update_job_completed(task=self, job=job, extra=extra)
 
 
@@ -324,12 +345,11 @@ def export_query_as_csv(
                 "creator_id": user_id,
             },
         )
-        print(search_query)
-        print(search_query.pk)
+
         search_query_id = search_query.pk
     logger.info(
-        "[job:{}] started, search_query_id:{} created:{}...".format(
-            job.pk, search_query_id, created
+        "[job:{}] started, search_query_id:{} created:{}, attachment:{}...".format(
+            job.pk, search_query_id, created, attachment.upload.path
         )
     )
 
