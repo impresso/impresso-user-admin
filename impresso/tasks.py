@@ -244,6 +244,7 @@ def export_query_as_csv_progress(
 
     def doc_filter_contents(doc):
         doc_year = int(doc["year"])
+       
         # @todo to be changed according to user settings
         if "is_content_available" in doc:
             if doc["is_content_available"] != "true":
@@ -255,19 +256,29 @@ def export_query_as_csv_progress(
             doc["content"] = ""
         return doc
 
+    def doc_filter_collections(doc):
+        if "collections" in doc:
+            # remove collection from the doc if they do not start wirh job creator id
+            collections = [d for d in doc["collections"].split(",") if d.startswith(str(job.creator.profile.uid))]
+            doc["collections"] = ",".join(collections)
+        return doc
+
     with open(job.attachment.upload.path, mode="a", encoding="utf-8") as csvfile:
         w = csv.DictWriter(
             csvfile,
             delimiter=";",
+            quoting=csv.QUOTE_MINIMAL,
             fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS
             + ["[total:{0},available:{1}]".format(total, loops * limit)],
         )
         if page == 1:
             w.writeheader()
         rows = map(solr_doc_to_article, contents["response"]["docs"])
+        # remove collections for the rows if they do not start with the job creator id
+        rows = map(doc_filter_collections, rows)
+            
         if not job.creator.is_staff:
             rows = map(doc_filter_contents, rows)
-        # remove content for the rows if their date is below a threshold
 
         w.writerows(rows)
 

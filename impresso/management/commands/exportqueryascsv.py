@@ -31,7 +31,7 @@ class Command(BaseCommand):
         self.stdout.write("found docs: (%s)" % results["response"]["numFound"])
         if results["response"]["numFound"] > 0:
             self.stdout.write(
-                "row example: (%s)"
+                "row example BEFORE content filtering: (%s)"
                 % solr_doc_to_article(results["response"]["docs"][0])
             )
             export_query_as_csv.delay(
