@@ -133,6 +133,7 @@ class JobAdmin(admin.ModelAdmin):
     search_fields = ["creator__id", "creator__username"]
     list_filter = ["status", "type"]
     show_facets = admin.ShowFacets.ALWAYS
+    search_help_text = "Search by creator id (numeric) or username"
     list_display = (
         "id",
         "creator",
