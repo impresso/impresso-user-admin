@@ -168,6 +168,8 @@ class UserAdmin(BaseUserAdmin):
         "email",
         "date_joined",
         "last_login",
+        "max_loops_allowed",
+        "max_parallel_jobs",
     )
     actions = ["make_active", "make_suspended"]
 
@@ -205,7 +207,15 @@ class UserAdmin(BaseUserAdmin):
     def uid(self, user):
         return user.profile.uid if hasattr(user, "profile") else None
 
+    def max_loops_allowed(self, user):
+        return user.profile.max_loops_allowed if hasattr(user, "profile") else None
+
+    def max_parallel_jobs(self, user):
+        return user.profile.max_parallel_jobs if hasattr(user, "profile") else None
+
     uid.short_description = "short unique identifier"
+    max_loops_allowed.short_description = "max loops"
+    max_parallel_jobs.short_description = "max parallel jobs"
 
 
 admin.site.unregister(User)
