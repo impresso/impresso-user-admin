@@ -91,6 +91,16 @@ Export query as csv using (first argument being `user_id` then the solr query):
 ENV=dev ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
 ```
 
+Create an empty collection:
+
+```sh
+ENV=dev pipenv run ./manage.py createcollection name-f-the-collection my-username
+```
+
+Then once you add query to collection:
+`sh
+    ENV=dev pipenv run python ./manage.py addtocollectionfromquery test-abcd
+    `
 Index a collection from a list of tr-passages ids resulting from a solr query:
 
 ```sh
