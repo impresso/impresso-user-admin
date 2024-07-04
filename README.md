@@ -91,10 +91,28 @@ Export query as csv using (first argument being `user_id` then the solr query):
 ENV=dev ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
 ```
 
+Create (or get) a collection:
+
+```sh
+ENV=dev pipenv run ./manage.py createcollection "name of the collection" my-username
+```
+
+Then once you get the collection id, usually a concatenation of the creator profile uid and of the slugified version of the desired name, you can add query results to the collection:
+
+```sh
+ENV=dev pipenv run python ./manage.py addtocollectionfromquery local-user_name-of-the-collection "content_txt_fr:\"premier ministre portugais\""
+```
+
 Index a collection from a list of tr-passages ids resulting from a solr query:
 
 ```sh
 ENV=dev pipenv run python ./manage.py addtocollectionfromtrpassagesquery local-dg-abcde "cluster_id_s:tr-nobp-all-v01-c8590083914"
+```
+
+Stop a specific job from command line:
+
+```sh
+ENV=dev pipenv run python ./manage.py stopjob 1234
 ```
 
 ## Use in production
