@@ -116,3 +116,8 @@ ___*
 *.rdb
 *.json
 .DS_Store
+
+
+# local docker settings and config
+.docker/*
+!.docker/.gitkeep

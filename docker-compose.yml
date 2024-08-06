@@ -1,0 +1,17 @@
+services:
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - ./.docker/redis:/data
+    entrypoint: redis-server --appendonly yes
+    ports:
+      - 6379:6379
+  mysql-tunnel:
+    image: kroniak/ssh-client
+    restart: always
+    volumes:
+      - ./.docker/config/ssh:/root/.ssh
+    ports:
+      - ${IMPRESSO_DB_PORT:-3306}:3306
+    command: ssh -N impresso-mysql-tunnel

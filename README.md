@@ -1,19 +1,58 @@
 # impresso-user-admin
 
 A basic django application to manage user-related information contained in [Impresso's Master DB](https://github.com/impresso/impresso-master-db).
-We use `pipenv`for development and `docker` for production. Please look at the relevant sections in the documentation.
+We use `pipenv` for development together with `docker`. Please look at the relevant sections in the documentation.
 
-To start _django admin_ in development with pipenv:
+## Development
 
-    ENV=dev pipenv run ./manage.py runserver
+Take the time to explore the `.example.env` file and the related `./impresso/settings.py` to understand the settings that can be configured via environment variables for your specific environment. We have configured `dotenv` in `./impresso/base.py` to allow the loading of different `.env` files. For example, you can use `.env` or `.dev.env` for development, and `.prod.env` to test production settings.
 
-or to test tags:
+```sh
+# our .dev.env file, that connects to the local redis instance
+REDIS_HOST=localhost:6379
+IMPRESSO_DB_HOST=localhost
+IMPRESSO_DB_PORT=3306
+# Then don't forget to fill all SOLR related settings accordiung to your impresso configuration
+IMPRESSO_SOLR_URL=http://localhost:8983/solr/impresso
+IMPRESSO_SOLR_USER=your-user-reader-only
+IMPRESSO_SOLR_PASSWORD=our-user-reader-only-password
+IMPRESSO_SOLR_USER_WRITE=your-user-write-allowed
+IMPRESSO_SOLR_PASSWORD_WRITE=your-user-write-allowed-password
+IMPRESSO_SOLR_PASSAGES_URL=http://localhost:8983/solr/impresso-tr-passages
+```
 
-    ENV=dev make run-dev
+To start the Django admin, you need to have Redis and MySQL running. You can start them by running the command `docker compose up`. Please note that in our YAML file, the ports for Redis and MySQL are exposed to facilitate local development and testing.
 
-To start _celery_ task manager in development with pipenv:
+```sh
+docker compose up -d --env-file=.dev.env
+```
 
-    ENV=dev pipenv run celery -A impresso worker -l info
+Then you can start the development server, e.g. with pipenv and the `dev.env` file:
+
+```sh
+ENV=dev pipenv run ./manage.py runserver
+```
+
+or with Makefile:
+
+```sh
+ENV=dev make run-dev
+```
+
+To start _celery_ task manager in development with pipenv, in a new terminal:
+
+```sh
+ENV=dev pipenv run celery -A impresso worker -l info
+```
+
+Of course, you can also use a generic `.env file` on development, in this case you don't need to specify the `ENV` variable:
+
+```sh
+docker compose up -d
+pipenv run ./manage.py runserver
+# and in another terminal, to start the celery worker
+pipenv run celery -A impresso worker -l info
+```
 
 ### setup with pyenv + pipenv
 
@@ -30,7 +69,7 @@ The last command gives you the version of the local python. If it doesn't meet t
 use pyenv install command:
 
 ```
-pyenv install 3.6.9
+pyenv install 3.12.4
 ```
 
 Use pip to install Pipenv:
