@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -8,8 +9,41 @@ from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
+from .models import UserBitmap
 
 from impresso.tasks import after_user_activation
+
+
+class UserBitmapAdminForm(forms.ModelForm):
+    bitmap = forms.CharField(
+        widget=forms.Textarea, help_text="Enter bitmap as a hexadecimal string"
+    )
+
+    class Meta:
+        model = UserBitmap
+        fields = ["user"]
+
+    def clean_bitmap(self):
+        bitmap_hex = self.cleaned_data["bitmap"]
+        try:
+            bitmap_bytes = bytes.fromhex(bitmap_hex)
+        except ValueError:
+            raise forms.ValidationError("Invalid hexadecimal string")
+        return bitmap_bytes
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.bitmap:
+            self.initial["bitmap"] = self.instance.bitmap.hex()
+
+
+@admin.register(UserBitmap)
+class UserBitmapAdmin(admin.ModelAdmin):
+    form = UserBitmapAdminForm
+    list_display = ("user", "bitmap_display")
+
+    def bitmap_display(self, obj):
+        return obj.bitmap.hex() if obj.bitmap else ""
 
 
 @admin.register(Issue)
