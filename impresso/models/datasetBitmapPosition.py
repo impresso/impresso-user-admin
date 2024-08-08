@@ -4,7 +4,12 @@ from django.db.models import Max
 
 class DatasetBitmapPosition(models.Model):
     name = models.CharField(max_length=255)
-    bitmap_position = models.PositiveIntegerField(unique=True)
+    bitmap_position = models.PositiveIntegerField(
+        unique=True,
+        null=True,
+        blank=True,
+    )
+    metadata = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.name
