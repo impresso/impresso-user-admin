@@ -9,41 +9,24 @@ from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
-from .models import UserBitmap
+from .models import UserBitmap, DatasetBitmapPosition
 
 from impresso.tasks import after_user_activation
 
 
-class UserBitmapAdminForm(forms.ModelForm):
-    bitmap = forms.CharField(
-        widget=forms.Textarea, help_text="Enter bitmap as a hexadecimal string"
-    )
-
-    class Meta:
-        model = UserBitmap
-        fields = ["user"]
-
-    def clean_bitmap(self):
-        bitmap_hex = self.cleaned_data["bitmap"]
-        try:
-            bitmap_bytes = bytes.fromhex(bitmap_hex)
-        except ValueError:
-            raise forms.ValidationError("Invalid hexadecimal string")
-        return bitmap_bytes
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance and self.instance.bitmap:
-            self.initial["bitmap"] = self.instance.bitmap.hex()
-
-
 @admin.register(UserBitmap)
 class UserBitmapAdmin(admin.ModelAdmin):
-    form = UserBitmapAdminForm
     list_display = ("user", "bitmap_display")
 
     def bitmap_display(self, obj):
-        return obj.bitmap.hex() if obj.bitmap else ""
+        return bin(int.from_bytes(obj.bitmap, byteorder="big"))
+
+
+@admin.register(DatasetBitmapPosition)
+class DatasetBitmapPositionAdmin(admin.ModelAdmin):
+    list_display = ("name", "bitmap_position")
+    search_fields = ["name"]
+    readonly_fields = ("bitmap_position",)
 
 
 @admin.register(Issue)
