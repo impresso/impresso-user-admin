@@ -25,5 +25,5 @@ services:
     volumes:
       - ./.docker/config/ssh:/root/.ssh
     ports:
-      - ${IMPRESSO_DB_PORT:-3306:3306
+      - ${IMPRESSO_DB_PORT:-3306}:3306
     command: ssh -N impresso-mysql-tunnel
