@@ -22,7 +22,7 @@ class Command(BaseCommand):
         user_bitmap = user.bitmap.get_up_to_date_bitmap()
         user_bitmap_length = user_bitmap.bit_length()
         # print user_bitmap binary as sequence of 0 and 1
-        self.stdout.write(f"user bitmap: \033[34m{bin(user_bitmap)}\033[0m")
+        self.stdout.write(f"user get_up_to_date_bitmap(): \033[34m{bin(user_bitmap)}\033[0m")
         # get the total number of bits
         self.stdout.write(f"user bitmap length: \033[34m{user_bitmap_length}\033[0m")
     
