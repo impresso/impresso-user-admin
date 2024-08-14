@@ -16,10 +16,38 @@ from impresso.tasks import after_user_activation
 
 @admin.register(UserBitmap)
 class UserBitmapAdmin(admin.ModelAdmin):
-    list_display = ("user", "bitmap_display")
+    list_display = ("user", "bitmap_display", "user_plan_display", "num_subscriptions")
+    search_fields = ["user__username", "user__email"]
+
+    def num_subscriptions(self, obj):
+        return obj.subscriptions.count()
 
     def bitmap_display(self, obj):
+        if obj.bitmap is None:
+            return ""
         return bin(int.from_bytes(obj.bitmap, byteorder="big"))
+
+    def user_plan_display(self, obj):
+        if obj.bitmap is None:
+            return "-"
+        bitmap_int = int.from_bytes(obj.bitmap, byteorder="big")
+        bitmap_length = bitmap_int.bit_length()
+        # Extract the first 5 bits
+        bitmap_plan = (
+            bitmap_int >> (bitmap_length - UserBitmap.BITMAP_PLAN_MAX_LENGTH)
+        ) & 0b11111
+        if bitmap_plan == UserBitmap.USER_PLAN_GUEST:
+            return "Guest"
+        if bitmap_plan == UserBitmap.USER_PLAN_AUTH_USER:
+            return "Impresso Registered User"
+        if bitmap_plan == UserBitmap.USER_PLAN_EDUCATIONAL:
+            return "Student or Teacher - Educational User"
+        if bitmap_plan == UserBitmap.USER_PLAN_RESEARCHER:
+            return "Researcher - Academic User"
+
+        return bin(bitmap_plan)
+
+    user_plan_display.short_description = "User Plan"
 
 
 @admin.register(DatasetBitmapPosition)
