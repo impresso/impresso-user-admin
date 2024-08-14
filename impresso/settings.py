@@ -18,7 +18,7 @@ DEBUG = get_env_variable("DEBUG") == "True"
 
 ALLOWED_HOSTS = [get_env_variable("ALLOWED_HOSTS")]
 
-CSRF_TRUSTED_ORIGINS=get_env_variable("CSRF_TRUSTED_ORIGINS", "").split(',')
+CSRF_TRUSTED_ORIGINS = get_env_variable("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 # Application definition
 

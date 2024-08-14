@@ -1,0 +1,29 @@
+services:
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - ./.docker/redis:/data
+    entrypoint: redis-server --appendonly yes
+    ports:
+      - 6379:6379
+  # mysql:
+  #   image: mariadb:lts
+  #   restart: always
+  #   volumes:
+  #     - ./.docker/mysql:/var/lib/mysql
+  #   ports:
+  #     - ${DB_PORT:-3308}:3306
+  #   environment:
+  #     MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+  #     MARIADB_DATABASE: ${IMPRESSO_DB_NAME}
+  #     MARIADB_USER: ${IMPRESSO_DB_USER}
+  #     MARIADB_PASSWORD: ${IMPRESSO_DB_PASSWORD}
+  mysql-tunnel:
+    image: kroniak/ssh-client
+    restart: always
+    volumes:
+      - ./.docker/config/ssh:/root/.ssh
+    ports:
+      - ${IMPRESSO_DB_PORT:-3306}:3306
+    command: ssh -N impresso-mysql-tunnel
