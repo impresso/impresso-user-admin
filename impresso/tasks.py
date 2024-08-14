@@ -1009,10 +1009,9 @@ def update_collection(
     self, collection_id, user_id, items_ids_to_add=[], items_ids_to_remove=[]
 ):
     # verify that the collection belong to the user
-    collections = Collection.objects.filter(pk=collection_id, creator__id=user_id)
-    if collections.exists():
-        collection = collection.first()
-    else:
+    try:
+        Collection.objects.get(pk=collection_id, creator__id=user_id)
+    except Collection.DoesNotExist:
         logger.info(f"Collection {collection_id} not found for user {user_id}")
         return
 
