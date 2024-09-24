@@ -109,7 +109,7 @@ class ContentItemAdmin(admin.ModelAdmin):
 
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
-    search_fields = ["name", "creator", "id"]
+    search_fields = ["name", "creator__username", "id"]
     list_display = (
         "id",
         "creator",
