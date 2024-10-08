@@ -244,7 +244,7 @@ def export_query_as_csv_progress(
 
     def doc_filter_contents(doc):
         doc_year = int(doc["year"])
-       
+
         # @todo to be changed according to user settings
         if "is_content_available" in doc:
             if doc["is_content_available"] != "true":
@@ -259,7 +259,11 @@ def export_query_as_csv_progress(
     def doc_filter_collections(doc):
         if "collections" in doc:
             # remove collection from the doc if they do not start wirh job creator id
-            collections = [d for d in doc["collections"].split(",") if d.startswith(str(job.creator.profile.uid))]
+            collections = [
+                d
+                for d in doc["collections"].split(",")
+                if d.startswith(str(job.creator.profile.uid))
+            ]
             doc["collections"] = ",".join(collections)
         return doc
 
@@ -276,7 +280,7 @@ def export_query_as_csv_progress(
         rows = map(solr_doc_to_article, contents["response"]["docs"])
         # remove collections for the rows if they do not start with the job creator id
         rows = map(doc_filter_collections, rows)
-            
+
         if not job.creator.is_staff:
             rows = map(doc_filter_contents, rows)
 
@@ -553,6 +557,9 @@ def add_to_collection_from_query_progress(
     serialized_query=None,
 ):
     job = Job.objects.get(pk=job_id)
+    if is_task_stopped(task=self, job=job, progress=prev_progress):
+        return
+
     # get the collection so that we can see its status
     collection = Collection.objects.get(pk=collection_id)
     if collection.status == Collection.DELETED:
@@ -989,3 +996,37 @@ def add_to_collection_from_tr_passages_query_progress(
             job=job,
             message=f"loop {page} of {loops} collection={collection_id} items={total}",
         )
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def update_collection(
+    self, collection_id, user_id, items_ids_to_add=[], items_ids_to_remove=[]
+):
+    # verify that the collection belong to the user
+    try:
+        Collection.objects.get(pk=collection_id, creator__id=user_id)
+    except Collection.DoesNotExist:
+        logger.info(f"Collection {collection_id} not found for user {user_id}")
+        return
+
+    if items_ids_to_add:
+        store_collection.delay(
+            collection_id=collection_id,
+            items_ids=items_ids_to_add,
+            method=METHOD_ADD_TO_INDEX,
+        )
+    if items_ids_to_remove:
+        store_collection.delay(
+            collection_id=collection_id,
+            items_ids=items_ids_to_remove,
+            method=METHOD_DEL_FROM_INDEX,
+        )
+    if items_ids_to_add or items_ids_to_remove:
+        # update count items in collection (db)
+        count_items_in_collection.delay(collection_id=collection_id)
