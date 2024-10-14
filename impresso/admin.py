@@ -9,9 +9,23 @@ from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
-from .models import UserBitmap, DatasetBitmapPosition
+from .models import UserBitmap, DatasetBitmapPosition, UserRequest
 
 from impresso.tasks import after_user_activation
+
+
+@admin.register(UserRequest)
+class UserRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "subscriber",
+        "reviewer",
+        "subscription",
+        "status",
+        "date_created",
+    )
+    search_fields = ["subscriber__username", "subscription__name"]
+    list_filter = ["status"]
+    autocomplete_fields = ["subscriber", "reviewer", "subscription"]
 
 
 @admin.register(UserBitmap)
