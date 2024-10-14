@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 class UserBitmap(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bitmap")
     bitmap = models.BinaryField(editable=False, null=True, blank=True)
-    subscriptions = models.ManyToManyField(DatasetBitmapPosition)
+    subscriptions = models.ManyToManyField(DatasetBitmapPosition, blank=True)
+    # date of acceptance of the term of use
+    date_accepted_terms = models.DateTimeField(null=True, blank=True)
     # Guest - Unregisted User	public	NA (True by default) used only for test purposes
     # Impresso Registered User 	impresso	Account created, no academic afiliation
     # Student or Teacher - Educational User	educational	Account created, educational academic afiliation
@@ -23,6 +25,9 @@ class UserBitmap(models.Model):
     BITMAP_PLAN_MAX_LENGTH = 5
 
     def get_up_to_date_bitmap(self):
+        # if the user hasn't accepted terms of use, return the default bitmap
+        if not self.date_accepted_terms:
+            return UserBitmap.USER_PLAN_GUEST
         """
         Get the bitmap using the groups the user is affiliated to and the affiliations to the DatasetBitmapPosition
         The four first bits (starting on the left, indices 0-3) are the ones relating to the user plans

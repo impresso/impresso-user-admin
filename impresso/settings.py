@@ -132,7 +132,7 @@ EMAIL_HOST = get_env_variable("EMAIL_HOST", "smtp.")
 EMAIL_PORT = get_env_variable("EMAIL_PORT", 0)
 DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "info@")
 # Celery
-REDIS_HOST = get_env_variable("REDIS_HOST", "localhost")
+REDIS_HOST = get_env_variable("REDIS_HOST", "localhost:6379")
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}/4"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}/5"
 CELERYD_PREFETCH_MULTIPLIER = 2

@@ -72,8 +72,13 @@ class Command(BaseCommand):
 
         redis_host = settings.REDIS_HOST.split(":")[0]
         redis_port = settings.REDIS_HOST.split(":")[-1]
-        redis_conn = redis.Redis(host=redis_host, port=redis_port, db="4")
-        redis_status = redis_conn.ping()
+        # if redis_port it is not numeric, then throw an error
+        if not redis_port.isnumeric():
+            self.stderr.write(f"Invalid Redis Port: {redis_port}")
+            return
         self.stdout.write(f"Redis Host: \n - {redis_host}")
         self.stdout.write(f"Redis Port: \n - {redis_port}")
+
+        redis_conn = redis.Redis(host=redis_host, port=redis_port, db="4")
+        redis_status = redis_conn.ping()
         self.stdout.write(f"Redis Status: \n - {redis_status}")

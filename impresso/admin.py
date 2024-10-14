@@ -16,7 +16,13 @@ from impresso.tasks import after_user_activation
 
 @admin.register(UserBitmap)
 class UserBitmapAdmin(admin.ModelAdmin):
-    list_display = ("user", "bitmap_display", "user_plan_display", "num_subscriptions")
+    list_display = (
+        "user",
+        "bitmap_display",
+        "user_plan_display",
+        "num_subscriptions",
+        "date_accepted_terms",
+    )
     search_fields = ["user__username", "user__email"]
 
     def num_subscriptions(self, obj):
