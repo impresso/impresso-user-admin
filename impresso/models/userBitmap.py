@@ -75,6 +75,15 @@ class UserBitmap(models.Model):
         verbose_name = "User Bitmap"
         verbose_name_plural = "User Bitmaps"
 
+    def save(self, *args, **kwargs):
+        if not self.date_accepted_terms:
+            user_bitmap = UserBitmap.USER_PLAN_GUEST
+            bitmap_bytes = user_bitmap.to_bytes(
+                (user_bitmap.bit_length() + 7) // 8, byteorder="big"
+            )
+            self.bitmap = bitmap_bytes
+        super().save(*args, **kwargs)
+
 
 def update_user_bitmap(sender, instance, action, **kwargs):
     if action == "post_add" or action == "post_remove":
