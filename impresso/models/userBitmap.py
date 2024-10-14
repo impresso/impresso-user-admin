@@ -27,7 +27,7 @@ class UserBitmap(models.Model):
     def get_up_to_date_bitmap(self):
         # if the user hasn't accepted terms of use, return the default bitmap
         if not self.date_accepted_terms:
-            return UserBitmap.USER_PLAN_AUTH_USER
+            return UserBitmap.USER_PLAN_GUEST
         """
         Get the bitmap using the groups the user is affiliated to and the affiliations to the DatasetBitmapPosition
         The four first bits (starting on the left, indices 0-3) are the ones relating to the user plans
