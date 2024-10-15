@@ -72,9 +72,10 @@ class UserBitmapAdmin(admin.ModelAdmin):
 
 @admin.register(DatasetBitmapPosition)
 class DatasetBitmapPositionAdmin(admin.ModelAdmin):
-    list_display = ("name", "bitmap_position")
-    search_fields = ["name"]
+    list_display = ("name", "bitmap_position", "reviewer")
+    search_fields = ["name", "reviewer__username", "reviewer__email"]
     readonly_fields = ("bitmap_position",)
+    autocomplete_fields = ["reviewer"]
 
 
 @admin.register(Issue)
