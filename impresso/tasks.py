@@ -26,6 +26,7 @@ from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
 from .utils.tasks.account import send_emails_after_user_registration
 from .utils.tasks.account import send_emails_after_user_activation
 from .utils.tasks.account import send_email_password_reset
+from .utils.tasks.userBitmap import update_user_bitmap
 
 logger = get_task_logger(__name__)
 
@@ -1027,6 +1028,15 @@ def update_collection(
             items_ids=items_ids_to_remove,
             method=METHOD_DEL_FROM_INDEX,
         )
-    if items_ids_to_add or items_ids_to_remove:
-        # update count items in collection (db)
-        count_items_in_collection.delay(collection_id=collection_id)
+    # update count items in collection (db)
+    count_items_in_collection.delay(collection_id=collection_id)
+
+
+@app.task(bind=True)
+def update_user_bitmap_task(self, user_id):
+    """
+    Update the user bitmap for the given user.
+    """
+    logger.info(f"User bitmap update request for user {user_id}")
+    update_user_bitmap(user_id=user_id)
+    return
