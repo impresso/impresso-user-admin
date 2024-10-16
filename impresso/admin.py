@@ -239,6 +239,7 @@ class UserAdmin(BaseUserAdmin):
         "max_parallel_jobs",
     )
     actions = ["make_active", "make_suspended"]
+    search_fields = ["username", "profile__uid", "email"]
 
     @admin.action(description="ACTIVATE selected users")
     def make_active(self, request, queryset):
