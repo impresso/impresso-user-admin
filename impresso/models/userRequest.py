@@ -27,6 +27,7 @@ class UserRequest(models.Model):
         ),
     )
     changelog = models.JSONField(null=True, blank=True, default=list)
+    notes = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} Request for {self.subscription.name if self.subscription else '[deleted subscription]'}"
@@ -44,6 +45,7 @@ class UserRequest(models.Model):
                 "subscription": self.subscription.name if self.subscription else None,
                 "date": self.date_last_modified.isoformat(),
                 "reviewer": self.reviewer.username if self.reviewer else None,
+                "notes": self.notes if self.notes else "",
             }
 
             # Append the new entry to the changelog list
