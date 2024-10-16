@@ -10,6 +10,13 @@ class DatasetBitmapPosition(models.Model):
         blank=True,
     )
     metadata = models.JSONField(default=dict, blank=True)
+    reviewer = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        related_name="reviewed_datasets",
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return self.name

@@ -9,9 +9,23 @@ from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
-from .models import UserBitmap, DatasetBitmapPosition
+from .models import UserBitmap, DatasetBitmapPosition, UserRequest
 
 from impresso.tasks import after_user_activation
+
+
+@admin.register(UserRequest)
+class UserRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "reviewer",
+        "subscription",
+        "status",
+        "date_created",
+    )
+    search_fields = ["subscriber__username", "subscription__name"]
+    list_filter = ["status"]
+    autocomplete_fields = ["user", "reviewer", "subscription"]
 
 
 @admin.register(UserBitmap)
@@ -58,9 +72,10 @@ class UserBitmapAdmin(admin.ModelAdmin):
 
 @admin.register(DatasetBitmapPosition)
 class DatasetBitmapPositionAdmin(admin.ModelAdmin):
-    list_display = ("name", "bitmap_position")
-    search_fields = ["name"]
+    list_display = ("name", "bitmap_position", "reviewer")
+    search_fields = ["name", "reviewer__username", "reviewer__email"]
     readonly_fields = ("bitmap_position",)
+    autocomplete_fields = ["reviewer"]
 
 
 @admin.register(Issue)
@@ -224,6 +239,7 @@ class UserAdmin(BaseUserAdmin):
         "max_parallel_jobs",
     )
     actions = ["make_active", "make_suspended"]
+    search_fields = ["username", "profile__uid", "email"]
 
     @admin.action(description="ACTIVATE selected users")
     def make_active(self, request, queryset):
