@@ -17,7 +17,7 @@ from impresso.tasks import after_user_activation
 @admin.register(UserRequest)
 class UserRequestAdmin(admin.ModelAdmin):
     list_display = (
-        "subscriber",
+        "user",
         "reviewer",
         "subscription",
         "status",
@@ -25,7 +25,7 @@ class UserRequestAdmin(admin.ModelAdmin):
     )
     search_fields = ["subscriber__username", "subscription__name"]
     list_filter = ["status"]
-    autocomplete_fields = ["subscriber", "reviewer", "subscription"]
+    autocomplete_fields = ["user", "reviewer", "subscription"]
 
 
 @admin.register(UserBitmap)

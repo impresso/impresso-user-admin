@@ -8,9 +8,7 @@ class UserRequest(models.Model):
     STATUS_APPROVED = "approved"
     STATUS_REJECTED = "rejected"
 
-    subscriber = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="request"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="request")
     reviewer = models.ForeignKey(
         User, on_delete=models.SET_NULL, related_name="review", null=True, blank=True
     )
@@ -31,10 +29,10 @@ class UserRequest(models.Model):
     changelog = models.JSONField(null=True, blank=True, default=list)
 
     def __str__(self):
-        return f"{self.subscriber.username} Request for {self.subscription.name if self.subscription else '[deleted subscription]'}"
+        return f"{self.user.username} Request for {self.subscription.name if self.subscription else '[deleted subscription]'}"
 
     class Meta:
-        unique_together = ("subscriber", "subscription")
+        unique_together = ("user", "subscription")
         verbose_name = "User Subscription Request"
         verbose_name_plural = "User Subscription Requests"
 
