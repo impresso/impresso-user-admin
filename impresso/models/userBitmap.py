@@ -68,8 +68,33 @@ class UserBitmap(models.Model):
 
         return bitmap
 
+    def get_bitmap_as_int(self):
+        return int.from_bytes(self.bitmap, byteorder="big")
+
+    def get_user_plan(self):
+        if not self.bitmap:
+            return "GUEST"
+        if not self.date_accepted_terms:
+            return "GUEST"
+        bitmap_int = self.get_bitmap_as_int()
+        bitmap_length = bitmap_int.bit_length()
+        # Extract the first 5 bits
+        bitmap_plan = (
+            bitmap_int >> (bitmap_length - UserBitmap.BITMAP_PLAN_MAX_LENGTH)
+        ) & 0b11111
+        if bitmap_plan == UserBitmap.USER_PLAN_GUEST:
+            return "GUEST"
+        if bitmap_plan == UserBitmap.USER_PLAN_AUTH_USER:
+            return "AUTH_USER"
+        if bitmap_plan == UserBitmap.USER_PLAN_EDUCATIONAL:
+            return "EDUCATIONAL"
+        if bitmap_plan == UserBitmap.USER_PLAN_RESEARCHER:
+            return "RESEARCHER"
+        return "AUTH_USER"
+
     def __str__(self):
-        return f"{self.user.username} Bitmap"
+        bitmap = self.get_bitmap_as_int()
+        return f"{self.user.username} Bitmap {bin(bitmap)}"
 
     class Meta:
         verbose_name = "User Bitmap"

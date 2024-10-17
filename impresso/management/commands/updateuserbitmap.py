@@ -9,9 +9,15 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("username", type=str)
         parser.add_argument("bitmap", type=str, nargs="?", default=None)
+        parser.add_argument(
+            "--immediate",
+            action="store_true",
+            help="Run the task immediately instead of delaying it",
+        )
 
-    def handle(self, username, *args, **options):
+    def handle(self, username, immediate=False, *args, **options):
         self.stdout.write(f"Get user with username: {username}")
+        self.stdout.write(f"Immediate: {immediate}")
         user = User.objects.get(username=username)
         self.stdout.write(f"User: pk={user.id} \033[34m{user.username}\033[0m")
         # currrent user bitmap
@@ -31,14 +37,21 @@ class Command(BaseCommand):
         self.stdout.write(
             f"SAVED ^ EXPECTED difference:\n  \033[34m{bin(difference)}\033[0m"
         )
+        if immediate:
+            # collection_id, user_id, items_ids_to_add=[], items_ids_to_remove=[]
+            instance = update_user_bitmap_task(
+                user_id=user.id,
+            )
 
+            self.stdout.write(
+                f"\nTask returned this updated bitmap: \n  \033[34m{instance.get('bitmap')}\033[0m\n\n"
+            )
+            self.stdout.write(
+                f"Task returned this serialized object: \n  \033[34m{instance}\033[0m\n\n"
+            )
+            return
         # collection_id, user_id, items_ids_to_add=[], items_ids_to_remove=[]
         message = update_user_bitmap_task.delay(
-            collection_id=collection.id,
             user_id=user.id,
-            items_ids_to_add=items_to_add,
-            items_ids_to_remove=items_to_remove,
         )
-        self.stdout.write(
-            f"\n5. Task \033[36m{message.id}\033[0m launched, check celery."
-        )
+        self.stdout.write(f"\n5. Task \033[36m{message}\033[0m launched, check celery.")

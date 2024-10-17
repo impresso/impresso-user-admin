@@ -1038,5 +1038,5 @@ def update_user_bitmap_task(self, user_id):
     Update the user bitmap for the given user.
     """
     logger.info(f"User bitmap update request for user {user_id}")
-    update_user_bitmap(user_id=user_id)
-    return
+    updated_bitmap = update_user_bitmap(user_id=user_id)
+    return updated_bitmap
