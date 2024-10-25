@@ -1,5 +1,6 @@
 import math
 import json
+from typing import Tuple, Any, Dict, Optional
 from django.conf import settings
 from ...models import Job
 
@@ -9,7 +10,25 @@ TASKSTATE_SUCCESS = "SUCCESS"
 TASKSTATE_STOPPED = "STOPPED"
 
 
-def get_pagination(skip, limit, total, job=None):
+def get_pagination(
+    skip: int, limit: int, total: int, job: Job
+) -> Tuple[int, int, float, int]:
+    """
+    Calculate pagination details including the current page, number of loops, progress, and maximum loops allowed.
+
+    Args:
+        skip (int): The number of items to skip.
+        limit (int): The maximum number of items per page.
+        total (int): The total number of items.
+        job (Optional[Job], optional): The job object containing user profile information. Defaults to None.
+
+    Returns:
+        Tuple[int, int, float, int]: A tuple containing:
+            - page (int): The current page number.
+            - loops (int): The number of loops allowed.
+            - progress (float): The progress percentage.
+            - max_loops (int): The maximum number of loops allowed.
+    """
     limit = min(limit, settings.IMPRESSO_SOLR_EXEC_LIMIT)
     max_loops = (
         min(
@@ -31,10 +50,25 @@ def get_list_diff(a, b) -> list:
 
 
 def update_job_progress(
-    task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={}, message="", logger=None
-):
+    task: Any,
+    job: Job,
+    progress: float,
+    taskstate: str = TASKSTATE_PROGRESS,
+    extra: Dict[str, Any] = {},
+    message: str = "",
+    logger: Optional[Any] = None,
+) -> None:
     """
-    generic function to update a job
+    Generic function to update a job.
+
+    Args:
+        task (Any): The task object.
+        job (Job): The job object.
+        progress (float): The current progress of the job.
+        taskstate (str, optional): The state of the task. Defaults to TASKSTATE_PROGRESS.
+        extra (Dict[str, Any], optional): Additional metadata for the job. Defaults to {}.
+        message (str, optional): A message to log. Defaults to "".
+        logger (Optional[Any], optional): Logger instance for logging. Defaults to None.
     """
     meta = job.get_task_meta(taskname=task.name, progress=progress, extra=extra)
     if logger:
@@ -48,10 +82,19 @@ def update_job_progress(
     task.update_state(state=taskstate, meta=meta)
 
 
-def update_job_completed(task, job, extra={}, message="", logger=None):
+def update_job_completed(
+    task, job: Job, extra: dict = {}, message: str = "", logger=None
+) -> None:
     """
     Call update_job_progress for one last time.
     This method sets the job status to Job.DONE
+
+    Args:
+        task: The task object.
+        job (Job): The job object.
+        extra (dict, optional): Additional metadata for the job. Defaults to {}.
+        message (str, optional): A message to log. Defaults to "".
+        logger (optional): Logger instance for logging. Defaults to None.
     """
     job.status = Job.DONE
     update_job_progress(
@@ -65,11 +108,23 @@ def update_job_completed(task, job, extra={}, message="", logger=None):
     )
 
 
-def is_task_stopped(task, job, progress=None, extra={}, logger=None):
+def is_task_stopped(
+    task, job: Job, progress: float = None, extra: dict = {}, logger=None
+) -> bool:
     """
     Check if a job has been stopped by the user.
-    If yes, this methos sets the job status to STOPPED for you,
-    then call update_job_progress one last time.
+    If yes, this method sets the job status to STOPPED for you,
+    then calls update_job_progress one last time.
+
+    Args:
+        task: The task object.
+        job (Job): The job object.
+        progress (float, optional): The current progress of the job. Defaults to None.
+        extra (dict, optional): Additional metadata for the job. Defaults to {}.
+        logger (optional): Logger instance for logging. Defaults to None.
+
+    Returns:
+        bool: True if the job was stopped, False otherwise.
     """
     if job.status != Job.STOP:
         return False
