@@ -113,6 +113,10 @@ def add_tr_passages_query_results_to_collection(
         f"ucoll_ss={collection_id} " f"query={query} collection name={collection.name})"
     )
 
+    # if Job is not none, we limit the number of loops to the value of job.creator.profile.max_allowed_loops
+    page, loops, progress, max_loops = get_pagination(
+        skip=skip, limit=limit, total=total_content_items, job=job
+    )
     content_items = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
@@ -125,13 +129,10 @@ def add_tr_passages_query_results_to_collection(
     )
     total_content_items = content_items["response"]["numFound"]
 
-    # if Job is not none, we limit the number of loops to the value of job.creator.profile.max_allowed_loops
-    page, loops, progress = get_pagination(
-        skip=skip, limit=limit, total=total_content_items, job=job
-    )
     solr_content_items = content_items.get("response").get("docs", [])
     logger.info(
         f"SOLR find_all success, numFound={total_content_items} "
+        f"max_loops={max_loops} page={page} loops={loops}"
         f"skip={skip} limit={limit} ({progress * 100}% compl.)"
     )
     try:
