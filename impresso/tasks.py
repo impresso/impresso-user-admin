@@ -18,6 +18,15 @@ from celery.utils.log import get_task_logger
 
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from .utils.tasks import (
+    TASKSTATE_INIT,
+    get_pagination,
+    update_job_progress,
+    update_job_completed,
+    is_task_stopped,
+    mapper_doc_remove_private_collections,
+    mapper_doc_redact_contents,
+)
 from .utils.tasks.collection import sync_collections_in_tr_passages
 from .utils.tasks.textreuse import remove_collection_from_tr_passages
 from .utils.tasks.textreuse import add_tr_passages_query_results_to_collection
@@ -29,92 +38,6 @@ from .utils.tasks.account import send_email_password_reset
 from .utils.tasks.userBitmap import update_user_bitmap
 
 logger = get_task_logger(__name__)
-
-TASKSTATE_INIT = "INIT"
-TASKSTATE_PROGRESS = "PROGRESS"
-TASKSTATE_SUCCESS = "SUCCESS"
-TASKSTATE_STOPPED = "STOPPED"
-
-
-def update_job_completed(task, job, extra={}, message=""):
-    """
-    Call update_job_progress for one last time.
-    This method sets the job status to Job.DONE
-    """
-    job.status = Job.DONE
-    update_job_progress(
-        task=task,
-        job=job,
-        taskstate=TASKSTATE_SUCCESS,
-        progress=1.0,
-        extra=extra,
-        message=message,
-    )
-
-
-def update_job_progress(
-    task, job, progress, taskstate=TASKSTATE_PROGRESS, extra={}, message=""
-):
-    """
-    generic function to update a job
-    """
-    meta = job.get_task_meta(taskname=task.name, progress=progress, extra=extra)
-    logger.info(
-        f"Job pk={job.pk} "
-        f"type={job.type} status={job.status} taskstate={taskstate} "
-        f"progress={progress * 100:.2f}% - {message}"
-    )
-    job.extra = json.dumps(meta)
-    job.save()
-    task.update_state(state=taskstate, meta=meta)
-
-
-def is_task_stopped(task, job, progress=None, extra={}):
-    """
-    Check if a job has been stopped by the user.
-    If yes, this methos sets the job status to STOPPED for you,
-    then call update_job_progress one last time.
-    """
-    logger.info(f"is_task_stopped? job {job.pk} {job.status}")
-    if job.status != Job.STOP:
-        return False
-    job.status = Job.RIP
-    extra.update({"stopped": True})
-    logger.info(f"job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!")
-    update_job_progress(
-        task=task,
-        job=job,
-        progress=progress if progress else 0.0,
-        taskstate=TASKSTATE_STOPPED,
-        extra=extra,
-    )
-    return True
-
-
-def get_job_stats(job, skip, limit, total):
-    limit = min(limit, settings.IMPRESSO_SOLR_EXEC_LIMIT)
-    max_loops = min(
-        job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-    )
-    page = 1 + skip / limit
-    loops = min(math.ceil(total / limit), max_loops)
-    progress = (
-        page / loops if loops > 0 else 1.0
-    )  # NOthing to do if there's no loops...
-    logger.info(
-        "[job:{}] get_job_stats: page:{}, limit:{}, total:{}, progress:{}, loops:{}, max_loops:{}, user_loops:{}, settings_loops: {}".format(
-            job.pk,
-            page,
-            limit,
-            total,
-            progress,
-            loops,
-            max_loops,
-            job.creator.profile.max_loops_allowed,
-            settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS,
-        )
-    )
-    return page, loops, progress
 
 
 def get_collection_as_obj(collection):
@@ -135,7 +58,7 @@ def echo(self, message):
 
 
 @app.task(bind=True)
-def test_progress(self, job_id, sleep=5, pace=0.01, progress=0.0):
+def test_progress(self, job_id, sleep=100, pace=0.01, progress=0.0):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
 
@@ -144,47 +67,34 @@ def test_progress(self, job_id, sleep=5, pace=0.01, progress=0.0):
         "sleep": sleep,
     }
 
-    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-        logger.info(
-            "TEST job id:{} STOPPED for user id:{}. Bye!".format(job.pk, job.creator.pk)
-        )
+    if is_task_stopped(
+        task=self, job=job, progress=progress, extra=extra, logger=logger
+    ):
         return
 
-    # update pregress accordingly
-    update_job_progress(task=self, job=job, progress=progress, extra=extra)
+    update_job_progress(
+        task=self, job=job, progress=progress, extra=extra, logger=logger
+    )
 
     if progress < 1.0:
-        logger.info(
-            "TEST job id:{} still running PROGRESS {} for user id:{}...!".format(
-                job.pk,
-                progress,
-                job.creator.pk,
-            )
-        )
         # do heavy stuff during this time
         time.sleep(sleep)
         # call the same function right after
         test_progress.delay(
             job_id=job.pk, sleep=sleep, pace=pace, progress=progress + pace
         )
-    else:
-        logger.info(
-            "TEST job id:{} DONE for user id:{}".format(
-                job.pk,
-                job.creator.pk,
-            )
-        )
-        update_job_completed(task=self, job=job, extra=extra)
+        return
+    update_job_completed(task=self, job=job, extra=extra, logger=logger)
 
 
 @app.task(bind=True)
-def test(self, user_id):
+def test(self, user_id, sleep=1, pace=0.05):
     # save current job then start test_progress task.
     job = Job.objects.create(type=Job.TEST, status=Job.RUN, creator_id=user_id)
-    logger.info(f"TEST job id:{job.pk} launched for user id:{user_id}...")
+    logger.info(f"[job:{job.pk} user:{user_id}] launched!")
     # stat loop
     update_job_progress(task=self, job=job, taskstate=TASKSTATE_INIT, progress=0.0)
-    test_progress.delay(job_id=job.pk, sleep=0.1, pace=0.5)
+    test_progress.delay(job_id=job.pk, sleep=sleep, pace=pace)
 
 
 @app.task(
@@ -204,31 +114,32 @@ def export_query_as_csv_progress(
         "search_query_id": search_query_id,
     }
     # do find_all
-    logger.info("[job:{}] Executing query: {}".format(job.pk, query))
-    logger.info(
-        "[job:{}] User: {} is_staff:{}".format(
-            job.pk, job.creator.pk, job.creator.is_staff
-        )
-    )
+    logger.info(f"[job:{job.pk} user:{job.creator.pk}] launched! query:{query_hash}")
 
     contents = find_all(
         q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip, logger=logger
     )
-
     total = contents["response"]["numFound"]
-    logger.info("[job:{}] Query success: {} results found".format(job.pk, total))
+    qtime = contents["responseHeader"]["QTime"]
     # generate extra from job stats
-    page, loops, progress = get_job_stats(job=job, skip=skip, limit=limit, total=total)
+    page, loops, progress, max_loops = get_pagination(
+        skip=skip, limit=limit, total=total, job=job
+    )
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f" total:{total} in {qtime} -"
+        f" loops:{loops} - max_loops:{max_loops} -"
+        f" page:{page} - progress:{progress} -"
+    )
 
-    if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-        logger.info("[job:{}] Task STOPPED. Bye!".format(job.pk))
+    if is_task_stopped(
+        task=self, job=job, progress=progress, extra=extra, logger=logger
+    ):
         return
 
     if total == 0:
-        update_job_completed(task=self, job=job, extra=extra)
+        update_job_completed(task=self, job=job, extra=extra, logger=logger)
         return
-    # update status to RUN
-    job.status = Job.RUN
 
     extra.update(
         {
@@ -238,35 +149,9 @@ def export_query_as_csv_progress(
     )
 
     logger.info(
-        "[job:{}] Opening file in APPEND mode: {}".format(
-            job.pk, job.attachment.upload.path
-        )
+        f"[job:{job.pk} user:{job.creator.pk}] Opening file in APPEND mode:"
+        f"{job.attachment.upload.path}"
     )
-
-    def doc_filter_contents(doc):
-        doc_year = int(doc["year"])
-
-        # @todo to be changed according to user settings
-        if "is_content_available" in doc:
-            if doc["is_content_available"] != "true":
-                doc["content"] = ""
-                doc["is_content_available"] = ""
-            else:
-                doc["is_content_available"] = "y"
-        elif doc_year >= settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
-            doc["content"] = ""
-        return doc
-
-    def doc_filter_collections(doc):
-        if "collections" in doc:
-            # remove collection from the doc if they do not start wirh job creator id
-            collections = [
-                d
-                for d in doc["collections"].split(",")
-                if d.startswith(str(job.creator.profile.uid))
-            ]
-            doc["collections"] = ",".join(collections)
-        return doc
 
     with open(job.attachment.upload.path, mode="a", encoding="utf-8") as csvfile:
         w = csv.DictWriter(
@@ -280,15 +165,19 @@ def export_query_as_csv_progress(
             w.writeheader()
         rows = map(solr_doc_to_article, contents["response"]["docs"])
         # remove collections for the rows if they do not start with the job creator id
-        rows = map(doc_filter_collections, rows)
+        rows = [mapper_doc_remove_private_collections(doc, job=job) for doc in rows]
 
         if not job.creator.is_staff:
-            rows = map(doc_filter_contents, rows)
+            rows = map(mapper_doc_redact_contents, rows)
 
         w.writerows(rows)
 
+    # update status to RUN
+    job.status = Job.RUN
     # update pregress accordingly
-    update_job_progress(task=self, job=job, progress=progress, extra=extra)
+    update_job_progress(
+        task=self, job=job, progress=progress, extra=extra, logger=logger
+    )
     # next loop!
     if page < loops:
         export_query_as_csv_progress.delay(
@@ -303,29 +192,33 @@ def export_query_as_csv_progress(
         zipped = "%s.zip" % job.attachment.upload.path
         uncompressed = job.attachment.upload.path
         logger.info(
-            "[job:{}] Loops completed, creating the corresponding zip file: {}.zip ...".format(
-                job.pk, job.attachment.upload.path
-            )
+            f"[job:{job.pk} user:{job.creator.pk}] creating the corresponding zip file: "
+            f"{zipped} ..."
         )
         with ZipFile(zipped, "w", ZIP_DEFLATED) as zip:
             zip.write(job.attachment.upload.path, basename(job.attachment.upload.path))
         logger.info(
-            "[job:{}] Loops completed, corresponding zip file: {}.zip created.".format(
-                job.pk, job.attachment.upload.path
-            )
+            f"[job:{job.pk} user:{job.creator.pk}] success, corresponding zip file: {zipped} created."
         )
         # substitute the job attachment
         job.attachment.upload.name = "%s.zip" % job.attachment.upload.name
         job.attachment.save()
         # if everything is fine, delete the original file
-        logger.info("[job:{}] Deleting original file: {}".format(job.pk, uncompressed))
+        logger.info(
+            f"[job:{job.pk} user:{job.creator.pk}] deleting original csv file: {uncompressed} ..."
+        )
         # // remove CSV file
         if os.path.exists(uncompressed):
             os.remove(uncompressed)
         else:
             print(f"The file does not exist: {uncompressed}")
-
-        update_job_completed(task=self, job=job, extra=extra)
+            logger.warning(
+                f"[job:{job.pk} user:{job.creator.pk}] Note: the file does not exist: {uncompressed}"
+            )
+        logger.info(
+            f"[job:{job.pk} user:{job.creator.pk}] success, original csv file: {uncompressed} deleted."
+        )
+        update_job_completed(task=self, job=job, extra=extra, logger=logger)
 
 
 @app.task(bind=True)
@@ -578,10 +471,12 @@ def add_to_collection_from_query_progress(
         )
         return
     logger.info(
-        f"Collection {collection_id}(status:{collection.status}), "
-        f"saving query: q={query}"
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f"Collection {collection_id}(status:{collection.status})"
+        f"saving query hash = {serialized_query}"
     )
     page, loops, progress, total, allowed = sync_query_to_collection(
+        job=job,
         collection_id=collection_id,
         query=query,
         content_type=content_type,
