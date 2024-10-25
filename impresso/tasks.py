@@ -901,6 +901,7 @@ def add_to_collection_from_tr_passages_query_progress(
         job=job,
         progress=progress,
         message=f"loop {page} of {loops} collection={collection_id}",
+        logger=logger,
     )
 
     if progress < 1.0:

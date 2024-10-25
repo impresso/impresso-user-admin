@@ -9,43 +9,48 @@ from ...models import Collection, CollectableItem, Job
 default_logger = logging.getLogger(__name__)
 
 
-# def get_indexed_tr_passages_by_items(
-#     items_ids=[], limit=10, skip=0, logger=default_logger
-# ):
-#     """
-#     Searches for indexed passages for a given list of item IDs using the Solr search engine.
+def get_indexed_tr_passages_by_items(
+    items_ids=[], limit=10, skip=0, logger=default_logger
+):
+    """
+    Searches for indexed passages for a given list of item IDs using the Solr search engine.
 
-#     Args:
-#         items_ids: A list of content item IDs to search for in tr_passages ci_id_s property.
-#         limit: The maximum number of passages to return (default=10).
-#         skip: The number of passages to skip before starting to return results (default=0).
-#         total: the total number of passages found for the given query.
-#         logger: A logger object to log information during the execution of the function (default=default_logger).
+    Args:
+        items_ids: A list of content item IDs to search for in tr_passages ci_id_s property.
+        limit: The maximum number of passages to return (default=10).
+        skip: The number of passages to skip before starting to return results (default=0).
+        total: the total number of passages found for the given query.
+        logger: A logger object to log information during the execution of the function (default=default_logger).
 
-#     Returns:
-#         A tuple containing the current page, number of loops, progress, total number of results,
-#         and the actual search results in the form of a list of dictionaries.
-#     """
-#     query = " OR ".join(f"ci_id_s:{item_id}" for item_id in items_ids)
-#     res = find_all(
-#         q=query,
-#         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
-#         fl="id,ucoll_ss,_version_,ci_id_s",
-#         limit=limit,
-#         skip=skip,
-#         sort="id asc",
-#     )
-#     total = res["response"]["numFound"]
-#     # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-#     page, loops, progress = get_pagination(skip=skip, limit=limit, total=total)
-#     logger.info(
-#         f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
-#     )
-#     return (page, loops, progress, total, res["response"]["docs"])
+    Returns:
+        A tuple containing the current page, number of loops, progress, total number of results,
+        and the actual search results in the form of a list of dictionaries.
+    """
+    query = " OR ".join(f"ci_id_s:{item_id}" for item_id in items_ids)
+    res = find_all(
+        q=query,
+        url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
+        fl="id,ucoll_ss,_version_,ci_id_s",
+        limit=limit,
+        skip=skip,
+        sort="id asc",
+    )
+    total = res["response"]["numFound"]
+    # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
+    page, loops, progress = get_pagination(skip=skip, limit=limit, total=total)
+    logger.info(
+        f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
+    )
+    return (page, loops, progress, total, res["response"]["docs"])
 
 
 def remove_collection_from_tr_passages(
-    collection_id: str, job:Job, skip: int = 0, limit: int = 100, logger: logging.Logger = default_logger
+    collection_id: str,
+    job: Job,
+    skip: int = 0,
+    limit: int = 100,
+    logger: logging.Logger = default_logger,
+) -> Tuple[int, int, float]:
     """
     Remove a collection from text reuse passages in the Solr index.
 
@@ -61,8 +66,7 @@ def remove_collection_from_tr_passages(
             - loops (int): The number of loops required to process all records.
             - progress (float): The progress percentage of the operation.
     """
-    collection_id, skip=0, limit=100, logger=default_logger
-) -> Tuple (int, int, float):
+
     query = f"ucoll_ss:{collection_id}"
     # 1. get text reuse passages matching collection_id
     tr_passages_request = find_all(
@@ -112,6 +116,7 @@ def remove_collection_from_tr_passages(
     # save all items there!
     return (page, loops, progress)
 
+
 def add_tr_passages_query_results_to_collection(
     collection_id: str,
     job: Job,
@@ -119,7 +124,6 @@ def add_tr_passages_query_results_to_collection(
     skip: int = 0,
     limit: int = 100,
     logger: logging.Logger = default_logger,
-    
 ) -> Tuple[int, int, float]:
     """
     Set collection_id in ucoll_ss field of text reuse passages matching query.
