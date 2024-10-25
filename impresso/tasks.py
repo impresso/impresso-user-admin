@@ -161,7 +161,11 @@ def export_query_as_csv_progress(
             fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS
             + ["[total:{0},available:{1}]".format(total, loops * limit)],
         )
+
         if page == 1:
+            logger.info(
+                f"[job:{job.pk} user:{job.creator.pk}] writing header: {settings.IMPRESSO_SOLR_ARTICLE_PROPS}"
+            )
             w.writeheader()
         rows = map(solr_doc_to_article, contents["response"]["docs"])
         # remove collections for the rows if they do not start with the job creator id
@@ -246,9 +250,8 @@ def export_query_as_csv(
 
         search_query_id = search_query.pk
     logger.info(
-        "[job:{}] started, search_query_id:{} created:{}, attachment:{}...".format(
-            job.pk, search_query_id, created, attachment.upload.path
-        )
+        f"[job:{job.pk} user:{user_id}] started!"
+        f" search_query_id:{search_query_id} created:{created}, attachment:{ attachment.upload.path}"
     )
 
     # add query to extra. Job status should be INIT
