@@ -88,7 +88,19 @@ def test_progress(self, job_id, sleep=100, pace=0.01, progress=0.0):
 
 
 @app.task(bind=True)
-def test(self, user_id, sleep=1, pace=0.05):
+def test(self, user_id: int, sleep: int = 1, pace: float = 0.05):
+    """
+    Initiates a test job and starts the test_progress task.
+
+    Args:
+        self: The instance of the class.
+        user_id (int): The ID of the user initiating the test.
+        sleep (int, optional): The sleep duration between progress updates. Defaults to 1.
+        pace (float, optional): The pace of progress updates. Defaults to 0.05.
+
+    Returns:
+        None
+    """
     # save current job then start test_progress task.
     job = Job.objects.create(type=Job.TEST, status=Job.RUN, creator_id=user_id)
     logger.info(f"[job:{job.pk} user:{user_id}] launched!")
@@ -480,6 +492,7 @@ def add_to_collection_from_query_progress(
     )
     page, loops, progress, total, allowed = sync_query_to_collection(
         job=job,
+        task=self,
         collection_id=collection_id,
         query=query,
         content_type=content_type,
@@ -585,7 +598,9 @@ def remove_collection_progress(
     job = Job.objects.get(pk=job_id)
     if is_task_stopped(task=self, job=job, progress=progress):
         return
-    page, loops, progress = delete_collection(collection_id=collection_id, limit=limit)
+    page, loops, progress = delete_collection(
+        collection_id=collection_id, limit=limit, job=job
+    )
     update_job_progress(task=self, job=job, progress=progress, extra={})
 
     if progress < 1.0:
@@ -612,31 +627,49 @@ def remove_collection_progress(
     retry_jitter=True,
 )
 def update_collections_in_tr_passages_progress(
-    self, job_id, collection_prefix, progress=0.0, skip=0, limit=100
+    self,
+    job_id: int,
+    collection_prefix: str,
+    progress: float = 0.0,
+    skip: int = 0,
+    limit: int = 100,
 ):
+    """
+    Updates the progress of collections in TR passages for a given job.
+    This function retrieves the job by its ID, checks if the task should be stopped,
+    synchronizes the collections in TR passages, updates the job progress, and
+    recursively calls itself if the job is not yet complete.
+    Args:
+        self: The task instance.
+        job_id (int): The ID of the job to update.
+        collection_prefix (str): The prefix of the collection to update.
+        progress (float, optional): The current progress of the job. Defaults to 0.0.
+        skip (int, optional): The number of items to skip. Defaults to 0.
+        limit (int, optional): The maximum number of items to process in one call. Defaults to 100.
+    Returns:
+        None
+    """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
     extra = {}
-
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-        logger.info(f"job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!")
         return
     page, loops, progress = sync_collections_in_tr_passages(
-        collection_id=collection_prefix, skip=skip, limit=limit
+        collection_id=collection_prefix, job=job, skip=skip, limit=limit, logger=logger
     )
-    logger.info(
-        f"job({job.pk}) running on prefix={collection_prefix}"
-        f"{page}/{loops} {progress}%"
-    )
+
     update_job_progress(task=self, job=job, progress=progress, extra=extra)
 
     if progress < 1.0:
-        logger.info(f"job({job.pk}) still running!")
+        logger.info(f"[job:{job.pk} user:{job.creator.pk}] task still running!")
         update_collections_in_tr_passages_progress.delay(
-            collection_prefix=collection_prefix, job_id=job.pk, skip=skip + limit
+            job_id=job_id,
+            collection_prefix=collection_prefix,
+            progress=progress,
+            skip=skip + limit,
+            limit=limit,
         )
     else:
-        logger.info(f"job({job.pk}) COMPLETED! Bye!")
         update_job_completed(task=self, job=job, extra=extra)
 
 
@@ -715,7 +748,7 @@ def remove_collection_in_tr_progress(self, collection_id, job_id, skip=0, limit=
         logger.info(f"job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!")
         return
     page, loops, progress = remove_collection_from_tr_passages(
-        collection_id=collection_id, skip=skip, limit=limit
+        collection_id=collection_id, skip=skip, limit=limit, logger=logger
     )
     logger.info(
         f"job({job.pk}) running for collection={collection_id}"
@@ -834,12 +867,12 @@ def add_to_collection_from_tr_passages_query(
 )
 def add_to_collection_from_tr_passages_query_progress(
     self,
-    query,
-    job_id,
-    collection_id,
-    skip=0,
-    limit=100,
-):
+    query: str,
+    job_id: int,
+    collection_id: str,
+    skip: int = 0,
+    limit: int = 100,
+) -> None:
     """
     Add the content item id resulting from given solr search query on tr_passages index to a collection.
 
@@ -850,21 +883,18 @@ def add_to_collection_from_tr_passages_query_progress(
         skip: The number of results to skip.
         limit: The number of results to return.
         prev_progress: The previous progress value.
-
-    Returns:
-        The result of the task.
     """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
     if is_task_stopped(task=self, job=job):
-        logger.info(f"job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!")
         return
     page, loops, progress = add_tr_passages_query_results_to_collection(
         collection_id=collection_id,
+        job=job,
         query=query,
         skip=skip,
         limit=limit,
-        job=job,
+        logger=logger,
     )
     update_job_progress(
         task=self,

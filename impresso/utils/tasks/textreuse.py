@@ -1,51 +1,68 @@
 import logging
+from typing import Tuple
 from django.conf import settings
 from django.db.utils import IntegrityError
 from . import get_pagination
 from ...solr import find_all, update
-from ...models import Collection, CollectableItem
+from ...models import Collection, CollectableItem, Job
 
 default_logger = logging.getLogger(__name__)
 
 
-def get_indexed_tr_passages_by_items(
-    items_ids=[], limit=10, skip=0, logger=default_logger
-):
-    """
-    Searches for indexed passages for a given list of item IDs using the Solr search engine.
+# def get_indexed_tr_passages_by_items(
+#     items_ids=[], limit=10, skip=0, logger=default_logger
+# ):
+#     """
+#     Searches for indexed passages for a given list of item IDs using the Solr search engine.
 
-    Args:
-        items_ids: A list of content item IDs to search for in tr_passages ci_id_s property.
-        limit: The maximum number of passages to return (default=10).
-        skip: The number of passages to skip before starting to return results (default=0).
-        total: the total number of passages found for the given query.
-        logger: A logger object to log information during the execution of the function (default=default_logger).
+#     Args:
+#         items_ids: A list of content item IDs to search for in tr_passages ci_id_s property.
+#         limit: The maximum number of passages to return (default=10).
+#         skip: The number of passages to skip before starting to return results (default=0).
+#         total: the total number of passages found for the given query.
+#         logger: A logger object to log information during the execution of the function (default=default_logger).
 
-    Returns:
-        A tuple containing the current page, number of loops, progress, total number of results,
-        and the actual search results in the form of a list of dictionaries.
-    """
-    query = " OR ".join(f"ci_id_s:{item_id}" for item_id in items_ids)
-    res = find_all(
-        q=query,
-        url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
-        fl="id,ucoll_ss,_version_,ci_id_s",
-        limit=limit,
-        skip=skip,
-        sort="id asc",
-    )
-    total = res["response"]["numFound"]
-    # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-    page, loops, progress = get_pagination(skip=skip, limit=limit, total=total)
-    logger.info(
-        f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
-    )
-    return (page, loops, progress, total, res["response"]["docs"])
+#     Returns:
+#         A tuple containing the current page, number of loops, progress, total number of results,
+#         and the actual search results in the form of a list of dictionaries.
+#     """
+#     query = " OR ".join(f"ci_id_s:{item_id}" for item_id in items_ids)
+#     res = find_all(
+#         q=query,
+#         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
+#         fl="id,ucoll_ss,_version_,ci_id_s",
+#         limit=limit,
+#         skip=skip,
+#         sort="id asc",
+#     )
+#     total = res["response"]["numFound"]
+#     # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
+#     page, loops, progress = get_pagination(skip=skip, limit=limit, total=total)
+#     logger.info(
+#         f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
+#     )
+#     return (page, loops, progress, total, res["response"]["docs"])
 
 
 def remove_collection_from_tr_passages(
+    collection_id: str, job:Job, skip: int = 0, limit: int = 100, logger: logging.Logger = default_logger
+    """
+    Remove a collection from text reuse passages in the Solr index.
+
+    Args:
+        collection_id (str): The ID of the collection to be removed.
+        skip (int, optional): The number of initial records to skip. Defaults to 0.
+        limit (int, optional): The maximum number of records to process in one batch. Defaults to 100.
+        logger (Logger, optional): Logger instance for logging information. Defaults to default_logger.
+
+    Returns:
+        tuple: A tuple containing:
+            - page (int): The current page number.
+            - loops (int): The number of loops required to process all records.
+            - progress (float): The progress percentage of the operation.
+    """
     collection_id, skip=0, limit=100, logger=default_logger
-) -> (int, int, float):
+) -> Tuple (int, int, float):
     query = f"ucoll_ss:{collection_id}"
     # 1. get text reuse passages matching collection_id
     tr_passages_request = find_all(
@@ -57,7 +74,7 @@ def remove_collection_from_tr_passages(
         logger=logger,
     )
     total = tr_passages_request["response"]["numFound"]
-    page, loops, progress = get_pagination(skip=0, limit=limit, total=total)
+    page, loops, progress = get_pagination(skip=0, limit=limit, total=total, job=job)
     logger.info(
         f"q={query} numFound={total} "
         f"skip={skip} limit={limit} ({progress * 100}% compl.)"
@@ -95,28 +112,38 @@ def remove_collection_from_tr_passages(
     # save all items there!
     return (page, loops, progress)
 
-
 def add_tr_passages_query_results_to_collection(
-    collection_id,
-    query,
-    skip=0,
-    limit=100,
-    logger=default_logger,
-    job=None,
-):
+    collection_id: str,
+    job: Job,
+    query: str,
+    skip: int = 0,
+    limit: int = 100,
+    logger: logging.Logger = default_logger,
+    
+) -> Tuple[int, int, float]:
     """
     Set collection_id in ucoll_ss field of text reuse passages matching query.
-    Firstly we set the collection_id in the article solr index, and we add the collection to tr passages in a second time
+    Firstly we set the collection_id in the article solr index, and we add the collection to tr passages in a second time.
+
+    Args:
+        collection_id (str): The ID of the collection to be added.
+        query (str): The query to match text reuse passages.
+        skip (int, optional): The number of initial records to skip. Defaults to 0.
+        limit (int, optional): The maximum number of records to process in one batch. Defaults to 100.
+        logger (Logger, optional): Logger instance for logging information. Defaults to default_logger.
+        job (Job, optional): Job instance to limit the number of loops. Defaults to None.
+
+    Returns:
+        Tuple[int, int, float]: A tuple containing:
+            - page (int): The current page number.
+            - loops (int): The number of loops required to process all records.
+            - progress (float): The progress percentage of the operation.
     """
     collection = Collection.objects.get(pk=collection_id)
     logger.info(
         f"ucoll_ss={collection_id} " f"query={query} collection name={collection.name})"
     )
 
-    # if Job is not none, we limit the number of loops to the value of job.creator.profile.max_allowed_loops
-    page, loops, progress, max_loops = get_pagination(
-        skip=skip, limit=limit, total=total_content_items, job=job
-    )
     content_items = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
@@ -128,7 +155,10 @@ def add_tr_passages_query_results_to_collection(
         logger=logger,
     )
     total_content_items = content_items["response"]["numFound"]
-
+    # if Job is not none, we limit the number of loops to the value of job.creator.profile.max_allowed_loops
+    page, loops, progress, max_loops = get_pagination(
+        skip=skip, limit=limit, total=total_content_items, job=job
+    )
     solr_content_items = content_items.get("response").get("docs", [])
     logger.info(
         f"SOLR find_all success, numFound={total_content_items} "

@@ -1,7 +1,8 @@
 import logging
+from typing import Tuple
 from django.conf import settings
 from django.db.utils import IntegrityError
-from . import get_pagination, get_list_diff
+from . import get_pagination, is_task_stopped, get_list_diff
 from ...solr import find_all, update
 from ...models import Collection, CollectableItem
 
@@ -12,7 +13,7 @@ METHOD_DEL_FROM_INDEX = "METHOD_DEL_FROM_INDEX"
 
 
 def update_collections_in_tr_passages(
-    solr_content_items=[], skip=0, limit=100, logger=default_logger
+    solr_content_items=[], skip: int = 0, limit: int = 100, logger=default_logger
 ):
     """
     :param int skip_trp: Skip n TR passages from the query (solr `start` param)
@@ -34,7 +35,7 @@ def update_collections_in_tr_passages(
     )
     total_tr_passages = tr_passages["response"]["numFound"]
     logger.info(
-        f"(update) q=<tr_passages for given ci ids> total={total_tr_passages} "
+        f"update_collections_in_tr_passages q=<tr_passages for given ci ids> total={total_tr_passages} "
         f"skip={skip} limit={limit}"
     )
     # No passages (or no more passages) present, exit.
@@ -81,17 +82,19 @@ def update_collections_in_tr_passages(
 
 
 def sync_collections_in_tr_passages(
-    collection_id=None, skip=0, limit=100, logger=default_logger
-) -> (int, int, float):
+    collection_id: str, job, skip: int = 0, limit: int = 100, logger=default_logger
+) -> Tuple[int, int, float]:
     """
     Add collections id in corresponding tr_passages (given their content items)
-    :param collection_id: if no collection_id is given, all collections are
-        loaded.
-    :type collection_id: str or None
-    :param int skip: Skip n content items from the query (solr `start` param)
-    :param int limit: limit n content items from the query (solr `rows` param)
-    :return: a pagination tuple
-    :rtype: tuple
+    Args:
+        collection_id (str): The ID of the collection to sync. If None, all collections are considered.
+        job: The job instance that is executing this task.
+        skip (int, optional): Number of content items to skip from the query (solr `start` param). Defaults to 0.
+        limit (int, optional): Maximum number of content items to retrieve from the query (solr `rows` param). Defaults to 100.
+        logger (optional): Logger instance to use for logging. Defaults to default_logger.
+
+    Returns:
+        Tuple[int, int, float]: A tuple containing the current page, total number of loops, and progress percentage.
     """
     query = f"ucoll_ss:{collection_id}" if collection_id else "ucoll_ss:*"
     # 1. get all content items having at least a collection
@@ -104,12 +107,14 @@ def sync_collections_in_tr_passages(
         logger=logger,
     )
     total_content_items = content_items["response"]["numFound"]
-    page, loops, progress = get_pagination(
-        skip=skip, limit=limit, total=total_content_items
+    qTime = content_items["responseHeader"]["QTime"]
+    page, loops, progress, max_loops = get_pagination(
+        skip=skip, limit=limit, total=total_content_items, job=job
     )
     logger.info(
-        f"q={query} numFound={total_content_items} "
-        f"skip={skip} limit={limit} ({progress * 100}% compl.)"
+        f"[job:{job.pk}, user:{job.creator.pk}] sync_collections_in_tr_passages q:{query} - "
+        f"total:{total_content_items} in {qTime}ms - loops={loops} - max_loops:{max_loops}"
+        f"page:{page} - progress:{progress * 100:.2f}%"
     )
     # delegate updates to a specific function
     update_collections_in_tr_passages(
@@ -120,8 +125,8 @@ def sync_collections_in_tr_passages(
 
 
 def delete_collection(
-    collection_id, limit=100, logger=default_logger
-) -> (int, int, float):
+    collection_id, job, limit=100, logger=default_logger
+) -> Tuple[int, int, float]:
     """ """
     try:
         collection = Collection.objects.get(pk=collection_id)
@@ -140,7 +145,7 @@ def delete_collection(
     )
     total_content_items = content_items["response"]["numFound"]
     page, loops, progress = get_pagination(
-        skip=0, limit=limit, total=total_content_items
+        skip=0, limit=limit, total=total_content_items, job=job
     )
     logger.info(
         f"q={query} numFound={total_content_items} "
@@ -201,6 +206,7 @@ def delete_collection(
 
 def sync_query_to_collection(
     job,
+    task,
     collection_id,
     query,
     content_type,
@@ -208,8 +214,10 @@ def sync_query_to_collection(
     limit=100,
     method=METHOD_ADD_TO_INDEX,
     logger=default_logger,
-) -> (int, int, float, int, int):
-    collection = Collection.objects.get(pk=collection_id)
+):
+    if is_task_stopped(task=task, job=job):
+        return
+
     content_items = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_URL_SELECT,
@@ -222,14 +230,14 @@ def sync_query_to_collection(
     total_content_items = content_items["response"]["numFound"]
 
     page, loops, progress, max_loops = get_pagination(
-        skip=skip, limit=limit, total=total_content_items
+        skip=skip, limit=limit, total=total_content_items, job=job
     )
 
     solr_content_items = content_items.get("response").get("docs", [])
     qtime = content_items.get("responseHeader").get("QTime")
     logger.info(
         f"[job:{job.pk}, user:{job.creator.pk}] "
-        f" total:{total_content_items} in {qtime} -"
+        f" total:{total_content_items} in {qtime}ms -"
         f" loops:{loops} - max_loops:{max_loops} -"
         f" page:{page} - progress:{progress} -"
     )
