@@ -31,7 +31,7 @@ class Attachment(models.Model):
 
     def generate_filename(self, extension=".txt"):
         filename_uid = uuid.uuid3(uuid.NAMESPACE_URL, str(self.pk)).hex[:8]
-        filename_date = self.date_created.strftime("%Y-%m-%d")
+        filename_date = self.date_created.strftime("%Y-%m-%dT%H-%M-%S")
         return f"{filename_date}-{filename_uid}.{extension}"
 
     @staticmethod
