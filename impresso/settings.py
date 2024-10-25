@@ -211,9 +211,9 @@ for field in impresso_solr_fields:
             f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
         )
 
-IMPRESSO_SOLR_ARTICLE_PROPS = [
-    IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields
-]
+IMPRESSO_SOLR_ARTICLE_PROPS = list(
+    set([IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields])
+)
 
 
 IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(
