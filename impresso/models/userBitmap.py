@@ -24,7 +24,7 @@ class UserBitmap(models.Model):
 
     BITMAP_PLAN_MAX_LENGTH = 5
 
-    def get_up_to_date_bitmap(self):
+    def get_up_to_date_bitmap(self) -> int:
         # if the user hasn't accepted terms of use, return the default bitmap
         if not self.date_accepted_terms:
             return UserBitmap.USER_PLAN_GUEST
@@ -70,6 +70,15 @@ class UserBitmap(models.Model):
 
     def get_bitmap_as_int(self):
         return int.from_bytes(self.bitmap, byteorder="big")
+
+    def get_bitmap_as_key_str(self):
+        """
+        Converts the bitmap to an integer and returns its binary representation as a string.
+
+        Returns:
+            str: The binary representation of the bitmap as a string, truncated to the first two characters.
+        """
+        return bin(self.get_bitmap_as_int())[:2]
 
     def get_user_plan(self):
         if not self.bitmap:
