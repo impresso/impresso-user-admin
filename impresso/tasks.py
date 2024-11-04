@@ -9,10 +9,12 @@ import math
 import csv
 
 from django.conf import settings
+from django.contrib.auth.models import User
 
 from .celery import app
 from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
-from .solr import find_all, solr_doc_to_article
+from .models import UserBitmap
+from .solr import find_all, solr_doc_to_content_item
 
 from celery.utils.log import get_task_logger
 
@@ -117,8 +119,35 @@ def test(self, user_id: int, sleep: int = 1, pace: float = 0.05):
     retry_jitter=True,
 )
 def export_query_as_csv_progress(
-    self, job_id, query, search_query_id, query_hash="", skip=0, limit=100
-):
+    self,
+    job_id: int,
+    query: str,
+    search_query_id: int,
+    user_bitmap_key: str,
+    query_hash: str = "",
+    skip: int = 0,
+    limit: int = 100,
+) -> None:
+    """
+    Export query results as a CSV file with progress tracking.
+
+    This task retrieves query results, writes them to a CSV file, and updates the job's progress.
+    If the query has multiple pages of results, the task will recursively call itself to process
+    the next page. Once all pages are processed, the CSV file is compressed into a ZIP file.
+
+    Args:
+        self: The task instance.
+        job_id (int): The ID of the job to update.
+        query (str): The query string to execute.
+        search_query_id (int): The ID of the search query.
+        user_bitmap_key (str): The user bitmap key.
+        query_hash (str, optional): The hash of the query. Defaults to an empty string.
+        skip (int, optional): The number of records to skip. Defaults to 0.
+        limit (int, optional): The maximum number of records to retrieve per page. Defaults to 100.
+
+    Returns:
+        None
+    """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
     extra = {
@@ -164,27 +193,49 @@ def export_query_as_csv_progress(
         f"[job:{job.pk} user:{job.creator.pk}] Opening file in APPEND mode:"
         f"{job.attachment.upload.path}"
     )
-
+    fieldnames = [
+        field
+        for field in settings.IMPRESSO_SOLR_ARTICLE_PROPS
+        if not field.startswith("_")
+    ]
     with open(job.attachment.upload.path, mode="a", encoding="utf-8") as csvfile:
         w = csv.DictWriter(
-            csvfile,
-            delimiter=";",
-            quoting=csv.QUOTE_MINIMAL,
-            fieldnames=settings.IMPRESSO_SOLR_ARTICLE_PROPS
-            + ["[total:{0},available:{1}]".format(total, loops * limit)],
+            csvfile, delimiter=";", quoting=csv.QUOTE_MINIMAL, fieldnames=fieldnames
         )
 
         if page == 1:
             logger.info(
-                f"[job:{job.pk} user:{job.creator.pk}] writing header: {settings.IMPRESSO_SOLR_ARTICLE_PROPS}"
+                f"[job:{job.pk} user:{job.creator.pk}] writing header: {fieldnames}"
             )
             w.writeheader()
-        rows = map(solr_doc_to_article, contents["response"]["docs"])
+            # write custom line
+            w.writerow(
+                {
+                    fieldnames[
+                        0
+                    ]: f"Total in query:{total}, available for this export:{loops*limit}]"
+                }
+            )
+        rows = [
+            solr_doc_to_content_item(doc)
+            for doc in contents["response"]["docs"]
+            if doc.get("meta_journal_s", False)
+        ]
+        if len(rows) != len(contents["response"]["docs"]):
+            logger.warning(
+                f"[job:{job.pk} user:{job.creator.pk}] Warning: some docs do not have meta_journal_s field. Check: {[
+                    doc.get('id', 'no id') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
+                ]}"
+            )
+        rows = map(solr_doc_to_content_item, contents["response"]["docs"])
         # remove collections for the rows if they do not start with the job creator id
         rows = [mapper_doc_remove_private_collections(doc, job=job) for doc in rows]
 
         if not job.creator.is_staff:
-            rows = map(mapper_doc_redact_contents, rows)
+            rows = [
+                mapper_doc_redact_contents(doc, user_bitmap_key=user_bitmap_key)
+                for doc in rows
+            ]
 
         w.writerows(rows)
 
@@ -201,6 +252,7 @@ def export_query_as_csv_progress(
             query=query,
             query_hash=query_hash,
             search_query_id=search_query_id,
+            user_bitmap_key=user_bitmap_key,
             skip=page * limit,
             limit=limit,
         )
@@ -239,8 +291,27 @@ def export_query_as_csv_progress(
 
 @app.task(bind=True)
 def export_query_as_csv(
-    self, user_id, query, description="", query_hash="", search_query_id=None
-):
+    self,
+    user_id: int,
+    query: str,
+    description: str = "",
+    query_hash: str = "",
+    search_query_id: int = None,
+) -> None:
+    """
+    Initiates a job to export a query as a CSV file and starts the export_query_as_csv_progress task.
+
+    Args:
+        self: The instance of the class.
+        user_id (int): The ID of the user initiating the export.
+        query (str): The query string to be exported.
+        description (str, optional): A description for the job. Defaults to an empty string.
+        query_hash (str, optional): A hash of the query string. Defaults to an empty string.
+        search_query_id (int, optional): The ID of the search query. Defaults to None.
+
+    Returns:
+        None
+    """
     # save current job then start export_query_as_csv task.
     job = Job.objects.create(
         type=Job.EXPORT_QUERY_AS_CSV,
@@ -248,6 +319,15 @@ def export_query_as_csv(
         description=description,
     )
 
+    # get user bitmap, if any
+    try:
+        user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()
+    except User.bitmap.RelatedObjectDoesNotExist:
+        user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
+    logger.info(
+        f"[job:{job.pk} user:{user_id}] launched! "
+        f"query:{query_hash} bitmap:{user_bitmap_key}"
+    )
     attachment = Attachment.create_from_job(job, extension="csv")
 
     if not search_query_id:
@@ -263,7 +343,7 @@ def export_query_as_csv(
         search_query_id = search_query.pk
     logger.info(
         f"[job:{job.pk} user:{user_id}] started!"
-        f" search_query_id:{search_query_id} created:{created}, attachment:{ attachment.upload.path}"
+        f" search_query_id:{search_query_id} created:{created}, attachment:{attachment.upload.path}"
     )
 
     # add query to extra. Job status should be INIT
@@ -276,6 +356,7 @@ def export_query_as_csv(
             "query": query_hash,
             "search_query_id": search_query_id,
         },
+        logger=logger,
     )
 
     export_query_as_csv_progress.delay(
@@ -283,6 +364,7 @@ def export_query_as_csv(
         query=query,
         query_hash=query_hash,
         search_query_id=search_query_id,
+        user_bitmap_key=user_bitmap_key,
     )
 
 
