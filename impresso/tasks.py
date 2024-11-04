@@ -545,27 +545,29 @@ def remove_collection(self, collection_id, user_id):
     try:
         collection = Collection.objects.get(pk=collection_id)
         # only if the creator is the owner and status is DEL
-        collection_to_delete = (
+        is_collection_to_delete = (
             collection.status == Collection.DELETED and collection.creator.pk == user_id
         )
         collection_seralized = get_collection_as_obj(collection)
         logger.info(
-            f"Collection found with pk={collection_id}, "
-            f"status={collection_to_delete}"
+            f"[job:{job.pk} user:{user_id}]"
+            f" Collection found with pk={collection_id},"
+            f" status={is_collection_to_delete}"
         )
     except Collection.DoesNotExist:
         collection_seralized = {"pk": collection_id}
-        collection_to_delete = True
+        is_collection_to_delete = True
         logger.info(
+            f"[job:{job.pk} user:{user_id}] "
             f"Collection.DoesNotExist in DB with pk={collection_id}, removing on SOLR..."
         )
-    if not collection_to_delete:
+    if not is_collection_to_delete:
         logger.info(
+            f"[job:{job.pk} user:{user_id}] "
             f"Cannot delete collection pk={collection_id}, please set it status=DEL!"
         )
-        update_job_completed(task=self, job=job)
+        update_job_completed(task=self, job=job, logger=logger)
         return
-    logger.info(f"Delete collection pk={collection_id}...")
     # stat loop
     update_job_progress(
         task=self,
@@ -573,6 +575,7 @@ def remove_collection(self, collection_id, user_id):
         taskstate=TASKSTATE_INIT,
         progress=0.0,
         extra={"collection": collection_seralized},
+        logger=logger,
     )
     remove_collection_progress.delay(
         job_id=job.pk, collection_id=collection_id, user_id=user_id
@@ -588,23 +591,38 @@ def remove_collection(self, collection_id, user_id):
 )
 def remove_collection_progress(
     self,
-    job_id,
-    collection_id,
-    user_id,
-    skip=0,
-    limit=100,
-    progress=0.0,
-):
+    job_id: int,
+    collection_id: int,
+    user_id: int,
+    limit: int = 100,
+    progress: float = 0.0,
+) -> None:
+    """
+    This task attempts to remove a collection in a paginated manner, updating the job progress
+    accordingly. If the task is stopped, it will return early. Otherwise, it will continue to
+    delete the collection in chunks, updating the progress and retrying if necessary until the
+    collection is fully removed.
+
+    Args:
+        self (Task): The current task instance.
+        job_id (int): The ID of the job associated with this task.
+        collection_id (int): The ID of the collection to be removed.
+        user_id (int): The ID of the user requesting the removal.
+        limit (int, optional): The maximum number of items to process in one go. Defaults to 100.
+        progress (float, optional): The current progress of the task. Defaults to 0.0.
+
+    Returns:
+        None
+    """
     job = Job.objects.get(pk=job_id)
-    if is_task_stopped(task=self, job=job, progress=progress):
+    if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
         return
     page, loops, progress = delete_collection(
         collection_id=collection_id, limit=limit, job=job
     )
-    update_job_progress(task=self, job=job, progress=progress, extra={})
+    update_job_progress(task=self, job=job, progress=progress, extra={}, logger=logger)
 
     if progress < 1.0:
-        logger.info(f"job({job.pk}) still running!")
         remove_collection_progress.delay(
             job_id=job.pk, collection_id=collection_id, user_id=user_id
         )
@@ -744,24 +762,23 @@ def remove_collection_in_tr(self, collection_id, user_id):
 def remove_collection_in_tr_progress(self, collection_id, job_id, skip=0, limit=100):
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    if is_task_stopped(task=self, job=job):
-        logger.info(f"job {job.pk} STOPPED, user id:{ job.creator.pk}. Bye!")
+    if is_task_stopped(task=self, job=job, logger=logger):
         return
     page, loops, progress = remove_collection_from_tr_passages(
-        collection_id=collection_id, skip=skip, limit=limit, logger=logger
+        collection_id=collection_id, job=job, skip=skip, limit=limit, logger=logger
     )
     logger.info(
-        f"job({job.pk}) running for collection={collection_id}"
+        f"[job:{job.pk} user:{job.creator.pk}] running for collection={collection_id}"
         f"{page}/{loops} {progress}%"
     )
-    update_job_progress(task=self, job=job, progress=progress)
+    update_job_progress(task=self, job=job, progress=progress, logger=logger)
 
     if progress < 1.0:
         remove_collection_in_tr_progress.delay(
             collection_id=collection_id, job_id=job.pk, skip=skip + limit, limit=limit
         )
     else:
-        update_job_completed(task=self, job=job)
+        update_job_completed(task=self, job=job, logger=logger)
 
 
 @app.task(

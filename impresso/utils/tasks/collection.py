@@ -1,10 +1,10 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Any, Optional
 from django.conf import settings
 from django.db.utils import IntegrityError
 from . import get_pagination, is_task_stopped, get_list_diff
 from ...solr import find_all, update
-from ...models import Collection, CollectableItem
+from ...models import Job, Collection, CollectableItem
 
 default_logger = logging.getLogger(__name__)
 
@@ -125,15 +125,29 @@ def sync_collections_in_tr_passages(
 
 
 def delete_collection(
-    collection_id, job, limit=100, logger=default_logger
+    collection_id: int,
+    job: Job,
+    limit: int = 100,
+    logger: Optional[Any] = default_logger,
 ) -> Tuple[int, int, float]:
-    """ """
+    """
+    Deletes a collection in chuncks of `limit` content items from the database and SOLR.
+
+    Args:
+        collection_id (int): The ID of the collection to be deleted.
+        job (Any): The job instance for tracking progress.
+        limit (int, optional): The maximum number of items to process in one batch. Defaults to 100.
+        logger (Any, optional): The logger instance for logging information. Defaults to default_logger.
+
+    Returns:
+        Tuple[int, int, float]: A tuple containing the current page, number of loops, and progress percentage.
+    """
     try:
         collection = Collection.objects.get(pk=collection_id)
         query = f"ucoll_ss:{collection.pk}"
     except Collection.DoesNotExist:
-        logger.info("Collection does not exist in DB, remove from SOLR.")
         query = f"ucoll_ss:{collection_id}"
+    logger.info(f"[job:{job.pk} user:{job.creator.pk}] delete_collection q={query}")
     # 1. get all collection related content items
     content_items = find_all(
         q=query,
@@ -144,12 +158,15 @@ def delete_collection(
         logger=logger,
     )
     total_content_items = content_items["response"]["numFound"]
-    page, loops, progress = get_pagination(
-        skip=0, limit=limit, total=total_content_items, job=job
+    qtime = content_items["responseHeader"]["QTime"]
+    page, loops, progress, max_loops = get_pagination(
+        skip=0, limit=limit, total=total_content_items, job=job, ignore_max_loops=True
     )
     logger.info(
-        f"q={query} numFound={total_content_items} "
-        f"skip=0 limit={limit} ({progress * 100}% compl.)"
+        f"[job:{job.pk} user:{job.creator.pk}] delete_collection"
+        f" total:{total_content_items} in {qtime} -"
+        f" loops:{loops} - max_loops:{max_loops} -"
+        f" page:{page} - progress:{progress} -"
     )
     solr_updates_needed = []
     solr_content_items = content_items.get("response").get("docs", [])
@@ -166,8 +183,11 @@ def delete_collection(
                 "ucoll_ss": {"set": ucoll_list},
             }
         )
-    logger.info(f"(update) solr updates needed: {len(solr_updates_needed)}")
-    # more than one
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] delete_collection "
+        f"n. of solr updates needed: {len(solr_updates_needed)}"
+    )
+
     if solr_updates_needed:
         result = update(
             url=settings.IMPRESSO_SOLR_URL_UPDATE,
@@ -177,30 +197,37 @@ def delete_collection(
         result_response_header = result.get("responseHeader")
         result_adds = len(result.get("adds"))
         logger.info(
+            f"[job:{job.pk} user:{job.creator.pk}] delete_collection "
             f"(update) solr updates response={result_response_header}, "
             f"adds={result_adds}"
         )
     # remove collectable items from db
     items_ids = [doc["id"] for doc in solr_content_items]
-    logger.info(f"(db) db CollectableItem to delete={len(items_ids)}")
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] delete_collection "
+        f"(db) db CollectableItem to delete={len(items_ids)}"
+    )
     db_removal = (
         CollectableItem.objects.filter(collection_id=collection_id)
         .filter(item_id__in=items_ids)
         .delete()
     )
-    logger.info(f"(db) db CollectableItem deleted={db_removal}")
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] delete_collection "
+        f"(db) db CollectableItem deleted={db_removal}"
+    )
     # remove collections from text passages
-    updated_content_items = find_all(
-        q=" OR ".join(map(lambda id: f"id:{id}", items_ids)),
-        url=settings.IMPRESSO_SOLR_URL_SELECT,
-        fl="id,ucoll_ss,_version_",
-        skip=0,
-        limit=limit,
-        logger=logger,
-    )
-    update_collections_in_tr_passages(
-        solr_content_items=updated_content_items.get("response").get("docs"), limit=50
-    )
+    # updated_content_items = find_all(
+    #     q=" OR ".join(map(lambda id: f"id:{id}", items_ids)),
+    #     url=settings.IMPRESSO_SOLR_URL_SELECT,
+    #     fl="id,ucoll_ss,_version_",
+    #     skip=0,
+    #     limit=limit,
+    #     logger=logger,
+    # )
+    # update_collections_in_tr_passages(
+    #     solr_content_items=updated_content_items.get("response").get("docs"), limit=50
+    # )
     return (page, loops, progress)
 
 

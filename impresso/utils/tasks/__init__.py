@@ -11,7 +11,7 @@ TASKSTATE_STOPPED = "STOPPED"
 
 
 def get_pagination(
-    skip: int, limit: int, total: int, job: Job
+    skip: int, limit: int, total: int, job: Job, ignore_max_loops: bool = False
 ) -> Tuple[int, int, float, int]:
     """
     Calculate pagination details including the current page, number of loops, progress, and maximum loops allowed.
@@ -21,7 +21,7 @@ def get_pagination(
         limit (int): The maximum number of items per page.
         total (int): The total number of items.
         job (Optional[Job], optional): The job object containing user profile information. Defaults to None.
-
+        ignore_max_loops (bool, optional): Whether to ignore the maximum number of loops allowed. Defaults to False.
     Returns:
         Tuple[int, int, float, int]: A tuple containing:
             - page (int): The current page number.
@@ -30,16 +30,16 @@ def get_pagination(
             - max_loops (int): The maximum number of loops allowed.
     """
     limit = min(limit, settings.IMPRESSO_SOLR_EXEC_LIMIT)
-    max_loops = (
-        min(
-            job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-        )
-        if job
-        else settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
+    max_loops = min(
+        job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
     )
+
     page = 1 + skip / limit
     # get n of loops allowed
-    loops = min(math.ceil(total / limit), max_loops)
+    if ignore_max_loops:
+        loops = math.ceil(total / limit)
+    else:
+        loops = min(math.ceil(total / limit), max_loops)
     # 100% progress if there's no loops...
     progress = page / loops if loops > 0 else 1.0
     return page, loops, progress, max_loops

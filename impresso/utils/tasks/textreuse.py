@@ -73,22 +73,32 @@ def remove_collection_from_tr_passages(
         q=query,
         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
         fl="id,ucoll_ss,_version_,ci_id_s",
-        skip=skip,
+        skip=0,
         limit=limit,
         logger=logger,
     )
     total = tr_passages_request["response"]["numFound"]
-    page, loops, progress = get_pagination(skip=0, limit=limit, total=total, job=job)
+    qtime = tr_passages_request["responseHeader"]["QTime"]
+    page, loops, progress, max_loops = get_pagination(
+        skip=0, limit=limit, total=total, job=job, ignore_max_loops=True
+    )
     logger.info(
-        f"q={query} numFound={total} "
-        f"skip={skip} limit={limit} ({progress * 100}% compl.)"
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f" query = {query} -"
+        f" total:{total} in {qtime}ms -"
+        f" loops:{loops} - max_loops:{max_loops} -"
+        f" page:{page} - progress:{progress} -"
     )
     # 2. get update objects for text reuse index.
     solr_tr_passages = tr_passages_request.get("response").get("docs", [])
     solr_updates_needed = []
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] " f"{tr_passages_request["response"]}"
+    )
     for doc in solr_tr_passages:
         # get list of collection in ucoll_ss field
         ucoll_list = doc.get("ucoll_ss", [])
+        logger.info(ucoll_list)
         if collection_id not in ucoll_list:
             continue
         ucoll_list.remove(collection_id)
@@ -99,7 +109,10 @@ def remove_collection_from_tr_passages(
                 "ucoll_ss": {"set": ucoll_list},
             }
         )
-    logger.info(f"(update) solr updates needed: {len(solr_updates_needed)}")
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f"n. Solr updates needed in text_reuse: {len(solr_updates_needed)}"
+    )
     # more than one
     if solr_updates_needed:
         result = update(
