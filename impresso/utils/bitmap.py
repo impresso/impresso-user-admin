@@ -17,15 +17,22 @@ def check_bitmap_keys_overlap(user_bitmap_key: str, content_bitmap_key: str) -> 
     >>> check_bitmaps_overlap(user_bitmap_key, content_bitmap_key)
     0
     """
-    reversed_user_bitmap_key = user_bitmap_key[::-1]
-    reversed_content_bitmap_key = content_bitmap_key[::-1]
-    # transform to int
-    user_bitmap = int(reversed_user_bitmap_key, 2)
-    content_bitmap = int(reversed_content_bitmap_key, 2)
+    try:
+        reversed_user_bitmap_key = user_bitmap_key[::-1]
+        reversed_content_bitmap_key = content_bitmap_key[::-1]
+        # transform to int
+        user_bitmap = int(reversed_user_bitmap_key, 2)
+        content_bitmap = int(reversed_content_bitmap_key, 2)
 
-    # print(f"user reversed original:\n {user_bitmap:05b}")
-    # print(f"content reversed original:\n {content_bitmap:05b}")
-    # Perform the bitwise AND to check if there's any overlap
-    result = user_bitmap & content_bitmap
+        # print(f"user reversed original:\n {user_bitmap:05b}")
+        # print(f"content reversed original:\n {content_bitmap:05b}")
+        # Perform the bitwise AND to check if there's any overlap
+        result = user_bitmap & content_bitmap
+    except ValueError as e:
+        print(
+            f"user_bitmap_key and content_bitmap_key must be strings of 0 and 1 only, received: user_bitmap_key={user_bitmap_key} and content_bitmap_key={content_bitmap_key}"
+        )
+        print(f"Error: {e}")
+        return False
     # print(f"result:\n {result:05b}")
     return result > 0
