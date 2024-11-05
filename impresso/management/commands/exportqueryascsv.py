@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
-from impresso.models import UserBitmap
+from impresso.models import UserBitmap, Job, Attachment
 from impresso.utils.bitmap import check_bitmap_keys_overlap
 from impresso.tasks import export_query_as_csv
 from django.conf import settings
 from impresso.solr import find_all, solr_doc_to_content_item
+from impresso.utils.tasks.export import helper_export_query_as_csv_progress
 
 
 class Command(BaseCommand):
@@ -14,16 +15,26 @@ class Command(BaseCommand):
         parser.add_argument("user_id", type=str)
         parser.add_argument("q", type=str)
         parser.add_argument(
+            "--no_prompt",
+            action="store_true",
+            help="Do not prompt for confirmation before running the task",
+        )
+        parser.add_argument(
             "--immediate",
             action="store_true",
-            help="Run the task immediately instead of delaying it",
+            help="Run the function behind the task immediately instead of delaying it with Celery",
         )
 
-    def handle(self, user_id, q, immediate=False, *args, **options):
-        user = User.objects.get(pk=user_id)
-
+    def handle(self, user_id, q, no_prompt=False, immediate=False, *args, **options):
         self.stdout.write("\n\n--- Export Solr Query as CSV file ---")
         self.stdout.write("Params \033[34m❤️\033[0m")
+        self.stdout.write(f"  user_id: {user_id}")
+        self.stdout.write(f"  q: {q}")
+        self.stdout.write(f"  --no_prompt: {no_prompt}")
+        self.stdout.write(f"  --immediate: {immediate}\n\n")
+
+        user = User.objects.get(pk=user_id)
+
         self.stdout.write('user id: "%s"' % user.pk)
         self.stdout.write('user uid: "%s"' % user.profile.uid)
         self.stdout.write(f"query q: {q}")
@@ -107,7 +118,7 @@ class Command(BaseCommand):
                     "  no field `bm_get_tr` found in the first document, user has no right to export the transcript this document"
                 )
             )
-        if not immediate:
+        if not no_prompt:
             confirm = input(
                 self.style.NOTICE(
                     "\n\nDo you want to proceed with exporting the query as CSV? (type 'y' for yes): "
@@ -116,13 +127,34 @@ class Command(BaseCommand):
             if confirm.lower() != "y":
                 self.stdout.write(
                     self.style.WARNING(
-                        "Export cancelled by user. Use --immediate optional arg to avoid the confirmation.\n\n"
+                        "Export cancelled by user. Use --no_prompt optional arg to avoid the confirmation.\n\n"
                     )
                 )
                 return
-
-        export_query_as_csv.delay(
-            query=q, user_id=user_id, description="from command management"
+        if not immediate:
+            export_query_as_csv.delay(
+                query=q, user_id=user_id, description="from command management"
+            )
+            self.stdout.write('"test" task launched, check celery.')
+            self.stdout.write("\n\n---- end ----\n\n")
+            return
+        # run the function immediately,
+        # save current job then start export_query_as_csv task.
+        job = Job.objects.create(
+            type=Job.EXPORT_QUERY_AS_CSV,
+            creator_id=user_id,
+            description="from command management",
         )
-        self.stdout.write('"test" task launched, check celery.')
+        attachment = Attachment.create_from_job(job, extension="csv")
+        self.stdout.write(f"job created: {job}")
+        self.stdout.write(
+            f"attachment created: {self.style.SUCCESS(attachment.upload.path)}"
+        )
+        page, loops, progress = helper_export_query_as_csv_progress(
+            job=job,
+            query=q,
+            query_hash="",
+            user_bitmap_key=user_bitmap_as_str,
+        )
+        self.stdout.write(f"page: {page}, loops: {loops}, progress: {progress}")
         self.stdout.write("\n\n---- end ----\n\n")
