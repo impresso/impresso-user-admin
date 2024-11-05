@@ -76,9 +76,9 @@ class UserBitmap(models.Model):
         Converts the bitmap to an integer and returns its binary representation as a string.
 
         Returns:
-            str: The binary representation of the bitmap as a string, truncated to the first two characters.
+            str: The binary representation of the bitmap as a string, with the first two characters truncated.
         """
-        return bin(self.get_bitmap_as_int())[:2]
+        return bin(self.get_bitmap_as_int())[2:]
 
     def get_user_plan(self):
         if not self.bitmap:
