@@ -1,12 +1,8 @@
 from __future__ import absolute_import
 
-from os.path import basename
 
-import os
-import json
 import time
-import math
-import csv
+
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -18,7 +14,6 @@ from .solr import find_all, solr_doc_to_content_item
 
 from celery.utils.log import get_task_logger
 
-from zipfile import ZipFile, ZIP_DEFLATED
 
 from .utils.tasks import (
     TASKSTATE_INIT,
@@ -38,6 +33,7 @@ from .utils.tasks.account import send_emails_after_user_registration
 from .utils.tasks.account import send_emails_after_user_activation
 from .utils.tasks.account import send_email_password_reset
 from .utils.tasks.userBitmap import update_user_bitmap
+from .utils.tasks.export import helper_export_query_as_csv_progress
 
 logger = get_task_logger(__name__)
 
@@ -125,6 +121,7 @@ def export_query_as_csv_progress(
     search_query_id: int,
     user_bitmap_key: str,
     query_hash: str = "",
+    progress: float = 0.0,
     skip: int = 0,
     limit: int = 100,
 ) -> None:
@@ -154,99 +151,26 @@ def export_query_as_csv_progress(
         "query": query_hash,
         "search_query_id": search_query_id,
     }
-    # do find_all
-    logger.info(f"[job:{job.pk} user:{job.creator.pk}] launched! query:{query_hash}")
-
-    contents = find_all(
-        q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip, logger=logger
-    )
-    total = contents["response"]["numFound"]
-    qtime = contents["responseHeader"]["QTime"]
-    # generate extra from job stats
-    page, loops, progress, max_loops = get_pagination(
-        skip=skip, limit=limit, total=total, job=job
-    )
-    logger.info(
-        f"[job:{job.pk} user:{job.creator.pk}] "
-        f" total:{total} in {qtime} -"
-        f" loops:{loops} - max_loops:{max_loops} -"
-        f" page:{page} - progress:{progress} -"
-    )
-
     if is_task_stopped(
         task=self, job=job, progress=progress, extra=extra, logger=logger
     ):
         return
 
-    if total == 0:
-        update_job_completed(task=self, job=job, extra=extra, logger=logger)
-        return
-
-    extra.update(
-        {
-            "qtime": contents["responseHeader"]["QTime"],
-            "attachment": job.attachment.upload is not None,
-        }
+    page, loops, progress = helper_export_query_as_csv_progress(
+        job=job,
+        query=query,
+        query_hash=query_hash,
+        user_bitmap_key=user_bitmap_key,
+        skip=skip,
+        limit=limit,
+        logger=logger,
     )
 
-    logger.info(
-        f"[job:{job.pk} user:{job.creator.pk}] Opening file in APPEND mode:"
-        f"{job.attachment.upload.path}"
-    )
-    fieldnames = [
-        field
-        for field in settings.IMPRESSO_SOLR_ARTICLE_PROPS
-        if not field.startswith("_")
-    ]
-    with open(job.attachment.upload.path, mode="a", encoding="utf-8") as csvfile:
-        w = csv.DictWriter(
-            csvfile, delimiter=";", quoting=csv.QUOTE_MINIMAL, fieldnames=fieldnames
-        )
-
-        if page == 1:
-            logger.info(
-                f"[job:{job.pk} user:{job.creator.pk}] writing header: {fieldnames}"
-            )
-            w.writeheader()
-            # write custom line
-            w.writerow(
-                {
-                    fieldnames[
-                        0
-                    ]: f"Total in query:{total}, available for this export:{loops*limit}]"
-                }
-            )
-        rows = [
-            solr_doc_to_content_item(doc)
-            for doc in contents["response"]["docs"]
-            if doc.get("meta_journal_s", False)
-        ]
-        if len(rows) != len(contents["response"]["docs"]):
-            logger.warning(
-                f"[job:{job.pk} user:{job.creator.pk}] Warning: some docs do not have meta_journal_s field. Check: {[
-                    doc.get('id', 'no id') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
-                ]}"
-            )
-        rows = map(solr_doc_to_content_item, contents["response"]["docs"])
-        # remove collections for the rows if they do not start with the job creator id
-        rows = [mapper_doc_remove_private_collections(doc, job=job) for doc in rows]
-
-        if not job.creator.is_staff:
-            rows = [
-                mapper_doc_redact_contents(doc, user_bitmap_key=user_bitmap_key)
-                for doc in rows
-            ]
-
-        w.writerows(rows)
-
-    # update status to RUN
-    job.status = Job.RUN
-    # update pregress accordingly
-    update_job_progress(
-        task=self, job=job, progress=progress, extra=extra, logger=logger
-    )
-    # next loop!
     if page < loops:
+        job.status = Job.RUN
+        update_job_progress(
+            task=self, job=job, progress=progress, extra=extra, logger=logger
+        )
         export_query_as_csv_progress.delay(
             job_id=job.pk,
             query=query,
@@ -257,35 +181,6 @@ def export_query_as_csv_progress(
             limit=limit,
         )
     else:
-        zipped = "%s.zip" % job.attachment.upload.path
-        uncompressed = job.attachment.upload.path
-        logger.info(
-            f"[job:{job.pk} user:{job.creator.pk}] creating the corresponding zip file: "
-            f"{zipped} ..."
-        )
-        with ZipFile(zipped, "w", ZIP_DEFLATED) as zip:
-            zip.write(job.attachment.upload.path, basename(job.attachment.upload.path))
-        logger.info(
-            f"[job:{job.pk} user:{job.creator.pk}] success, corresponding zip file: {zipped} created."
-        )
-        # substitute the job attachment
-        job.attachment.upload.name = "%s.zip" % job.attachment.upload.name
-        job.attachment.save()
-        # if everything is fine, delete the original file
-        logger.info(
-            f"[job:{job.pk} user:{job.creator.pk}] deleting original csv file: {uncompressed} ..."
-        )
-        # // remove CSV file
-        if os.path.exists(uncompressed):
-            os.remove(uncompressed)
-        else:
-            print(f"The file does not exist: {uncompressed}")
-            logger.warning(
-                f"[job:{job.pk} user:{job.creator.pk}] Note: the file does not exist: {uncompressed}"
-            )
-        logger.info(
-            f"[job:{job.pk} user:{job.creator.pk}] success, original csv file: {uncompressed} deleted."
-        )
         update_job_completed(task=self, job=job, extra=extra, logger=logger)
 
 
@@ -321,8 +216,11 @@ def export_query_as_csv(
 
     # get user bitmap, if any
     try:
-        user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()
+        print(job.creator.bitmap)
+        user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()[:2]
     except User.bitmap.RelatedObjectDoesNotExist:
+        print(job.creator.bitmap)
+        logger.info(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
         user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
     logger.info(
         f"[job:{job.pk} user:{user_id}] launched! "

@@ -145,7 +145,8 @@ def is_task_stopped(
 
 def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
     """
-    Redacts the content of a document based on its availability and year.
+    Redacts the content of a document based on its bitmap key (_bitmap_get_tr)
+    or its availability and year.
 
     This function modifies the input document dictionary by redacting its content
     if certain conditions are met. Specifically, it checks the "is_content_available"
@@ -190,23 +191,19 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
     return doc
 
 
-def mapper_doc_remove_private_collections(doc: dict, job: Job) -> dict:
+def mapper_doc_remove_private_collections(doc: dict, prefix: str) -> dict:
     """
     Removes the private collections from the document that do not start with the job creator's ID.
 
     Args:
         doc (dict): The document dictionary containing collections.
-        job (Job): The job object containing the creator's profile information.
+        prefix (str): The prefix of the collections to keep, actually containing the creator's profile information.
 
     Returns:
         dict: The updated document dictionary with filtered collections.
     """
     if "collections" in doc:
         # remove collection from the doc if they do not start wirh job creator id
-        collections = [
-            d
-            for d in doc["collections"].split(",")
-            if d.startswith(str(job.creator.profile.uid))
-        ]
+        collections = [d for d in doc["collections"].split(",") if d.startswith(prefix)]
         doc["collections"] = ",".join(collections)
     return doc
