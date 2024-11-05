@@ -312,6 +312,7 @@ def store_collection_progress(
     )
     if progress < 1.0:
         if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
+            count_items_in_collection.delay(collection_id=collection_id)
             return
         update_job_progress(task=self, job=job, progress=progress, extra=extra)
         store_collection_progress.delay(
@@ -324,6 +325,7 @@ def store_collection_progress(
             method=method,
         )
     else:
+        count_items_in_collection.delay(collection_id=collection_id)
         update_job_completed(task=self, job=job, extra=extra)
 
 
