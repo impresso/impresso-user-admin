@@ -60,7 +60,7 @@ def solr_doc_to_content_item(
 
     for k, v in doc.items():
         prop = field_mapping.get(k, None)
-        if prop is None or prop.startswith("_"):
+        if prop is None:
             continue
         if isinstance(v, list):
             result[prop] = ",".join(str(x) for x in v)
