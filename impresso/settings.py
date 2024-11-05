@@ -200,6 +200,7 @@ IMPRESSO_SOLR_FIELDS = get_env_variable(
     "IMPRESSO_SOLR_FIELDS",
     "id,item_type_s,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss,bm_get_tr_s",
 )
+
 # check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
 # settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
 # raise an error if not
@@ -214,8 +215,13 @@ for field in impresso_solr_fields:
             f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
         )
 
-IMPRESSO_SOLR_ARTICLE_PROPS = list(
-    set([IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields])
+IMPRESSO_SOLR_ARTICLE_PROPS = sorted(
+    list(
+        set(
+            [IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields]
+        )
+    ),
+    key=lambda x: (x != "uid", x),
 )
 
 
@@ -227,7 +233,10 @@ IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable("IMPRESSO_SOLR_EXEC_LIMIT", 100)
 IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR = int(
     get_env_variable("IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR", 1871)
 )
-
+IMPRESSO_CONTENT_DOWNLOAD_DISCLAIMER = get_env_variable(
+    "IMPRESSO_CONTENT_DOWNLOAD_DISCLAIMER",
+    "This data is provided for research purposes only.",
+)
 # SOLR passages. Requires IMPRESSO_SOLR_PASSAGES_URL env variables.
 IMPRESSO_SOLR_PASSAGES_URL_SELECT = os.path.join(
     get_env_variable("IMPRESSO_SOLR_PASSAGES_URL"), "select"
