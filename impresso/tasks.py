@@ -1,37 +1,30 @@
 from __future__ import absolute_import
 
-
 import time
-
-
-from django.conf import settings
+from celery.utils.log import get_task_logger
 from django.contrib.auth.models import User
-
 from .celery import app
 from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
 from .models import UserBitmap
-from .solr import find_all, solr_doc_to_content_item
-
-from celery.utils.log import get_task_logger
-
-
 from .utils.tasks import (
     TASKSTATE_INIT,
-    get_pagination,
     update_job_progress,
     update_job_completed,
     is_task_stopped,
-    mapper_doc_remove_private_collections,
-    mapper_doc_redact_contents,
 )
-from .utils.tasks.collection import sync_collections_in_tr_passages
+from .utils.tasks.collection import helper_update_collections_in_tr_passages_progress
 from .utils.tasks.textreuse import remove_collection_from_tr_passages
 from .utils.tasks.textreuse import add_tr_passages_query_results_to_collection
-from .utils.tasks.collection import delete_collection, sync_query_to_collection
+from .utils.tasks.collection import (
+    helper_remove_collection_progress,
+    helper_store_collection_progress,
+)
 from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
-from .utils.tasks.account import send_emails_after_user_registration
-from .utils.tasks.account import send_emails_after_user_activation
-from .utils.tasks.account import send_email_password_reset
+from .utils.tasks.account import (
+    send_emails_after_user_registration,
+    send_emails_after_user_activation,
+    send_email_password_reset,
+)
 from .utils.tasks.userBitmap import update_user_bitmap
 from .utils.tasks.export import helper_export_query_as_csv_progress
 
@@ -50,8 +43,8 @@ def get_collection_as_obj(collection):
 
 @app.task(bind=True)
 def echo(self, message):
-    logger.info("Request: f{message}")
-    response = f"You: {message}"
+    logger.info(f"Echo: {message}")
+    response = f"Hello world. This is your message: {message}"
     return response
 
 
@@ -216,7 +209,6 @@ def export_query_as_csv(
 
     # get user bitmap, if any
     try:
-        print(job.creator.bitmap)
         user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()[:2]
     except User.bitmap.RelatedObjectDoesNotExist:
         print(job.creator.bitmap)
@@ -274,10 +266,72 @@ def export_query_as_csv(
     retry_jitter=True,
 )
 def store_collection_progress(
-    self, job_id, collection_id, items_ids, skip, limit, content_type, method
-):
+    self,
+    job_id: int,
+    collection_id: int,
+    items_ids: list[int],
+    skip: int,
+    limit: int,
+    progress: float = 0.0,
+    content_type: str = "A",
+    method: str = METHOD_ADD_TO_INDEX,
+) -> None:
+    """
+    Store the progress of a collection processing job.
+
+    This function updates the progress of a job that processes a collection of items.
+    It constructs a query based on the provided item IDs and synchronizes the query
+    results to the collection. If the collection is marked as deleted, it logs the
+    status and updates the job as completed. Otherwise, it continues to update the
+    job progress and recursively calls itself until the processing is complete.
+
+    Args:
+        self: The task instance.
+        job_id (int): The ID of the job.
+        collection_id (int): The ID of the collection.
+        items_ids (list[int]): A list of item IDs to be processed.
+        skip (int): The number of items to skip in the query.
+        limit (int): The maximum number of items to process in one batch.
+        content_type (str): The type of content being processed.
+        method (str): The method used for processing.
+
+    Returns:
+        None
+    """
+
     job = Job.objects.get(pk=job_id)
-    collection = Collection.objects.get(pk=collection_id)
+    try:
+        collection = Collection.objects.get(pk=collection_id)
+    except Collection.DoesNotExist:
+        logger.warning(f"Collection.DoesNotExist in DB with pk={collection_id}, skip.")
+        update_job_completed(
+            task=self,
+            job=job,
+            extra=extra,
+            logger=logger,
+            message="Collection doesn't exist!",
+        )
+        return
+
+    if collection.status == Collection.DELETED:
+        logger.info(f"Collection {collection_id} status is DEL, exit!")
+        extra.update({"cleared": True, "reason": "Collection has status:DEL"})
+        update_job_completed(
+            task=self,
+            job=job,
+            extra=extra,
+            logger=logger,
+            message="Collection is marked for deletion!",
+        )
+        return
+
+    if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
+        count_items_in_collection.delay(collection_id=collection_id)
+        update_collections_in_tr_passages.delay(
+            collection_prefix=collection_id, user_id=collection.creator.pk
+        )
+        return
+
     query = " OR ".join(map(lambda id: f"id:{id}", items_ids))
     extra = {
         "collection_id": collection_id,
@@ -286,47 +340,38 @@ def store_collection_progress(
         "query": query,
         "method": method,
     }
-    if collection.status == Collection.DELETED:
-        logger.info(f"Collection {collection_id} status is DEL, exit!")
-        extra.update({"cleared": True, "reason": "Collection has status:DEL"})
-        update_job_completed(task=self, job=job, extra=extra)
-        return
-    logger.info(
-        f"Collection {collection_id}(status:{collection.status}), "
-        f"saving query: q={query}"
-    )
-    page, loops, progress, total, allowed = sync_query_to_collection(
+
+    page, loops, progress = helper_store_collection_progress(
+        job=job,
         collection_id=collection_id,
         query=query,
         content_type=content_type,
+        method=method,
         skip=skip,
         limit=limit,
-        method=method,
         logger=logger,
     )
-    extra.update(
-        {
-            "total": total,
-            "allowed": allowed,
-        }
-    )
-    if progress < 1.0:
-        if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-            count_items_in_collection.delay(collection_id=collection_id)
-            return
-        update_job_progress(task=self, job=job, progress=progress, extra=extra)
+    if page < loops:
+        job.status = Job.RUN
+        update_job_progress(
+            task=self, job=job, progress=progress, extra=extra, logger=logger
+        )
         store_collection_progress.delay(
-            job_id=job_id,
+            job_id=job.pk,
             collection_id=collection_id,
             items_ids=items_ids,
-            skip=skip + limit,
+            skip=page * limit,
             limit=limit,
+            progress=progress,
             content_type=content_type,
             method=method,
         )
     else:
+        update_job_completed(task=self, job=job, extra=extra, logger=logger)
         count_items_in_collection.delay(collection_id=collection_id)
-        update_job_completed(task=self, job=job, extra=extra)
+        update_collections_in_tr_passages.delay(
+            collection_prefix=collection_id, user_id=collection.creator.pk
+        )
 
 
 @app.task(
@@ -337,18 +382,52 @@ def store_collection_progress(
     retry_jitter=True,
 )
 def store_collection(
-    self, collection_id, items_ids=[], method=METHOD_ADD_TO_INDEX, content_type="A"
-):
+    self,
+    collection_id: int,
+    items_ids: list = [],
+    method: str = METHOD_ADD_TO_INDEX,
+    content_type: str = "A",
+) -> None:
     """
     Add items_ids to an existing collection.
+
+    Args:
+        self: The task instance.
+        collection_id (int): The ID of the collection to update.
+        items_ids (list, optional): The list of item IDs to add or remove. Defaults to an empty list.
+        method (str, optional): The method to use for updating the collection. Defaults to METHOD_ADD_TO_INDEX.
+        content_type (str, optional): The content type of the items. Defaults to "A".
+
+    Returns:
+        None
     """
-    collection = Collection.objects.get(pk=collection_id)
+
+    # @todo check if the collection is not deleted
+    try:
+        collection = Collection.objects.get(pk=collection_id)
+        if collection.status == Collection.DELETED:
+            logger.info(
+                f"Collection found with pk={collection_id}, "
+                f"status={collection_to_update}"
+            )
+        collection_to_update = collection.status != Collection.DELETED
+        logger.info(
+            f"Collection found with pk={collection_id}, "
+            f"status={collection_to_update}"
+        )
+    except Collection.DoesNotExist:
+        logger.warning(f"Collection.DoesNotExist in DB with pk={collection_id}, skip.")
+        return
+
     if method == METHOD_DEL_FROM_INDEX:
         job_type = Job.REMOVE_FROM_SOLR
     else:
         job_type = Job.SYNC_COLLECTION_TO_SOLR
     job = Job.objects.create(type=job_type, creator=collection.creator, status=Job.RUN)
 
+    logger.info(
+        f"[job:{job.pk} user:{collection.creator.pk}] started for collection:{collection.pk}!"
+    )
     update_job_progress(
         task=self,
         job=job,
@@ -359,9 +438,8 @@ def store_collection(
             "items": items_ids,
             "method": method,
         },
+        logger=logger,
     )
-
-    logger.info(f"Collection(pk:{collection.pk}) " f"items={items_ids} method={method}")
     # start update chain
     store_collection_progress.delay(
         job_id=job.pk,
@@ -444,17 +522,30 @@ def add_to_collection_from_query_progress(
     content_type,
     skip=0,
     limit=100,
-    prev_progress=0.0,
+    progress=0.0,
     serialized_query=None,
 ):
     job = Job.objects.get(pk=job_id)
-    if is_task_stopped(task=self, job=job, progress=prev_progress):
+    if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
         return
 
     # get the collection so that we can see its status
-    collection = Collection.objects.get(pk=collection_id)
+    try:
+        collection = Collection.objects.get(pk=collection_id)
+    except Collection.DoesNotExist:
+        update_job_completed(
+            task=self,
+            job=job,
+            extra={
+                "collection": {"pk": collection_id},
+                "query": query,
+                "serializedQuery": serialized_query,
+            },
+            message=f"Collection doesn't exist tith pk={collection_id}",
+            logger=logger,
+        )
+        return
     if collection.status == Collection.DELETED:
-        logger.info(f"Collection {collection_id} status is DEL, exit!")
         update_job_completed(
             task=self,
             job=job,
@@ -465,6 +556,8 @@ def add_to_collection_from_query_progress(
                 "cleared": True,
                 "reason": "Collection has status:DEL",
             },
+            message="Collection is marked for deletion...",
+            logger=logger,
         )
         return
     logger.info(
@@ -472,9 +565,8 @@ def add_to_collection_from_query_progress(
         f"Collection {collection_id}(status:{collection.status})"
         f"saving query hash = {serialized_query}"
     )
-    page, loops, progress, total, allowed = sync_query_to_collection(
+    page, loops, progress = helper_store_collection_progress(
         job=job,
-        task=self,
         collection_id=collection_id,
         query=query,
         content_type=content_type,
@@ -482,18 +574,11 @@ def add_to_collection_from_query_progress(
         limit=limit,
         logger=logger,
     )
-    extra = {
-        "collection": get_collection_as_obj(collection),
-        "total": total,
-        "allowed": allowed,
-        "query": query,
-        "serializedQuery": serialized_query,
-    }
-    if progress < 1.0:
-        if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
-            return
-        update_job_progress(task=self, job=job, progress=progress, extra=extra)
-        logger.info(f"job({job.pk}) still running!")
+
+    if page < loops:
+        job.status = Job.RUN
+        update_job_progress(task=self, job=job, progress=progress, logger=logger)
+
         add_to_collection_from_query_progress.delay(
             query=query,
             fq=fq,
@@ -503,10 +588,14 @@ def add_to_collection_from_query_progress(
             skip=skip + limit,
             limit=limit,
             serialized_query=serialized_query,
+            progress=progress,
         )
     else:
-        logger.info(f"job({job.pk}) COMPLETED! Bye!")
-        update_job_completed(task=self, job=job, extra=extra)
+        count_items_in_collection.delay(collection_id=collection_id)
+        update_collections_in_tr_passages.delay(
+            collection_prefix=collection_id, user_id=collection.creator.pk
+        )
+        update_job_completed(task=self, job=job, logger=logger)
 
 
 @app.task(
@@ -599,7 +688,7 @@ def remove_collection_progress(
     job = Job.objects.get(pk=job_id)
     if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
         return
-    page, loops, progress = delete_collection(
+    page, loops, progress = helper_remove_collection_progress(
         collection_id=collection_id, limit=limit, job=job
     )
     update_job_progress(task=self, job=job, progress=progress, extra={}, logger=logger)
@@ -654,13 +743,13 @@ def update_collections_in_tr_passages_progress(
     extra = {}
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         return
-    page, loops, progress = sync_collections_in_tr_passages(
+    page, loops, progress = helper_update_collections_in_tr_passages_progress(
         collection_id=collection_prefix, job=job, skip=skip, limit=limit, logger=logger
     )
 
     update_job_progress(task=self, job=job, progress=progress, extra=extra)
 
-    if progress < 1.0:
+    if page < loops:
         logger.info(f"[job:{job.pk} user:{job.creator.pk}] task still running!")
         update_collections_in_tr_passages_progress.delay(
             job_id=job_id,
