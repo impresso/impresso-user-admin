@@ -117,7 +117,6 @@ def helper_export_query_as_csv_progress(
             logger.info(
                 f"[job:{job.pk} user:{job.creator.pk}] writing header: {fieldnames}"
             )
-            w.writeheader()
             # write custom header
             w.writerow({fieldnames[0]: get_results_message(total, max_loops, limit)})
             w.writerow(
@@ -134,6 +133,7 @@ def helper_export_query_as_csv_progress(
             )
             # empty line
             w.writerow({})
+            w.writeheader()
 
         # filter out docs without proper metadata. We will warn about them in a moment
         rows = [
