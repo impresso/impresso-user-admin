@@ -1,6 +1,7 @@
 import requests
 import json
 from django.conf import settings
+from typing import Dict, Any
 
 
 def find_all(
@@ -41,10 +42,21 @@ def find_all(
     return res.json()
 
 
-def solr_doc_to_article(
-    doc, field_mapping=settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
-):
-    result = {}
+def solr_doc_to_content_item(
+    doc: Dict[str, Any],
+    field_mapping: Dict[str, str] = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS,
+) -> Dict[str, str]:
+    """
+    Convert a Solr document to a content item object as adict
+
+    Args:
+        doc: Solr document
+        field_mapping: Mapping between Solr fields and content item properties
+
+    Returns:
+        dict: Content item object
+    """
+    result: Dict[str, str] = {}
 
     for k, v in doc.items():
         prop = field_mapping.get(k, None)

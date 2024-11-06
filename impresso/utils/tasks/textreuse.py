@@ -1,9 +1,10 @@
 import logging
+from typing import Tuple
 from django.conf import settings
 from django.db.utils import IntegrityError
 from . import get_pagination
 from ...solr import find_all, update
-from ...models import Collection, CollectableItem
+from ...models import Collection, CollectableItem, Job
 
 default_logger = logging.getLogger(__name__)
 
@@ -44,30 +45,60 @@ def get_indexed_tr_passages_by_items(
 
 
 def remove_collection_from_tr_passages(
-    collection_id, skip=0, limit=100, logger=default_logger
-) -> (int, int, float):
+    collection_id: str,
+    job: Job,
+    skip: int = 0,
+    limit: int = 100,
+    logger: logging.Logger = default_logger,
+) -> Tuple[int, int, float]:
+    """
+    Remove a collection from text reuse passages in the Solr index.
+
+    Args:
+        collection_id (str): The ID of the collection to be removed.
+        skip (int, optional): The number of initial records to skip. Defaults to 0.
+        limit (int, optional): The maximum number of records to process in one batch. Defaults to 100.
+        logger (Logger, optional): Logger instance for logging information. Defaults to default_logger.
+
+    Returns:
+        tuple: A tuple containing:
+            - page (int): The current page number.
+            - loops (int): The number of loops required to process all records.
+            - progress (float): The progress percentage of the operation.
+    """
+
     query = f"ucoll_ss:{collection_id}"
     # 1. get text reuse passages matching collection_id
     tr_passages_request = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_PASSAGES_URL_SELECT,
         fl="id,ucoll_ss,_version_,ci_id_s",
-        skip=skip,
+        skip=0,
         limit=limit,
         logger=logger,
     )
     total = tr_passages_request["response"]["numFound"]
-    page, loops, progress = get_pagination(skip=0, limit=limit, total=total)
+    qtime = tr_passages_request["responseHeader"]["QTime"]
+    page, loops, progress, max_loops = get_pagination(
+        skip=0, limit=limit, total=total, job=job, ignore_max_loops=True
+    )
     logger.info(
-        f"q={query} numFound={total} "
-        f"skip={skip} limit={limit} ({progress * 100}% compl.)"
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f" query = {query} -"
+        f" total:{total} in {qtime}ms -"
+        f" loops:{loops} - max_loops:{max_loops} -"
+        f" page:{page} - progress:{progress} -"
     )
     # 2. get update objects for text reuse index.
     solr_tr_passages = tr_passages_request.get("response").get("docs", [])
     solr_updates_needed = []
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] " f"{tr_passages_request["response"]}"
+    )
     for doc in solr_tr_passages:
         # get list of collection in ucoll_ss field
         ucoll_list = doc.get("ucoll_ss", [])
+        logger.info(ucoll_list)
         if collection_id not in ucoll_list:
             continue
         ucoll_list.remove(collection_id)
@@ -78,7 +109,10 @@ def remove_collection_from_tr_passages(
                 "ucoll_ss": {"set": ucoll_list},
             }
         )
-    logger.info(f"(update) solr updates needed: {len(solr_updates_needed)}")
+    logger.info(
+        f"[job:{job.pk} user:{job.creator.pk}] "
+        f"n. Solr updates needed in text_reuse: {len(solr_updates_needed)}"
+    )
     # more than one
     if solr_updates_needed:
         result = update(
@@ -97,16 +131,30 @@ def remove_collection_from_tr_passages(
 
 
 def add_tr_passages_query_results_to_collection(
-    collection_id,
-    query,
-    skip=0,
-    limit=100,
-    logger=default_logger,
-    job=None,
-):
+    collection_id: str,
+    job: Job,
+    query: str,
+    skip: int = 0,
+    limit: int = 100,
+    logger: logging.Logger = default_logger,
+) -> Tuple[int, int, float]:
     """
     Set collection_id in ucoll_ss field of text reuse passages matching query.
-    Firstly we set the collection_id in the article solr index, and we add the collection to tr passages in a second time
+    Firstly we set the collection_id in the article solr index, and we add the collection to tr passages in a second time.
+
+    Args:
+        collection_id (str): The ID of the collection to be added.
+        query (str): The query to match text reuse passages.
+        skip (int, optional): The number of initial records to skip. Defaults to 0.
+        limit (int, optional): The maximum number of records to process in one batch. Defaults to 100.
+        logger (Logger, optional): Logger instance for logging information. Defaults to default_logger.
+        job (Job, optional): Job instance to limit the number of loops. Defaults to None.
+
+    Returns:
+        Tuple[int, int, float]: A tuple containing:
+            - page (int): The current page number.
+            - loops (int): The number of loops required to process all records.
+            - progress (float): The progress percentage of the operation.
     """
     collection = Collection.objects.get(pk=collection_id)
     logger.info(
@@ -124,14 +172,14 @@ def add_tr_passages_query_results_to_collection(
         logger=logger,
     )
     total_content_items = content_items["response"]["numFound"]
-
     # if Job is not none, we limit the number of loops to the value of job.creator.profile.max_allowed_loops
-    page, loops, progress = get_pagination(
+    page, loops, progress, max_loops = get_pagination(
         skip=skip, limit=limit, total=total_content_items, job=job
     )
     solr_content_items = content_items.get("response").get("docs", [])
     logger.info(
         f"SOLR find_all success, numFound={total_content_items} "
+        f"max_loops={max_loops} page={page} loops={loops}"
         f"skip={skip} limit={limit} ({progress * 100}% compl.)"
     )
     try:
