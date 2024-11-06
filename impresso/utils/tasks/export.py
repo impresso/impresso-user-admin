@@ -103,7 +103,6 @@ def helper_export_query_as_csv_progress(
         if not field.startswith("_")
     ]
     # Sort fieldnames with 'uid' first, then the rest alphabetically
-    fieldnames = sorted(fieldnames, key=lambda x: (x != "uid", x))
     with open(
         job.attachment.upload.path, mode="a", encoding="utf-8-sig", newline=""
     ) as csvfile:
