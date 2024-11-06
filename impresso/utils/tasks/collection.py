@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Tuple, Any, Optional
 from django.conf import settings
 from django.db.utils import IntegrityError
@@ -76,13 +77,14 @@ def update_collections_in_tr_passages(
 
     # check whether it is done
     if total_tr_passages > skip + limit:
+        time.sleep(1.0)
         update_collections_in_tr_passages(
             solr_content_items=solr_content_items, skip=skip + limit, limit=limit
         )
 
 
-def sync_collections_in_tr_passages(
-    collection_id: str, job, skip: int = 0, limit: int = 100, logger=default_logger
+def helper_update_collections_in_tr_passages_progress(
+    collection_id: str, job: Job, skip: int = 0, limit: int = 100, logger=default_logger
 ) -> Tuple[int, int, float]:
     """
     Add collections id in corresponding tr_passages (given their content items)
@@ -96,8 +98,12 @@ def sync_collections_in_tr_passages(
     Returns:
         Tuple[int, int, float]: A tuple containing the current page, total number of loops, and progress percentage.
     """
-    query = f"ucoll_ss:{collection_id}" if collection_id else "ucoll_ss:*"
-    # 1. get all content items having at least a collection
+    query = (
+        f"ucoll_ss:{collection_id} AND cluster_id_ss:[* TO *]"
+        if collection_id
+        else "ucoll_ss:* AND cluster_id_ss:[* TO *]"
+    )
+    # 1. get all content items having at least a collection AND a cluster
     content_items = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_URL_SELECT,
@@ -108,23 +114,26 @@ def sync_collections_in_tr_passages(
     )
     total_content_items = content_items["response"]["numFound"]
     qTime = content_items["responseHeader"]["QTime"]
+
+    # we use the Search solr pagination because we don't know how many items we have to process in the TR passages
     page, loops, progress, max_loops = get_pagination(
         skip=skip, limit=limit, total=total_content_items, job=job
     )
     logger.info(
-        f"[job:{job.pk}, user:{job.creator.pk}] sync_collections_in_tr_passages q:{query} - "
+        f"[job:{job.pk}, user:{job.creator.pk}] q:{query} - "
         f"total:{total_content_items} in {qTime}ms - loops={loops} - max_loops:{max_loops}"
         f"page:{page} - progress:{progress * 100:.2f}%"
     )
-    # delegate updates to a specific function
+    # delegate updates to a specific function.
+    # Maybe we should delegate this to a celery task.
     update_collections_in_tr_passages(
-        solr_content_items=content_items["response"]["docs"], limit=50
+        solr_content_items=content_items["response"]["docs"]
     )
     # save all items there!
     return (page, loops, progress)
 
 
-def delete_collection(
+def helper_remove_collection_progress(
     collection_id: int,
     job: Job,
     limit: int = 100,
@@ -231,20 +240,32 @@ def delete_collection(
     return (page, loops, progress)
 
 
-def sync_query_to_collection(
-    job,
-    task,
-    collection_id,
-    query,
-    content_type,
-    skip=0,
-    limit=100,
-    method=METHOD_ADD_TO_INDEX,
-    logger=default_logger,
-):
-    if is_task_stopped(task=task, job=job):
-        return
-
+def helper_store_collection_progress(
+    job: Job,
+    query: str,
+    collection_id: str,
+    content_type: str,
+    method: str = METHOD_ADD_TO_INDEX,
+    skip: int = 0,
+    limit: int = 100,
+    logger: logging.Logger = default_logger,
+) -> Tuple[int, int, float]:
+    """
+    Helper function
+    Args:
+      job (Job): The job object containing user profile information.
+      query (str): The SOLR query string.
+      content_type (str): The content type of the collection.
+      method (str): The method to use for the operation, default to METHOD_ADD_TO_INDEX.
+      skip (int, optional): The number of items to skip. Defaults to 0.
+      limit (int, optional): The maximum number of items per page. Defaults to 100.
+      logger (Any, optional): The logger object. Defaults to None.
+    Returns:
+      Tuple[int, int, float]: A tuple containing:
+        - page (int): The current page number.
+        - loops (int): The number of loops allowed.
+        - progress (float): The progress percentage.
+    """
     content_items = find_all(
         q=query,
         url=settings.IMPRESSO_SOLR_URL_SELECT,
@@ -263,7 +284,7 @@ def sync_query_to_collection(
     solr_content_items = content_items.get("response").get("docs", [])
     qtime = content_items.get("responseHeader").get("QTime")
     logger.info(
-        f"[job:{job.pk}, user:{job.creator.pk}] "
+        f"[job:{job.pk}, user:{job.creator.pk}] helper_store_collection_progress "
         f" total:{total_content_items} in {qtime}ms -"
         f" loops:{loops} - max_loops:{max_loops} -"
         f" page:{page} - progress:{progress} -"
@@ -320,24 +341,8 @@ def sync_query_to_collection(
             f"(update) solr updates response={result_response_header}, "
             f"adds={result_adds}"
         )
-    # get updated collections.
-    items_ids = [doc["id"] for doc in solr_content_items]
-    updated_content_items = find_all(
-        q=" OR ".join(map(lambda id: f"id:{id}", items_ids)),
-        url=settings.IMPRESSO_SOLR_URL_SELECT,
-        fl="id,ucoll_ss,_version_",
-        skip=0,
-        limit=len(items_ids),
-        logger=logger,
-    )
-    update_collections_in_tr_passages(
-        solr_content_items=updated_content_items.get("response").get("docs"), limit=50
-    )
-
     return (
         page,
         loops,
         progress,
-        total_content_items,
-        min(total_content_items, loops * limit),
     )
