@@ -4,7 +4,7 @@ from impresso.models import UserBitmap, Job, Attachment
 from impresso.utils.bitmap import check_bitmap_keys_overlap
 from impresso.tasks import export_query_as_csv
 from django.conf import settings
-from impresso.solr import find_all, solr_doc_to_content_item
+from impresso.solr import find_all, serialize_solr_doc_content_item_to_plain_dict
 from impresso.utils.tasks.export import helper_export_query_as_csv_progress
 
 
@@ -66,6 +66,8 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(f"  user_current_bitmap: \033[34m{bin(user_bitmap)}\033[0m")
+        user_bitmap_as_str = bin(user_bitmap)[2:]
+        self.stdout.write(f"  user bitmap as str: \033[34m{user_bitmap_as_str}\033[0m")
 
         # bitmap print out as base64
 
@@ -83,19 +85,17 @@ class Command(BaseCommand):
         self.stdout.write(f"First document found as example:")
 
         first_doc = results["response"]["docs"][0]
-        first_content_item = solr_doc_to_content_item(first_doc)
+        first_content_item = serialize_solr_doc_content_item_to_plain_dict(first_doc)
         for k, v in first_content_item.items():
             self.stdout.write(f"  {k}: \033[34m{v}\033[0m")
 
         # check that user has right to export using the bitmaps
-        if "_bitmap_get_tr" in first_content_item.keys():
+        if "_bm_get_tr_s" in first_content_item.keys():
             self.stdout.write(
                 "\n\nCheck if user has right to export the first result Transcript using the bitmap"
             )
             # if bitmap is a string of 0 and 1, convert it to int first
-            first_content_item_bitmap = first_content_item["_bitmap_get_tr"]
-            user_bitmap_as_str = bin(user_bitmap)[2:]
-            self.stdout.write(f" user bitmap: \033[34m{user_bitmap_as_str}\033[0m")
+            first_content_item_bitmap = first_content_item["_bm_get_tr_s"]
             self.stdout.write(
                 f" content bitmap: \033[34m{first_content_item_bitmap}\033[0m"
             )

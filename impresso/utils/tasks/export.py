@@ -6,13 +6,14 @@ from os.path import basename
 from typing import Tuple
 from zipfile import ZipFile, ZIP_DEFLATED
 from ...models import Job
-from ...solr import find_all, solr_doc_to_content_item
+from ...solr import find_all, serialize_solr_doc_content_item_to_plain_dict
 from ...utils.tasks import (
     get_pagination,
+)
+from ...utils.solr import (
     mapper_doc_remove_private_collections,
     mapper_doc_redact_contents,
 )
-
 
 default_logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ def helper_export_query_as_csv_progress(
             )
 
         for row in rows:
-            content_item = solr_doc_to_content_item(row)
+            content_item = serialize_solr_doc_content_item_to_plain_dict(row)
             content_item = mapper_doc_remove_private_collections(
                 doc=content_item, prefix=job.creator.profile.uid
             )

@@ -182,9 +182,9 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "topics_dpfs": "topics",
     # "cc_b": "cc_b",
     # bitmap keys
-    "bm_get_tr_s": "_bitmap_get_tr",
+    "bm_get_tr_s": "_bm_get_tr_s",
     # note: `_bin` fields are deprecated as it would require a custom JSONEncoder (and regexp within the raw_decode, which is not the best idea)
-    # "bm_get_tr_bin": "_bitmap_get_tr_bin",
+    # "bm_get_tr_bin": "_bm_get_tr_s_bin",
 }
 
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
