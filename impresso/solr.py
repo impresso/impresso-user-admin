@@ -1,64 +1,41 @@
 import requests
 import json
+import logging
 from django.conf import settings
-from typing import Dict, Any
-import re
-
-
-class JsonWithBitmapDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs):
-        # Override raw_decode to handle custom preprocessing
-        self.original_raw_decode = self.raw_decode
-        self.raw_decode = self.custom_raw_decode
-        super().__init__(*args, **kwargs)
-
-    def custom_raw_decode(self, s, idx=0):
-        # Replace binary literals in the JSON string
-        processed_string = re.sub(r":\s*0b[01]+", self._binary_to_decimal, s)
-        # Decode the processed string with the original method
-        return self.original_raw_decode(processed_string, idx)
-
-    def _binary_to_decimal(self, match):
-        # Extract the binary string (strip leading ': ' characters) and convert it
-        binary_str = match.group(0).split("0b")[-1]  # Isolate '0bxxxx'
-        # important invert the string
-        binary_str_flipped = binary_str[::-1]
-        return f': "{binary_str_flipped}"'
-
-
-def parse_dpsf_field(dpsf_string: str) -> list:
-    """Parses a DPSF field string into a list of dictionaries.
-
-    Args:
-      dpsf_string: The DPSF field string.
-
-    Returns:
-      A list of dictionaries, where each dictionary represents a key-value pair.
-    """
-
-    # Split the string into individual key-value pairs
-    pairs = dpsf_string.split(" ")
-
-    # Create a list of dictionaries
-    result = []
-    for pair in pairs:
-        key, value = pair.split("|")
-        result.append({"key": key, "value": float(value)})
-
-    return result
+from typing import Dict, Any, Optional, List
 
 
 def find_all(
-    q="*:*",
-    fl=settings.IMPRESSO_SOLR_ID_FIELD,
-    skip=0,
-    limit=settings.IMPRESSO_SOLR_EXEC_LIMIT,
-    url=settings.IMPRESSO_SOLR_URL_SELECT,
-    auth=settings.IMPRESSO_SOLR_AUTH,
-    logger=None,
-    sort="id ASC",
-    fq="",  # {!collapse field=ISBN}
-):
+    q: str = "*:*",
+    fl: str = settings.IMPRESSO_SOLR_ID_FIELD,
+    skip: int = 0,
+    limit: int = settings.IMPRESSO_SOLR_EXEC_LIMIT,
+    url: str = settings.IMPRESSO_SOLR_URL_SELECT,
+    auth: tuple = settings.IMPRESSO_SOLR_AUTH,
+    logger: Optional[logging.Logger] = None,
+    sort: str = "id ASC",
+    fq: str = "",
+) -> Dict[str, Any]:
+    """
+    Execute a query against a Solr instance and return the results.
+
+    Args:
+        q (str): The query string. Defaults to "*:*".
+        fl (str): The fields to return. Defaults to settings.IMPRESSO_SOLR_ID_FIELD.
+        skip (int): The number of records to skip. Defaults to 0.
+        limit (int): The maximum number of records to return. Defaults to settings.IMPRESSO_SOLR_EXEC_LIMIT.
+        url (str): The Solr URL to send the request to. Defaults to settings.IMPRESSO_SOLR_URL_SELECT.
+        auth (tuple): Authentication credentials for Solr. Defaults to settings.IMPRESSO_SOLR_AUTH.
+        logger (Optional[logging.Logger]): Logger instance for logging. Defaults to None.
+        sort (str): The sort order of the results. Defaults to "id ASC".
+        fq (str): The filter query. Defaults to an empty string.
+
+    Returns:
+        dict: The response from the Solr instance as a dictionary.
+
+    Raises:
+        requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
+    """
     if logger:
         logger.info("query:{} skip:{}".format(q, skip))
 
@@ -83,16 +60,16 @@ def find_all(
         else:
             print(res.text)
         raise
-    data = res.json(cls=JsonWithBitmapDecoder)
+    data = res.json()
     return data
 
 
-def solr_doc_to_content_item(
+def serialize_solr_doc_content_item_to_plain_dict(
     doc: Dict[str, Any],
     field_mapping: Dict[str, str] = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS,
 ) -> Dict[str, str]:
     """
-    Convert a Solr document to a content item object as adict
+    Convert a Solr document to a content item object as a dictionary.
 
     Args:
         doc: Solr document
@@ -115,16 +92,21 @@ def solr_doc_to_content_item(
     return result
 
 
-def find_collections_by_ids(ids):
+def find_collections_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
     res = find_all(
         q=" OR ".join(map(lambda id: "id:%s" % id, ids)),
         fl="id,ucoll_ss,_version_",
         limit=len(ids),
     )
-    return res.get("response").get("docs")
+    return res.get("response", {}).get("docs", [])
 
 
-def update(todos, url=None, auth=settings.IMPRESSO_SOLR_AUTH, logger=None):
+def update(
+    todos: List[Dict[str, Any]],
+    url: Optional[str] = None,
+    auth: tuple = settings.IMPRESSO_SOLR_AUTH,
+    logger: Optional[logging.Logger] = None,
+) -> Dict[str, Any]:
     if logger:
         logger.info(f"todos n:{len(todos)} for url:{url}")
     res = requests.post(
