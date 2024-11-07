@@ -165,24 +165,26 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "meta_issue_id_s": "issue",
     "meta_partnerid_s": "content_provider",
     "meta_topics_s": "newspaper_topics",
-    "meta_polorient_s": "political_orientation",
+    "meta_polorient_s": "newspaper_political_orientation",
     "olr_b": "is_olr",
-    "page_id_ss": "pages_uids",
+    # "page_id_ss": "pages_uids",
     "page_nb_is": "pages",
     "nb_pages_i": "nb_pages",
-    "front_b": "is_on_front",
+    "front_b": "is_on_front_page",
     "meta_date_dt": "date",
     "pers_mentions": "persons_mentioned",
     "loc_mentions": "locations_mentioned",
+    "nag_mentions": "newsagencies_mentioned",
     "access_right_s": "access_right",
     "score": "relevance",
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
     "topics_dpfs": "topics",
-    "olr_b": "is_olr",
+    # "cc_b": "cc_b",
     # bitmap keys
     "bm_get_tr_s": "_bitmap_get_tr",
-    "bm_get_tr_bin": "_bitmap_get_tr_bin",
+    # note: `_bin` fields are deprecated as it would require a custom JSONEncoder (and regexp within the raw_decode, which is not the best idea)
+    # "bm_get_tr_bin": "_bitmap_get_tr_bin",
 }
 
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
