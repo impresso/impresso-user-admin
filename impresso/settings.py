@@ -178,7 +178,9 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "score": "relevance",
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
+    # bitmap keys
     "bm_get_tr_s": "_bitmap_get_tr",
+    # "bm_get_tr_bin": "_bitmap_get_tr_bin",
 }
 
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
@@ -198,18 +200,18 @@ IMPRESSO_SOLR_AUTH_WRITE = (
 IMPRESSO_SOLR_ID_FIELD = get_env_variable("IMPRESSO_SOLR_ID_FIELD", "id")
 IMPRESSO_SOLR_FIELDS = get_env_variable(
     "IMPRESSO_SOLR_FIELDS",
-    "id,item_type_s,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss,bm_get_tr_s",
+    ",".join(IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()),
 )
 
 # check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
 # settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
 # raise an error if not
-impresso_solr_fields = IMPRESSO_SOLR_FIELDS.split(",")
+IMPRESSO_SOLR_FIELDS_AS_LIST = IMPRESSO_SOLR_FIELDS.split(",")
 # check that every item in impresso_solr_fields is in the keys of IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
 impresso_solr_fields_to_article_props_keys = (
     IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()
 )
-for field in impresso_solr_fields:
+for field in IMPRESSO_SOLR_FIELDS_AS_LIST:
     if field not in impresso_solr_fields_to_article_props_keys:
         raise ValueError(
             f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
@@ -218,7 +220,10 @@ for field in impresso_solr_fields:
 IMPRESSO_SOLR_ARTICLE_PROPS = sorted(
     list(
         set(
-            [IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields]
+            [
+                IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x)
+                for x in IMPRESSO_SOLR_FIELDS_AS_LIST
+            ]
         )
     ),
     key=lambda x: (x != "uid", x),
