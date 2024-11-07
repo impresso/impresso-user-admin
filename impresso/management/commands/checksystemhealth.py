@@ -3,7 +3,6 @@ import requests
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import connection
-from ...solr import JsonWithBitmapDecoder
 
 
 class Command(BaseCommand):
@@ -58,19 +57,17 @@ class Command(BaseCommand):
             return
         # example result
         # n of rows in solr
-        solr_num_rows = solr_response.json(cls=JsonWithBitmapDecoder)["response"][
-            "numFound"
-        ]
+        solr_num_rows = solr_response.json()["response"]["numFound"]
         self.stdout.write(f"SOLR Num Rows: \n - {solr_num_rows}")
 
-        docs = solr_response.json(cls=JsonWithBitmapDecoder)["response"]["docs"]
-        self.stdout.write(f"\n SOLR Example Docs:")
+        docs = solr_response.json()["response"]["docs"]
+        self.stdout.write(f"SOLR Example Docs:")
 
         for doc in docs:
-            self.stdout.write(f" - \nid:\033[94m{doc.get('id')}\033[0m")
-
+            self.stdout.write(f"\n - {doc.get(settings.IMPRESSO_SOLR_ID_FIELD)}")
             for field in settings.IMPRESSO_SOLR_FIELDS_AS_LIST:
-                self.stdout.write(f"  {field}: {doc.get(field)}")
+                self.stdout.write(f"  ├── {field}: \033[93m{doc.get(field)}\033[0m")
+
         # ping redis
         self.stdout.write("\nChecking Redis connectivity...")
         import redis
