@@ -3,6 +3,7 @@ import requests
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import connection
+from ...solr import JsonWithBitmapDecoder
 
 
 class Command(BaseCommand):
@@ -55,13 +56,14 @@ class Command(BaseCommand):
         if solr_status != 200:
             self.stderr.write(f"Error: {solr_response.text}")
             return
-
-        # n of rows in solr
-        print(solr_response.text)
-        solr_num_rows = solr_response.json()["response"]["numFound"]
-        self.stdout.write(f"SOLR Num Rows: \n - {solr_num_rows}")
         # example result
-        docs = solr_response.json()["response"]["docs"]
+        # n of rows in solr
+        solr_num_rows = solr_response.json(cls=JsonWithBitmapDecoder)["response"][
+            "numFound"
+        ]
+        self.stdout.write(f"SOLR Num Rows: \n - {solr_num_rows}")
+
+        docs = solr_response.json(cls=JsonWithBitmapDecoder)["response"]["docs"]
         self.stdout.write(f"\n SOLR Example Docs:")
 
         for doc in docs:

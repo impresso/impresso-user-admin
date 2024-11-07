@@ -2,6 +2,50 @@ import requests
 import json
 from django.conf import settings
 from typing import Dict, Any
+import re
+
+
+class JsonWithBitmapDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        # Override raw_decode to handle custom preprocessing
+        self.original_raw_decode = self.raw_decode
+        self.raw_decode = self.custom_raw_decode
+        super().__init__(*args, **kwargs)
+
+    def custom_raw_decode(self, s, idx=0):
+        # Replace binary literals in the JSON string
+        processed_string = re.sub(r":\s*0b[01]+", self._binary_to_decimal, s)
+        # Decode the processed string with the original method
+        return self.original_raw_decode(processed_string, idx)
+
+    def _binary_to_decimal(self, match):
+        # Extract the binary string (strip leading ': ' characters) and convert it
+        binary_str = match.group(0).split("0b")[-1]  # Isolate '0bxxxx'
+        # important invert the string
+        binary_str_flipped = binary_str[::-1]
+        return f': "{binary_str_flipped}"'
+
+
+def parse_dpsf_field(dpsf_string: str) -> list:
+    """Parses a DPSF field string into a list of dictionaries.
+
+    Args:
+      dpsf_string: The DPSF field string.
+
+    Returns:
+      A list of dictionaries, where each dictionary represents a key-value pair.
+    """
+
+    # Split the string into individual key-value pairs
+    pairs = dpsf_string.split(" ")
+
+    # Create a list of dictionaries
+    result = []
+    for pair in pairs:
+        key, value = pair.split("|")
+        result.append({"key": key, "value": float(value)})
+
+    return result
 
 
 def find_all(
@@ -39,7 +83,8 @@ def find_all(
         else:
             print(res.text)
         raise
-    return res.json()
+    data = res.json(cls=JsonWithBitmapDecoder)
+    return data
 
 
 def solr_doc_to_content_item(

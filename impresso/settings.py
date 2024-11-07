@@ -178,9 +178,11 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "score": "relevance",
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
+    "topics_dpfs": "topics",
+    "olr_b": "is_olr",
     # bitmap keys
     "bm_get_tr_s": "_bitmap_get_tr",
-    # "bm_get_tr_bin": "_bitmap_get_tr_bin",
+    "bm_get_tr_bin": "_bitmap_get_tr_bin",
 }
 
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
