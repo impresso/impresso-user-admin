@@ -209,14 +209,15 @@ def export_query_as_csv(
 
     # get user bitmap, if any
     try:
-        user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()[:2]
+        user = User.objects.get(pk=user_id)
+        user_bitmap_key = user.bitmap.get_bitmap_as_key_str()
     except User.bitmap.RelatedObjectDoesNotExist:
-        print(job.creator.bitmap)
         logger.info(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
         user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
+
     logger.info(
         f"[job:{job.pk} user:{user_id}] launched! "
-        f"query:{query_hash} bitmap:{user_bitmap_key}"
+        f"query:{query_hash} bitmap:{user_bitmap_key} description:{description}"
     )
     attachment = Attachment.create_from_job(job, extension="csv")
 
