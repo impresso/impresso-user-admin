@@ -13,6 +13,7 @@ django = "==5.0.8"
 pymysql = "*"
 django-registration = "*"
 gunicorn = "*"
+python-dotenv = "*"
 
 [dev-packages]
 "flake8" = "*"
