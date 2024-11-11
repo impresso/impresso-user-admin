@@ -7,12 +7,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DJANGO_DATABASE: postgres
-      POSTGRES_DB: django_test_db
-      POSTGRES_USER: django
-      POSTGRES_PASSWORD: password
-      DATABASE_URL: postgres://django:password@localhost:5432/django_test_db
 
     steps:
       - name: Check out the code
@@ -32,6 +26,21 @@ jobs:
       - name: Add a .env file
         run: |
           echo "SECRET_KEY=ThisisaVeryverysecretkey" >> .env
+          echo "DEBUG=True" >> .env 
+          echo "ALLOWED_HOSTS=localhost" >> .env
+          echo "CSRF_TRUSTED_ORIGINS=http://localhost" >> .env
+          echo "IMPRESSO_DB_ENGINE=mysal" >> .env
+          echo "IMPRESSO_DB_NAME=xxxxxxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_USER=xxxxxxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_PASSWORD=xxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_HOST=localhost" >> .env
+          echo "IMPRESSO_DB_PORT=0000" >> .env
+          echo "IMPRESSO_SOLR_URL=http://localhost:8983/solr" >> .env
+          echo "IMPRESSO_SOLR_PASSAGES_URL=http://localhost:8983/solr/passages" >> .env
+          echo "IMPRESSO_SOLR_USER=ssssssssssssssss" >> .env
+          echo "IMPRESSO_SOLR_USER_WRITE=ssssssssss" >> .env
+          echo "IMPRESSO_SOLR_PASSWORD=ssssssssssss" >> .env
+          echo "IMPRESSO_SOLR_PASSWORD_WRITE=ssssss" >> .env
 
       - name: Set up debug logging, this requires a secific debug folder
         run: |
