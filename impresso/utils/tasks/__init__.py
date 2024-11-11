@@ -60,7 +60,8 @@ def update_job_progress(
     logger: Optional[Any] = None,
 ) -> None:
     """
-    Generic function to update a job.
+    Generic function to update a job that also specify the `task` message
+    autoatically get the Impresso Middle Layer.
 
     Args:
         task (Any): The task object.
@@ -71,14 +72,31 @@ def update_job_progress(
         message (str, optional): A message to log. Defaults to "".
         logger (Optional[Any], optional): Logger instance for logging. Defaults to None.
     """
-    meta = job.get_task_meta(taskname=task.name, progress=progress, extra=extra)
+    # this is the JSON message that will be stored in REDIS (celery) and
+    # get from src/selery.ts module in Impresso Middle Layer.
+    # among the extra: `collection:Dict` and `query:str`.
+    meta = {
+        "task": task.type,
+        "taskname": task.name,
+        "progress": progress,
+        "job_type": job.type,
+        "job_status": job.status,
+        "job_date_created": job.date_created.isoformat(),
+        "user_id": job.creator.pk,
+        "user_uid": job.creator.profile.uid,
+        "message": message,
+        **extra,
+    }
+    job_current_extra = json.loads(job.extra)
+    job_current_extra.update(meta)
+    job.extra = json.dumps(job_current_extra)
+
     if logger:
         logger.info(
             f"[job:{job.pk} user:{job.creator.pk}] "
             f"type={job.type} status={job.status} taskstate={taskstate} "
             f"progress={progress * 100:.2f}% - message: '{message}'"
         )
-    job.extra = json.dumps(meta)
     job.save()
     task.update_state(state=taskstate, meta=meta)
 
