@@ -1,0 +1,44 @@
+name: Tests
+on:
+  push:
+    branches: ['develop']
+  pull_request:
+    branches: ['develop']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_DATABASE: postgres
+      POSTGRES_DB: django_test_db
+      POSTGRES_USER: django
+      POSTGRES_PASSWORD: password
+      DATABASE_URL: postgres://django:password@localhost:5432/django_test_db
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.4'
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install --dev
+
+      - name: Add a .env file
+        run: |
+          echo "SECRET_KEY=ThisisaVeryverysecretkey" >> .env
+
+      - name: Set up debug logging, this requires a secific debug folder
+        run: |
+          mkdir -p logs
+          touch logs/debug.log
+
+      - name: Run Django tests
+        run: pipenv run ./manage.py test
+        env:
+          DJANGO_SETTINGS_MODULE: impresso.settings # replace with your actual settings module
