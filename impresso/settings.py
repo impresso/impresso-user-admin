@@ -193,8 +193,9 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "ucoll_ss": "collections",
     "topics_dpfs": "topics",
     # "cc_b": "cc_b",
-    # bitmap keys
+    # bitmap keys, we still maintain both for compatibility reasons
     "bm_get_tr_s": "_bm_get_tr_s",
+    "bm_get_tr_i": "_bm_get_tr_i",
     # note: `_bin` fields are deprecated as it would require a custom JSONEncoder (and regexp within the raw_decode, which is not the best idea)
     # "bm_get_tr_bin": "_bm_get_tr_s_bin",
 }
