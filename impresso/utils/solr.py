@@ -29,25 +29,31 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
         print(doc)
         raise ValueError("Document does not contain a 'year' field.")
 
-    if doc.get("access_right", "") == "OpenPublic":
-        doc["is_content_available"] = "Y"
+    is_transcript_available = False
+
+    if doc.get("_bm_get_tr_i", None) is not None:
+        is_transcript_available = check_bitmap_keys_overlap(
+            user_bitmap_key, content_bitmap_key=doc["_bm_get_tr_i"]
+        )
     elif doc.get("_bm_get_tr_s", None) is not None:
-        if not check_bitmap_keys_overlap(user_bitmap_key, doc["_bm_get_tr_s"]):
-            doc["content"] = "[redacted]"
-            doc["excerpt"] = "[redacted]"
-            doc["is_content_available"] = "N"
-            # doc["is_content_available_notes"] = "not authorized"
-        else:
-            doc["is_content_available"] = "Y"
-    elif doc.get("access_right", "") != "OpenPublic":
-        doc["content"] = "[redacted]"
-        doc["excerpt"] = "[redacted]"
-        doc["is_content_available"] = "N"
-        # doc["is_content_available_notes"] = "access restricted"
-    elif doc_year >= settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
+        is_transcript_available = check_bitmap_keys_overlap(
+            user_bitmap_key, doc["_bm_get_tr_s"]
+        )
+    elif doc.get("access_right", "") == "OpenPublic":
+        is_transcript_available = True
+    # edge cases
+    elif doc_year < settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
+        is_transcript_available = True
         doc["content"] = "[redacted]"
         doc["is_content_available"] = "N"
         # doc["is_content_available_notes"] = "year restricted"
+    if is_transcript_available:
+        doc["is_content_available"] = "Y"
+    else:
+        doc["content"] = "[redacted]"
+        doc["excerpt"] = "[redacted]"
+        doc["is_content_available"] = "N"
+
     return doc
 
 
