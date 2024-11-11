@@ -12,6 +12,8 @@ class SolrTestCase(unittest.TestCase):
     def test_serialize_solr_doc_content_item_to_plain_dict(self):
         # Test the function with a valid input, a document parsed from solr
         result = serialize_solr_doc_content_item_to_plain_dict(FAKE_SOLR_DOC)
+
+        self.assertEqual(result.get("_bm_get_tr_i"), 181)
         self.assertEqual(result.get("title"), "Subskription.")
         self.assertEqual(
             result.get("content"),
@@ -68,5 +70,6 @@ FAKE_SOLR_DOC = {
     ],
     "ucoll_ss": None,
     "bm_get_tr_s": None,
-    "bm_get_tr_bin": "01",
+    "bm_get_tr_bin": None,
+    "bm_get_tr_i": 181,
 }
