@@ -75,8 +75,20 @@ DATABASES = {
         "PASSWORD": get_env_variable("IMPRESSO_DB_PASSWORD"),
         "HOST": get_env_variable("IMPRESSO_DB_HOST"),
         "PORT": get_env_variable("IMPRESSO_DB_PORT"),
+        "TEST": {
+            "NAME": get_env_variable("IMPRESSO_DB_NAME_TEST", "impresso_test"),
+            "ENGINE": get_env_variable(
+                "IMPRESSO_DB_ENGINE_TEST", "django.db.backends.sqlite3"
+            ),
+        },
     }
 }
+import sys
+
+if "test" in sys.argv:
+    DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
+    DATABASES["default"]["TEST"]["NAME"] = ":memory:"
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
