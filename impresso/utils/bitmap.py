@@ -1,6 +1,64 @@
 from typing import Union
 
 
+def is_access_allowed(
+    content_permissions_mask: bytes, user_permissions_mask: bytes
+) -> bool:
+    """
+    Checks if the user has access to the content based on the permissions masks.
+
+    Args:
+    - content_permissions_mask (bytes): The content permissions mask.
+    - user_permissions_mask (bytes): The user permissions mask.
+
+    Returns:
+    - bool: Returns True if the user has access to the content, otherwise False.
+
+    Example Usage:
+    >>> content_permissions_mask = b"\x01"
+    >>> user_permissions_mask = b"\x01"
+    >>> is_access_allowed(content_permissions_mask, user_permissions_mask)
+    True
+    """
+    return bool(content_permissions_mask & user_permissions_mask)
+
+
+def int_to_bytes(n: int) -> bytes:
+    """
+    Converts an integer to a bytes object.
+
+    Args:
+    - n (int): The integer to be converted.
+
+    Returns:
+    - bytes: The bytes object.
+
+    Example Usage:
+    >>> n = 1
+    >>> int_to_bytes(n)
+    b"\x01"
+    """
+    return n.to_bytes((n.bit_length() + 7) // 8, "big")
+
+
+def str_to_bytes(s: str) -> bytes:
+    """
+    Converts a string to a bytes object.
+
+    Args:
+    - s (str): The string to be converted.
+
+    Returns:
+    - bytes: The bytes object.
+
+    Example Usage:
+    >>> s = "1"
+    >>> str_to_bytes(s)
+    b"1"
+    """
+    return s.encode()
+
+
 def check_bitmap_keys_overlap(
     user_bitmap_key: str, content_bitmap_key: Union[int, str]
 ) -> bool:

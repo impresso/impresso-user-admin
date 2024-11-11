@@ -3,6 +3,7 @@ from ..test_solr import FAKE_SOLR_DOC
 from impresso.solr import serialize_solr_doc_content_item_to_plain_dict
 from impresso.utils.solr import mapper_doc_redact_contents
 from impresso.utils.bitmap import check_bitmap_keys_overlap
+from impresso.utils.bitmap import is_access_allowed
 
 
 class BitmapTestCase(unittest.TestCase):
@@ -10,6 +11,12 @@ class BitmapTestCase(unittest.TestCase):
     Run the test with:
     pipenv run ./manage.py test ./impresso/tests/utils/tasks
     """
+
+    def test_is_access_allowed(self):
+        self.assertTrue(
+            is_access_allowed(b"\x01", b"\x01"),
+            "Content is available: the user has a 1 in the right position, the content item is available",
+        )
 
     def test_check_bitmap_keys_overlap(self):
         self.assertTrue(
