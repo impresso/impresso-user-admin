@@ -140,13 +140,7 @@ def export_query_as_csv_progress(
     """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    extra = {
-        "query": query_hash,
-        "search_query_id": search_query_id,
-    }
-    if is_task_stopped(
-        task=self, job=job, progress=progress, extra=extra, logger=logger
-    ):
+    if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
         return
 
     page, loops, progress = helper_export_query_as_csv_progress(
@@ -161,9 +155,7 @@ def export_query_as_csv_progress(
 
     if page < loops:
         job.status = Job.RUN
-        update_job_progress(
-            task=self, job=job, progress=progress, extra=extra, logger=logger
-        )
+        update_job_progress(task=self, job=job, progress=progress, logger=logger)
         export_query_as_csv_progress.delay(
             job_id=job.pk,
             query=query,
@@ -174,7 +166,7 @@ def export_query_as_csv_progress(
             limit=limit,
         )
     else:
-        update_job_completed(task=self, job=job, extra=extra, logger=logger)
+        update_job_completed(task=self, job=job, logger=logger)
 
 
 @app.task(bind=True)
@@ -205,8 +197,9 @@ def export_query_as_csv(
         type=Job.EXPORT_QUERY_AS_CSV,
         creator_id=user_id,
         description=description,
+        extra={"query": query, "query_hash": query_hash},
     )
-
+    # if decri
     # get user bitmap, if any
     try:
         user = User.objects.get(pk=user_id)
@@ -220,33 +213,11 @@ def export_query_as_csv(
         f"query:{query_hash} bitmap:{user_bitmap_key} description:{description}"
     )
     attachment = Attachment.create_from_job(job, extension="csv")
-
-    if not search_query_id:
-        search_query, created = SearchQuery.objects.get_or_create(
-            id=SearchQuery.generate_id(creator_id=user_id, query=query_hash),
-            defaults={
-                "data": query_hash,
-                "description": description,
-                "creator_id": user_id,
-            },
-        )
-
-        search_query_id = search_query.pk
-    logger.info(
-        f"[job:{job.pk} user:{user_id}] started!"
-        f" search_query_id:{search_query_id} created:{created}, attachment:{attachment.upload.path}"
-    )
-
-    # add query to extra. Job status should be INIT
     update_job_progress(
         task=self,
         job=job,
         taskstate=TASKSTATE_INIT,
         progress=0.0,
-        extra={
-            "query": query_hash,
-            "search_query_id": search_query_id,
-        },
         logger=logger,
     )
 
@@ -255,6 +226,59 @@ def export_query_as_csv(
         query=query,
         query_hash=query_hash,
         search_query_id=search_query_id,
+        user_bitmap_key=user_bitmap_key,
+    )
+
+
+@app.task(bind=True)
+def export_collection_as_csv(
+    self,
+    user_id: int,
+    collection_id: int,
+    query: str,
+    query_hash: str = "",
+) -> None:
+    try:
+        user = User.objects.get(pk=user_id)
+        user_bitmap_key = user.bitmap.get_bitmap_as_key_str()
+    except User.bitmap.RelatedObjectDoesNotExist:
+        logger.warning(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
+        user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
+    try:
+        collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
+    except Collection.DoesNotExist:
+        logger.error(f"[job:{job.pk} user:{user_id}] no collection found for user!")
+        return
+    # save current job then start export_query_as_csv task.
+    job = Job.objects.create(
+        type=Job.EXPORT_QUERY_AS_CSV,
+        creator_id=user_id,
+        description=collection.name,
+        extra={
+            "collection": get_collection_as_obj(collection),
+            "query": query,
+            "query_hash": query_hash,
+        },
+    )
+    logger.info(
+        f"[job:{job.pk} user:{user_id}] launched! "
+        f"query:{query_hash} bitmap:{user_bitmap_key} description:{job.description}"
+    )
+    # create empty attachment and attach automatically to the job
+    Attachment.create_from_job(job, extension="csv")
+    # add query to extra. Job status should be INIT
+    update_job_progress(
+        task=self,
+        job=job,
+        taskstate=TASKSTATE_INIT,
+        progress=0.0,
+        logger=logger,
+    )
+
+    export_query_as_csv_progress.delay(
+        job_id=job.pk,
+        query=query,
+        query_hash=query_hash,
         user_bitmap_key=user_bitmap_key,
     )
 
