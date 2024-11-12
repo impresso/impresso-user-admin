@@ -13,8 +13,15 @@ class BitmapTestCase(unittest.TestCase):
     """
 
     def test_is_access_allowed(self):
+        content_permissions_mask_public_domain = 0b1  # public domain
+        print(content_permissions_mask_public_domain.to_bytes(2, byteorder="big"))
         self.assertTrue(
-            is_access_allowed(b"\x01", b"\x01"),
+            is_access_allowed(
+                user_permissions_mask=b"\x10x01x01x01",
+                content_permissions_mask=content_permissions_mask_public_domain.to_bytes(
+                    2, byteorder="big"
+                ),
+            ),
             "Content is available: the user has a 1 in the right position, the content item is available",
         )
 

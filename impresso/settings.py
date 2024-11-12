@@ -272,6 +272,9 @@ IMPRESSO_GIT_TAG = get_env_variable("IMPRESSO_GIT_TAG", "?")
 IMPRESSO_GIT_BRANCH = get_env_variable("IMPRESSO_GIT_BRANCH", "?")
 IMPRESSO_GIT_REVISION = get_env_variable("IMPRESSO_GIT_REVISION", "?")
 
+IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL = "plan-educational"
+IMPRESSO_GROUP_USER_PLAN_RESEARCHER = "plan-researcher"
+
 # Logging
 LOGGING = {
     "version": 1,

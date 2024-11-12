@@ -2,7 +2,8 @@ from typing import Union
 
 
 def is_access_allowed(
-    content_permissions_mask: bytes, user_permissions_mask: bytes
+    user_permissions_mask: bytes,
+    content_permissions_mask: bytes,
 ) -> bool:
     """
     Checks if the user has access to the content based on the permissions masks.
@@ -20,7 +21,17 @@ def is_access_allowed(
     >>> is_access_allowed(content_permissions_mask, user_permissions_mask)
     True
     """
-    return bool(content_permissions_mask & user_permissions_mask)
+    max_len = max(len(user_permissions_mask), len(content_permissions_mask))
+    user_mask_padded = user_permissions_mask.rjust(max_len, b"\x00")
+    content_mask_padded = content_permissions_mask.rjust(max_len, b"\x00")
+    print(f"user_mask_padded: {user_mask_padded}")
+    print(f"content_mask_padded: {content_mask_padded}")
+    # Perform bitwise AND on each byte pair to check for overlap
+    for user_byte, content_byte in zip(user_mask_padded, content_mask_padded):
+        if user_byte & content_byte:
+            return True  # Found an overlapping permission
+
+    return False  # No overlap found
 
 
 def int_to_bytes(n: int) -> bytes:
