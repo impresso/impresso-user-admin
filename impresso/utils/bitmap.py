@@ -52,24 +52,6 @@ def int_to_bytes(n: int) -> bytes:
     return n.to_bytes((n.bit_length() + 7) // 8, "big")
 
 
-def str_to_bytes(s: str) -> bytes:
-    """
-    Converts a string to a bytes object.
-
-    Args:
-    - s (str): The string to be converted.
-
-    Returns:
-    - bytes: The bytes object.
-
-    Example Usage:
-    >>> s = "1"
-    >>> str_to_bytes(s)
-    b"1"
-    """
-    return s.encode()
-
-
 def check_bitmap_keys_overlap(
     user_bitmap_key: str, content_bitmap_key: Union[int, str]
 ) -> bool:
