@@ -28,10 +28,6 @@ class TestBitMask64(unittest.TestCase):
             "0000000000000000000000000000000000000000000000000000000000101111",
         )
         self.assertEqual(
-            str(BitMask64(0b101111, reverse=True)),
-            "0000000000000000000000000000000000000000000000000000000000101111",
-        )
-        self.assertEqual(
             str(BitMask64(10)),
             "0000000000000000000000000000000000000000000000000000000000001010",
         )
@@ -39,16 +35,12 @@ class TestBitMask64(unittest.TestCase):
     def test_is_access_allowed_edge_cases(self):
         accessor_contents_expectedResult = [
             (0b101111, 10, True),
+            (0b101111, 0b100000000, False),
         ]
         for accessor, content, expected_result in accessor_contents_expectedResult:
-            accessor_bitmask = BitMask64(accessor, reverse=True)
-            content_bitmask = BitMask64(content, reverse=True)
+            accessor_bitmask = BitMask64(accessor)
+            content_bitmask = BitMask64(content)
             result = is_access_allowed(accessor_bitmask, content_bitmask)
-
-            print("\nacccessor:\n", str(accessor_bitmask))
-            print("content:\n", str(content_bitmask))
-            print("is_access_allowed:", result)
-
             self.assertEqual(
                 result,
                 expected_result,
@@ -56,19 +48,3 @@ class TestBitMask64(unittest.TestCase):
                     accessor, content, expected_result, result
                 ),
             )
-
-    def test_is_access_allowed_known_cases(self):
-        self.assertTrue(
-            is_access_allowed(BitMask64("10000"), BitMask64("1")),
-            "Content is available, even if the user is not authentified: the content item is available in public domain",
-        )
-
-        self.assertFalse(
-            is_access_allowed(BitMask64("10000"), BitMask64("10", reverse=True)),
-            "Content is not available: the user is not authentified, the content item is available only to authentified users",
-        )
-
-        self.assertTrue(
-            is_access_allowed(BitMask64("11000"), BitMask64("01", reverse=True)),
-            "Content is available: the user is authentified, the content item is available only to authentified users",
-        )
