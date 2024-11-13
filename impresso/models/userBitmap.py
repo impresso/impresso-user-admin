@@ -59,11 +59,6 @@ class UserBitmap(models.Model):
         subscriptions = list(self.subscriptions.values("name", "bitmap_position"))
         if not subscriptions:
             return int_to_bytes(value)
-        # # max bitmap position
-        # max_position = (
-        #     max([x["bitmap_position"] for x in subscriptions])
-        #     + UserBitmap.BITMAP_PLAN_MAX_LENGTH
-        # )
         # Set the bits for each subscription
         for s in subscriptions:
             value |= 1 << (s["bitmap_position"] + UserBitmap.BITMAP_PLAN_MAX_LENGTH)
@@ -130,7 +125,7 @@ class UserBitmap(models.Model):
 
 
 def update_user_bitmap_on_subscriptions_changed(sender, instance, action, **kwargs):
-    if action == "post_add" or action == "post_remove":
+    if action == "post_add" or action == "post_remove" or action == "post_clear":
         logger.info(f"User {instance.user} subscription changed, updating")
         instance.save()
 
@@ -138,7 +133,7 @@ def update_user_bitmap_on_subscriptions_changed(sender, instance, action, **kwar
 def update_user_bitmap_on_user_groups_changed(
     sender, instance: User, action, **kwargs
 ) -> None:
-    if action == "post_add" or action == "post_remove":
+    if action == "post_add" or action == "post_remove" or action == "post_clear":
         user_bitmap, created = UserBitmap.objects.get_or_create(user=instance)
         logger.info(
             f"User {instance} groups changed. {'Creating new bitmap.' if created else 'Updating bitmap.'}"

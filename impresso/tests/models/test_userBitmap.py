@@ -20,11 +20,24 @@ class UserBitmapTestCase(TestCase):
         self.groupPlanEducational = Group.objects.create(
             name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         )
+        self.test_subscription_domain_A = DatasetBitmapPosition.objects.create(
+            name="Domain of TEST A archives",
+        )
+        self.test_subscription_domain_B = DatasetBitmapPosition.objects.create(
+            name="Domain of TEST B archives",
+        )
+        self.test_subscription_domain_C = DatasetBitmapPosition.objects.create(
+            name="Domain of TEST C archives",
+        )
+        self.test_subscription_domain_D = DatasetBitmapPosition.objects.create(
+            name="Domain of TEST D archives",
+        )
 
     def test_user_bitmap_lifecycle(self):
         self._user_bitmap_guest_to_researcher()
         self._user_bitmap_add_remove_subscriptions()
         self._user_bitmap_check_access_only_auth_user()
+        self._user_bitmap_check_access_subscriptions()
 
     def _user_bitmap_guest_to_researcher(self):
         self.assertEqual(
@@ -65,14 +78,8 @@ class UserBitmapTestCase(TestCase):
         self.userBitmap.date_accepted_terms = timezone.now()
         self.userBitmap.save()
 
-        test_subscription_domain_A = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST A archives",
-        )
-        test_subscription_domain_B = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST B archives",
-        )
         self.userBitmap.subscriptions.add(
-            test_subscription_domain_B,
+            self.test_subscription_domain_B,
         )
         # adding a subscription trigger a post_save, let's get it back
         self.userBitmap.refresh_from_db()
@@ -83,8 +90,8 @@ class UserBitmapTestCase(TestCase):
         )
 
         # remove the subscription to B and add the subscription to A
-        self.userBitmap.subscriptions.remove(test_subscription_domain_B)
-        self.userBitmap.subscriptions.add(test_subscription_domain_A)
+        self.userBitmap.subscriptions.remove(self.test_subscription_domain_B)
+        self.userBitmap.subscriptions.add(self.test_subscription_domain_A)
         self.userBitmap.refresh_from_db()
 
         self.assertEqual(
@@ -93,17 +100,84 @@ class UserBitmapTestCase(TestCase):
             "User researcher has access to subscription TEST A",
         )
 
+        self.userBitmap.subscriptions.add(
+            self.test_subscription_domain_C,
+        )
+        self.userBitmap.refresh_from_db()
+        self.assertEqual(
+            [x for x in self.userBitmap.subscriptions.values_list("name", flat=True)],
+            ["Domain of TEST A archives", "Domain of TEST C archives"],
+        )
+        self.assertEqual(
+            self.userBitmap.get_bitmap_as_int(),
+            0b10101011,
+            f"User researcher has access to subscription TEST A and TEST C, current:{bin(self.userBitmap.get_bitmap_as_int())}",
+        )
+
     def _user_bitmap_check_access_only_auth_user(self):
-        # now the bitmap should be 0b1111001
+        user_bitmask = BitMask64(self.userBitmap.bitmap)
+        content_bitmask = BitMask64(2)
+        self.assertEqual(
+            str(content_bitmask),
+            "0000000000000000000000000000000000000000000000000000000000000010",
+            "Content 10 is accessible to all authenticated users",
+        )
+        result = is_access_allowed(user_bitmask, content_bitmask)
+        self.assertTrue(result, "User has access to content 2")
+
+    def _user_bitmap_check_access_subscriptions(self):
+        # use has now two subscriptions, A and C
+        self.assertEqual(
+            [x for x in self.userBitmap.subscriptions.values_list("name", flat=True)],
+            ["Domain of TEST A archives", "Domain of TEST C archives"],
+            "User has access to subscription TEST A and TEST C",
+        )
+
+        user_bitmask = BitMask64(self.userBitmap.bitmap)
+        self.assertEqual(
+            str(user_bitmask),
+            "0000000000000000000000000000000000000000000000000000000010101011",
+            "User researcher has access to subscription TEST A and TEST C",
+        )
+        content_bitmask = BitMask64(0b100000100)
+        self.assertEqual(
+            str(content_bitmask),
+            "0000000000000000000000000000000000000000000000000000000100000100",
+            "Content 0b100000100 is only accessible to students and to a D subscribers",
+        )
+        self.assertFalse(
+            is_access_allowed(user_bitmask, content_bitmask),
+            "User does NOT have access to content {content_bitmask}",
+        )
+        # add the correct subscription
+        self.userBitmap.subscriptions.add(self.test_subscription_domain_D)
+        self.userBitmap.refresh_from_db()
+        self.assertTrue(
+            is_access_allowed(BitMask64(self.userBitmap.bitmap), content_bitmask),
+            f"User now has finally access to content subscription D! {content_bitmask}",
+        )
+
         content_bitmask = BitMask64(10)
         self.assertEqual(
             str(content_bitmask),
             "0000000000000000000000000000000000000000000000000000000000001010",
         )
-        user_bitmask = BitMask64(self.userBitmap.bitmap)
-        self.assertEqual(
-            str(user_bitmask),
-            "0000000000000000000000000000000000000000000000000000000000101011",
-        )
+
         result = is_access_allowed(user_bitmask, content_bitmask)
-        self.assertTrue(result, "User has access to content 10")
+        self.assertTrue(result, "User has still access to content 1010....")
+
+        # clear all subscription!
+        self.userBitmap.subscriptions.clear()
+        self.userBitmap.refresh_from_db()
+        self.assertEqual(
+            self.userBitmap.get_bitmap_as_int(),
+            UserBitmap.USER_PLAN_RESEARCHER,
+            "User researcher subscriptions cleared. They have no more access to datasets...",
+        )
+        self.assertFalse(
+            is_access_allowed(
+                accessor=BitMask64(self.userBitmap.bitmap),
+                content=BitMask64(0b100000100),
+            ),
+            "However, user has no more access to content subscription D!",
+        )
