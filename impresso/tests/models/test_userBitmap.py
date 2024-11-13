@@ -3,8 +3,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from ...models import Profile, UserBitmap, DatasetBitmapPosition
 from django.utils import timezone
-from ...utils.bitmap import int_to_bytes, is_access_allowed
-from ...utils.bitmask import BitMask64
+from ...utils.bitmask import BitMask64, is_access_allowed
 
 
 class UserBitmapTestCase(TestCase):
@@ -25,43 +24,47 @@ class UserBitmapTestCase(TestCase):
     def test_user_bitmap_lifecycle(self):
         self._user_bitmap_guest_to_researcher()
         self._user_bitmap_add_remove_subscriptions()
-        self._user_bitmap_check_access_auth_only()
+        self._user_bitmap_check_access_only_auth_user()
 
     def _user_bitmap_guest_to_researcher(self):
         self.assertEqual(
             str(self.userBitmap),
             f"testuser Bitmap {bin(UserBitmap.USER_PLAN_GUEST)}",
-            "from left to right, user has only access to public domain as the terms have not been accepted yet",
+            "User has only access to public domain content as the terms have not been accepted yet",
         )
         # the user accepts the terms:
         self.userBitmap.date_accepted_terms = timezone.now()
         self.userBitmap.save()
         # get the latest bitmap
-        updated_bitmap = self.userBitmap.get_up_to_date_bitmap()
-        self.userBitmap.bitmap = updated_bitmap.to_bytes(
-            (updated_bitmap.bit_length() + 7) // 8, byteorder="big"
-        )
+        # updated_bitmap = self.userBitmap.get_up_to_date_bitmap()
         self.assertEqual(
-            self.userBitmap.bitmap,
-            b"\x18",
-            "from left to right, user has access to public domain and to content requiring auth ",
+            str(self.userBitmap),
+            f"testuser Bitmap {bin(UserBitmap.USER_PLAN_AUTH_USER)}",
+            "User has only access to public domain content as the terms have not been accepted yet",
         )
         # just add user to the researcher group
         self.user.groups.add(self.groupPlanResearcher)
+        # test update_user_bitmap_on_user_groups_changed signal
         self.userBitmap.refresh_from_db()
 
         self.assertEqual(
             self.userBitmap.get_bitmap_as_int(),
             UserBitmap.USER_PLAN_RESEARCHER,
-            "from left to right, user has access to public domain and to content requiring auth and to content requiring researcher",
+            "User has access to Researcher content",
         )
+        # if we change the terms of use, the bitmap should be updated
+        self.userBitmap.date_accepted_terms = None
+        self.userBitmap.save()
         self.assertEqual(
-            self.userBitmap.bitmap,
-            b"\x1e",
-            "from left to right, user has access to public domain, to content requiring auth and to content requiring researcher",
+            self.userBitmap.get_bitmap_as_int(),
+            UserBitmap.USER_PLAN_GUEST,
+            "User has access to public domain content if the terms changed and have not been accepted",
         )
 
     def _user_bitmap_add_remove_subscriptions(self):
+        self.userBitmap.date_accepted_terms = timezone.now()
+        self.userBitmap.save()
+
         test_subscription_domain_A = DatasetBitmapPosition.objects.create(
             name="Domain of TEST A archives",
         )
@@ -73,12 +76,10 @@ class UserBitmapTestCase(TestCase):
         )
         # adding a subscription trigger a post_save, let's get it back
         self.userBitmap.refresh_from_db()
-        # now the bitmap should be 0b1111001
-
         self.assertEqual(
             self.userBitmap.get_bitmap_as_int(),
-            0b1111001,
-            "from left to right, user researcher has access to subscription TEST B",
+            0b1001011,
+            "User researcher has access to subscription TEST B",
         )
 
         # remove the subscription to B and add the subscription to A
@@ -88,16 +89,22 @@ class UserBitmapTestCase(TestCase):
 
         self.assertEqual(
             self.userBitmap.get_bitmap_as_int(),
-            0b111101,
-            "from left to right, user researcher has access to subscription TEST A",
+            0b101011,
+            "User researcher has access to subscription TEST A",
         )
 
-    def _user_bitmap_check_access_auth_only(self):
-        print("userBitmap as int:\n", bin(self.userBitmap.get_bitmap_as_int()))
-        print("content as int\n", bin(0b10))
-        print("userBitmap:\n", str(BitMask64(self.userBitmap.bitmap)))
-        content_permissions_mask_auth_only = BitMask64(0b10)  # NO public domain!
-        print(
-            "content_permissions_mask_auth_only:\n",
-            str(content_permissions_mask_auth_only),
+    def _user_bitmap_check_access_only_auth_user(self):
+        # now the bitmap should be 0b1111001
+        print(str(self.userBitmap))
+        content_bitmask = BitMask64(10)
+        self.assertEqual(
+            str(content_bitmask),
+            "0000000000000000000000000000000000000000000000000000000000001010",
         )
+        user_bitmask = BitMask64(self.userBitmap.bitmap)
+        self.assertEqual(
+            str(user_bitmask),
+            "0000000000000000000000000000000000000000000000000000000000101011",
+        )
+        result = is_access_allowed(user_bitmask, content_bitmask)
+        self.assertTrue(result, "User has access to content 10")

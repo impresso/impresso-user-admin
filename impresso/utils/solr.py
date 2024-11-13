@@ -1,5 +1,34 @@
+from typing import Dict, Any
 from django.conf import settings
-from .bitmap import check_bitmap_keys_overlap
+from .bitmask import is_access_allowed, BitMask64
+
+
+def serialize_solr_doc_content_item_to_plain_dict(
+    doc: Dict[str, Any],
+    field_mapping: Dict[str, str] = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS,
+) -> Dict[str, str]:
+    """
+    Convert a Solr document to a content item object as a dictionary.
+
+    Args:
+        doc: Solr document
+        field_mapping: Mapping between Solr fields and content item properties
+
+    Returns:
+        dict: Content item object
+    """
+    result: Dict[str, str] = {}
+
+    for k, v in doc.items():
+        prop = field_mapping.get(k, None)
+        if prop is None:
+            continue
+        if isinstance(v, list):
+            result[prop] = ",".join(str(x) for x in v)
+        elif not result.get(prop, ""):
+            result[prop] = v
+
+    return result
 
 
 def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
@@ -14,7 +43,7 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
     Args:
         doc (dict): A dictionary representing the document obtained via the serializer function .
             to be considered valid, tt must contain the key "year".
-        user_bitmap_key (str): The user's bitmap key.
+        user_bitmap_key (str): The user's bitmap key, as string.
 
     Returns:
         dict: The modified document dictionary with redacted content if applicable.
@@ -32,12 +61,15 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
     is_transcript_available = False
 
     if doc.get("_bm_get_tr_i", None) is not None:
-        is_transcript_available = check_bitmap_keys_overlap(
-            user_bitmap_key, content_bitmap_key=doc["_bm_get_tr_i"]
+        is_transcript_available = is_access_allowed(
+            accessor=BitMask64(user_bitmap_key),
+            content=BitMask64(doc["_bm_get_tr_i"], reverse=True),
         )
     elif doc.get("_bm_get_tr_s", None) is not None:
-        is_transcript_available = check_bitmap_keys_overlap(
-            user_bitmap_key, doc["_bm_get_tr_s"]
+        is_transcript_available = is_access_allowed(
+            accessor=BitMask64(user_bitmap_key),
+            # nop need to reverse if this is a string
+            content=BitMask64(doc["_bm_get_tr_s"]),
         )
     elif doc.get("access_right", "") == "OpenPublic":
         is_transcript_available = True

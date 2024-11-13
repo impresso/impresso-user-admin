@@ -64,34 +64,6 @@ def find_all(
     return data
 
 
-def serialize_solr_doc_content_item_to_plain_dict(
-    doc: Dict[str, Any],
-    field_mapping: Dict[str, str] = settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS,
-) -> Dict[str, str]:
-    """
-    Convert a Solr document to a content item object as a dictionary.
-
-    Args:
-        doc: Solr document
-        field_mapping: Mapping between Solr fields and content item properties
-
-    Returns:
-        dict: Content item object
-    """
-    result: Dict[str, str] = {}
-
-    for k, v in doc.items():
-        prop = field_mapping.get(k, None)
-        if prop is None:
-            continue
-        if isinstance(v, list):
-            result[prop] = ",".join(str(x) for x in v)
-        elif not result.get(prop, ""):
-            result[prop] = v
-
-    return result
-
-
 def find_collections_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
     res = find_all(
         q=" OR ".join(map(lambda id: "id:%s" % id, ids)),

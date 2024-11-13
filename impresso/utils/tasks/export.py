@@ -6,13 +6,12 @@ from os.path import basename
 from typing import Tuple
 from zipfile import ZipFile, ZIP_DEFLATED
 from ...models import Job
-from ...solr import find_all, serialize_solr_doc_content_item_to_plain_dict
-from ...utils.tasks import (
-    get_pagination,
-)
+from ...solr import find_all
+from ...utils.tasks import get_pagination
 from ...utils.solr import (
     mapper_doc_remove_private_collections,
     mapper_doc_redact_contents,
+    serialize_solr_doc_content_item_to_plain_dict,
 )
 
 default_logger = logging.getLogger(__name__)

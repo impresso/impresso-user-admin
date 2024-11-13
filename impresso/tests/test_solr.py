@@ -1,5 +1,6 @@
 import unittest
-from impresso.solr import serialize_solr_doc_content_item_to_plain_dict
+from impresso.utils.solr import serialize_solr_doc_content_item_to_plain_dict
+from impresso.utils.solr import mapper_doc_redact_contents
 
 
 class SolrTestCase(unittest.TestCase):
@@ -31,6 +32,37 @@ class SolrTestCase(unittest.TestCase):
         self.assertEqual(
             result.get("topics"),
             "tm-de-all-v2.0_tp01_de|0.02 tm-de-all-v2.0_tp03_de|0.166 tm-de-all-v2.0_tp11_de|0.026 ",
+        )
+
+    def test_mapper_doc_redact_contents(self):
+        doc = serialize_solr_doc_content_item_to_plain_dict(
+            {
+                "id": "johndoe-1927-11-15-a-i0009",
+                "content_txt_de": "Subskription. Gebet gerne! Wer durch eine Geldspende soziales Schaffen ermöglicht,",
+                "title_txt_de": "Subskription.",
+                "meta_year_i": 1927,
+                "bm_get_tr_i": 181,
+            }
+        )
+
+        # Test the function with a valid input, a document parsed from solr
+        result_redacted = mapper_doc_redact_contents(
+            doc={**doc},
+            # not working user bitmask key
+            user_bitmap_key="0000",
+        )
+        self.assertEqual(result_redacted.get("content"), "[redacted]")
+        self.assertEqual(result_redacted.get("title"), doc.get("title"))
+
+        result_ok = mapper_doc_redact_contents(
+            doc={**doc},
+            # working user bitmask key
+            user_bitmap_key="1100",  # 0b10110101
+        )
+        self.assertEqual(
+            result_ok.get("content"),
+            "Subskription. Gebet gerne! Wer durch eine Geldspende soziales Schaffen ermöglicht,",
+            "Content is available: the user has a 1 in the right position, the content item is available",
         )
 
 
