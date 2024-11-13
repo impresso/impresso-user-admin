@@ -95,7 +95,6 @@ class UserBitmapTestCase(TestCase):
 
     def _user_bitmap_check_access_only_auth_user(self):
         # now the bitmap should be 0b1111001
-        print(str(self.userBitmap))
         content_bitmask = BitMask64(10)
         self.assertEqual(
             str(content_bitmask),

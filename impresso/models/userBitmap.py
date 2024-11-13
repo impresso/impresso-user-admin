@@ -84,24 +84,34 @@ class UserBitmap(models.Model):
 
     def get_user_plan(self):
         if not self.bitmap:
-            return "GUEST"
+            return "- (no bitmap)"
         if not self.date_accepted_terms:
-            return "GUEST"
+            return "- (terms not accepted)"
+        # get the first bits of the bitmap up to the max length
         bitmap_int = self.get_bitmap_as_int()
-        bitmap_length = bitmap_int.bit_length()
-        # Extract the first 5 bits
-        bitmap_plan = (
-            bitmap_int >> (bitmap_length - UserBitmap.BITMAP_PLAN_MAX_LENGTH)
-        ) & 0b11111
-        if bitmap_plan == UserBitmap.USER_PLAN_GUEST:
-            return "GUEST"
-        if bitmap_plan == UserBitmap.USER_PLAN_AUTH_USER:
-            return "AUTH_USER"
-        if bitmap_plan == UserBitmap.USER_PLAN_EDUCATIONAL:
-            return "EDUCATIONAL"
-        if bitmap_plan == UserBitmap.USER_PLAN_RESEARCHER:
-            return "RESEARCHER"
-        return "AUTH_USER"
+        plan = bitmap_int & 0b1111
+        if plan == UserBitmap.USER_PLAN_GUEST:
+            return "guest"
+        if plan == UserBitmap.USER_PLAN_AUTH_USER:
+            return "basic"
+        if plan == UserBitmap.USER_PLAN_EDUCATIONAL:
+            return settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
+        if plan == UserBitmap.USER_PLAN_RESEARCHER:
+            return settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER
+        return bin(plan)
+
+        # bitmap_plan = (
+        #     bitmap_int >> (bitmap_length - UserBitmap.BITMAP_PLAN_MAX_LENGTH)
+        # ) & 0b11111
+        # if bitmap_plan == UserBitmap.USER_PLAN_GUEST:
+        #     return "GUEST"
+        # if bitmap_plan == UserBitmap.USER_PLAN_AUTH_USER:
+        #     return "AUTH_USER"
+        # if bitmap_plan == UserBitmap.USER_PLAN_EDUCATIONAL:
+        #     return "EDUCATIONAL"
+        # if bitmap_plan == UserBitmap.USER_PLAN_RESEARCHER:
+        #     return "RESEARCHER"
+        # return "AUTH_USER"
 
     def __str__(self):
         bitmap = self.get_bitmap_as_int()
