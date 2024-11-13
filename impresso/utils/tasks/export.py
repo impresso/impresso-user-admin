@@ -45,6 +45,7 @@ def helper_export_query_as_csv_progress(
     query: str,
     query_hash: str,
     user_bitmap_key: str,
+    ignore_fields: list = [],
     skip: int = 0,
     limit: int = 100,
     logger: logging.Logger = default_logger,
@@ -67,9 +68,11 @@ def helper_export_query_as_csv_progress(
         - loops (int): The number of loops allowed.
         - progress (float): The progress percentage.
     """
-    contents = find_all(
-        q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip, logger=logger
-    )
+    # remove fields to speed up the process
+    query_param_fl = [
+        field for field in settings.IMPRESSO_SOLR_FIELDS if field not in ignore_fields
+    ]
+    contents = find_all(q=query, fl=query_param_fl, skip=skip, logger=logger)
     total = contents["response"]["numFound"]
     qtime = contents["responseHeader"]["QTime"]
     # generate extra from job stats
@@ -100,7 +103,7 @@ def helper_export_query_as_csv_progress(
     fieldnames = [
         field
         for field in settings.IMPRESSO_SOLR_ARTICLE_PROPS
-        if not field.startswith("_")
+        if not field.startswith("_") and field not in ignore_fields
     ]
     # Sort fieldnames with 'uid' first, then the rest alphabetically
     with open(
