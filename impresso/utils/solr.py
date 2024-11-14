@@ -31,7 +31,7 @@ def serialize_solr_doc_content_item_to_plain_dict(
     return result
 
 
-def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
+def mapper_doc_redact_contents(doc: dict, user_bitmask: BitMask64) -> dict:
     """
     Redacts the content of a document based on its bitmap key (_bm_get_tr_s)
     or its availability and year.
@@ -43,7 +43,7 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
     Args:
         doc (dict): A dictionary representing the document obtained via the serializer function .
             to be considered valid, tt must contain the key "year".
-        user_bitmap_key (str): The user's bitmap key, as string.
+        user_bitmask (BitMask64): The user's bitmap key, as BitMask64 instance.
 
     Returns:
         dict: The modified document dictionary with redacted content if applicable.
@@ -62,12 +62,12 @@ def mapper_doc_redact_contents(doc: dict, user_bitmap_key: str) -> dict:
 
     if doc.get("_bm_get_tr_i", None) is not None:
         is_transcript_available = is_access_allowed(
-            accessor=BitMask64(user_bitmap_key),
+            accessor=user_bitmask,
             content=BitMask64(doc["_bm_get_tr_i"], reverse=True),
         )
     elif doc.get("_bm_get_tr_s", None) is not None:
         is_transcript_available = is_access_allowed(
-            accessor=BitMask64(user_bitmap_key),
+            accessor=user_bitmask,
             # nop need to reverse if this is a string
             content=BitMask64(doc["_bm_get_tr_s"]),
         )

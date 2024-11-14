@@ -112,7 +112,7 @@ def export_query_as_csv_progress(
     job_id: int,
     query: str,
     search_query_id: int,
-    user_bitmap_key: str,
+    user_bitmap_key: int,
     query_hash: str = "",
     progress: float = 0.0,
     skip: int = 0,
@@ -130,7 +130,7 @@ def export_query_as_csv_progress(
         job_id (int): The ID of the job to update.
         query (str): The query string to execute.
         search_query_id (int): The ID of the search query.
-        user_bitmap_key (str): The user bitmap key.
+        user_bitmap_key (int): The user bitmap key, as int.
         query_hash (str, optional): The hash of the query. Defaults to an empty string.
         skip (int, optional): The number of records to skip. Defaults to 0.
         limit (int, optional): The maximum number of records to retrieve per page. Defaults to 100.
@@ -199,20 +199,16 @@ def export_query_as_csv(
         description=description,
         extra={"query": query, "query_hash": query_hash},
     )
+    attachment = Attachment.create_from_job(job, extension="csv")
     # if decri
     # get user bitmap, if any
-    try:
-        user = User.objects.get(pk=user_id)
-        user_bitmap_key = user.bitmap.get_bitmap_as_key_str()
-    except User.bitmap.RelatedObjectDoesNotExist:
-        logger.info(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
-        user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
-
+    user_bitmap, created = UserBitmap.objects.get_or_create(user_id=user_id)
     logger.info(
         f"[job:{job.pk} user:{user_id}] launched! "
-        f"query:{query_hash} bitmap:{user_bitmap_key} description:{description}"
+        f"- Using bitmap {user_bitmap.get_bitmap_as_int()} (created:{created}) "
+        f"- attachment:{attachment.pk}"
     )
-    attachment = Attachment.create_from_job(job, extension="csv")
+
     update_job_progress(
         task=self,
         job=job,
@@ -226,7 +222,7 @@ def export_query_as_csv(
         query=query,
         query_hash=query_hash,
         search_query_id=search_query_id,
-        user_bitmap_key=user_bitmap_key,
+        user_bitmap_key=user_bitmap.get_bitmap_as_int(),
     )
 
 
@@ -238,12 +234,22 @@ def export_collection_as_csv(
     query: str,
     query_hash: str = "",
 ) -> None:
-    try:
-        user = User.objects.get(pk=user_id)
-        user_bitmap_key = user.bitmap.get_bitmap_as_key_str()
-    except User.bitmap.RelatedObjectDoesNotExist:
-        logger.warning(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
-        user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
+    """
+    Initiates a job to export a collection as a CSV file and starts the export_query_as_csv_progress task
+    like export_query_as_csv.
+
+    Args:
+        self: The instance of the class.
+        user_id (int): The ID of the user initiating the export.
+        collection_id (int): The ID of the collection to be exported.
+        query (str): The query string to be exported.
+        query_hash (str, optional): A hash of the query string. Defaults to an empty string.
+
+    Returns:
+        None
+
+    """
+    user_bitmap, created = UserBitmap.objects.get_or_create(user_id=user_id)
     try:
         collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
     except Collection.DoesNotExist:
@@ -260,12 +266,15 @@ def export_collection_as_csv(
             "query_hash": query_hash,
         },
     )
+    # create empty attachment and attach automatically to the job
+    attachment = Attachment.create_from_job(job, extension="csv")
     logger.info(
         f"[job:{job.pk} user:{user_id}] launched! "
-        f"query:{query_hash} bitmap:{user_bitmap_key} description:{job.description}"
+        f"- Using bitmap {user_bitmap.get_bitmap_as_int()} (created:{created}) "
+        f"- attachment:{attachment.pk} "
+        f"- query:{query_hash} description:{job.description}"
     )
-    # create empty attachment and attach automatically to the job
-    Attachment.create_from_job(job, extension="csv")
+
     # add query to extra. Job status should be INIT
     update_job_progress(
         task=self,
@@ -279,7 +288,7 @@ def export_collection_as_csv(
         job_id=job.pk,
         query=query,
         query_hash=query_hash,
-        user_bitmap_key=user_bitmap_key,
+        user_bitmap_key=user_bitmap.get_bitmap_as_int(),
     )
 
 

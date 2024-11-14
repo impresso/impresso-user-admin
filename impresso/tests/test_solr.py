@@ -1,6 +1,7 @@
 import unittest
 from impresso.utils.solr import serialize_solr_doc_content_item_to_plain_dict
 from impresso.utils.solr import mapper_doc_redact_contents
+from impresso.utils.bitmask import BitMask64
 
 
 class SolrTestCase(unittest.TestCase):
@@ -49,7 +50,7 @@ class SolrTestCase(unittest.TestCase):
         result_redacted = mapper_doc_redact_contents(
             doc={**doc},
             # not working user bitmask key
-            user_bitmap_key="0000",
+            user_bitmask=BitMask64("0000"),
         )
         self.assertEqual(result_redacted.get("content"), "[redacted]")
         self.assertEqual(result_redacted.get("title"), doc.get("title"))
@@ -57,7 +58,7 @@ class SolrTestCase(unittest.TestCase):
         result_ok = mapper_doc_redact_contents(
             doc={**doc},
             # working user bitmask key
-            user_bitmap_key="1100",  # 0b10110101
+            user_bitmask=BitMask64("1100"),  # 0b10110101
         )
         self.assertEqual(
             result_ok.get("content"),

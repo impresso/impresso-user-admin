@@ -8,6 +8,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from ...models import Job
 from ...solr import find_all
 from ...utils.tasks import get_pagination
+from ...utils.bitmask import BitMask64
 from ...utils.solr import (
     mapper_doc_remove_private_collections,
     mapper_doc_redact_contents,
@@ -44,7 +45,7 @@ def helper_export_query_as_csv_progress(
     job: Job,
     query: str,
     query_hash: str,
-    user_bitmap_key: str,
+    user_bitmap_key: int,
     ignore_fields: list = [],
     skip: int = 0,
     limit: int = 100,
@@ -59,6 +60,8 @@ def helper_export_query_as_csv_progress(
     Args:
       job (Job): The job object containing user profile information.
       query (str): The SOLR query string.
+      query_hash (str): The hash of the query string.
+      user_bitmap_key (int): The user's bitmap key.
       skip (int, optional): The number of items to skip. Defaults to 0.
       limit (int, optional): The maximum number of items per page. Defaults to 0.
       logger (Any, optional): The logger object. Defaults to None.
@@ -93,7 +96,7 @@ def helper_export_query_as_csv_progress(
             loops,
             progress,
         )
-
+    user_bitmask = BitMask64(user_bitmap_key)
     logger.info(
         f"[job:{job.pk} user:{job.creator.pk}] Opening file in APPEND mode:"
         f"{job.attachment.upload.path}"
@@ -158,7 +161,7 @@ def helper_export_query_as_csv_progress(
             )
             content_item = mapper_doc_redact_contents(
                 doc=content_item,
-                user_bitmap_key=user_bitmap_key,
+                user_bitmask=user_bitmask,
             )
             # removed unwanted fields from the content_item
             content_item = {k: v for k, v in content_item.items() if k in fieldnames}

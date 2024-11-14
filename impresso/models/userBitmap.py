@@ -66,6 +66,12 @@ class UserBitmap(models.Model):
         return int_to_bytes(value)
 
     def get_bitmap_as_int(self):
+        """
+        Converts the bitmap from bytes to an integer.
+
+        Returns:
+            int: The bitmap as an integer.
+        """
         return int.from_bytes(self.bitmap, byteorder="big")
 
     def get_bitmap_as_key_str(self):
