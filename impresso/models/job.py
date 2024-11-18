@@ -10,7 +10,7 @@ class Job(models.Model):
     SYNC_COLLECTION_TO_SOLR = "IDX"
     SYNC_SELECTED_COLLECTABLE_ITEMS_TO_SOLR = "IDL"
     SYNC_COLLECTIONS_TO_SOLR_TR = "ITR"
-    EXPORT_COLLECTION_AS_CSV = "EXP"
+    EXPORT_COLLECTION_AS_CSV = "EXC"
     EXPORT_QUERY_AS_CSV = "EXP"
     TEST = "TES"
     CREATE_UPLOADED_IMAGE = "IMG"
@@ -67,23 +67,6 @@ class Job(models.Model):
     extra = models.TextField(default="{}")
 
     description = models.TextField(default="")
-
-    def get_task_meta(self, taskname, progress=0.0, extra={}):
-        meta = {
-            "task": self.type,
-            "taskname": taskname,
-            "progress": progress,
-            "job": {
-                "id": self.pk,
-                "type": self.type,
-                "status": self.status,
-                "date_created": self.date_created.isoformat(),
-            },
-            "user_id": self.creator.pk,
-            "user_uid": self.creator.profile.uid,
-        }
-        meta.update(extra)
-        return meta
 
     def get_progress(self):
         try:

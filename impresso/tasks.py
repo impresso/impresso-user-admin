@@ -197,7 +197,6 @@ def export_query_as_csv(
         type=Job.EXPORT_QUERY_AS_CSV,
         creator_id=user_id,
         description=description,
-        extra={"query": query, "query_hash": query_hash},
     )
     attachment = Attachment.create_from_job(job, extension="csv")
     # if decri
@@ -215,6 +214,7 @@ def export_query_as_csv(
         taskstate=TASKSTATE_INIT,
         progress=0.0,
         logger=logger,
+        extra={"query": query, "query_hash": query_hash},
     )
 
     export_query_as_csv_progress.delay(

@@ -75,22 +75,25 @@ def update_job_progress(
     # this is the JSON message that will be stored in REDIS (celery) and
     # get from src/selery.ts module in Impresso Middle Layer.
     # among the extra: `collection:Dict` and `query:str`.
-    meta = {
-        "task": task.type,
-        "taskname": task.name,
-        "progress": progress,
-        "job_type": job.type,
-        "job_status": job.status,
-        "job_date_created": job.date_created.isoformat(),
-        "user_id": job.creator.pk,
-        "user_uid": job.creator.profile.uid,
-        "message": message,
+    try:
+        job_current_extra = json.loads(job.extra)
+    except json.JSONDecodeError:
+        job_current_extra = {}
+    except TypeError:
+        job_current_extra = {}
+    # add or update basic task info
+    job_current_extra.update(
+        {
+            "channel": job.creator.profile.uid,
+            "taskname": task.name,
+            "taskstate": taskstate,
+            "progress": progress,
+            "message": message,
+        },
         **extra,
-    }
-    job_current_extra = json.loads(job.extra)
-    job_current_extra.update(meta)
+    )
+    # update the job extra field, it is an old TextField
     job.extra = json.dumps(job_current_extra)
-
     if logger:
         logger.info(
             f"[job:{job.pk} user:{job.creator.pk}] "
@@ -98,7 +101,21 @@ def update_job_progress(
             f"progress={progress * 100:.2f}% - message: '{message}'"
         )
     job.save()
-    task.update_state(state=taskstate, meta=meta)
+    task.update_state(
+        state=taskstate,
+        meta={
+            "job": {
+                "id": job.pk,
+                "type": job.type,
+                "status": job.status,
+                "date_created": job.date_created.isoformat(),
+                "date_last_modified": job.date_last_modified.isoformat(),
+                "creator": job.creator.id,
+                "description": job.description,
+            },
+            **job_current_extra,
+        },
+    )
 
 
 def update_job_completed(
