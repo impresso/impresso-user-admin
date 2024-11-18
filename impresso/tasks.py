@@ -112,7 +112,7 @@ def export_query_as_csv_progress(
     job_id: int,
     query: str,
     search_query_id: int,
-    user_bitmap_key: str,
+    user_bitmap_key: int,
     query_hash: str = "",
     progress: float = 0.0,
     skip: int = 0,
@@ -130,7 +130,7 @@ def export_query_as_csv_progress(
         job_id (int): The ID of the job to update.
         query (str): The query string to execute.
         search_query_id (int): The ID of the search query.
-        user_bitmap_key (str): The user bitmap key.
+        user_bitmap_key (int): The user bitmap key, as int.
         query_hash (str, optional): The hash of the query. Defaults to an empty string.
         skip (int, optional): The number of records to skip. Defaults to 0.
         limit (int, optional): The maximum number of records to retrieve per page. Defaults to 100.
@@ -140,13 +140,7 @@ def export_query_as_csv_progress(
     """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    extra = {
-        "query": query_hash,
-        "search_query_id": search_query_id,
-    }
-    if is_task_stopped(
-        task=self, job=job, progress=progress, extra=extra, logger=logger
-    ):
+    if is_task_stopped(task=self, job=job, progress=progress, logger=logger):
         return
 
     page, loops, progress = helper_export_query_as_csv_progress(
@@ -161,9 +155,7 @@ def export_query_as_csv_progress(
 
     if page < loops:
         job.status = Job.RUN
-        update_job_progress(
-            task=self, job=job, progress=progress, extra=extra, logger=logger
-        )
+        update_job_progress(task=self, job=job, progress=progress, logger=logger)
         export_query_as_csv_progress.delay(
             job_id=job.pk,
             query=query,
@@ -174,7 +166,7 @@ def export_query_as_csv_progress(
             limit=limit,
         )
     else:
-        update_job_completed(task=self, job=job, extra=extra, logger=logger)
+        update_job_completed(task=self, job=job, logger=logger)
 
 
 @app.task(bind=True)
@@ -206,34 +198,81 @@ def export_query_as_csv(
         creator_id=user_id,
         description=description,
     )
-
+    attachment = Attachment.create_from_job(job, extension="csv")
+    # if decri
     # get user bitmap, if any
-    try:
-        user_bitmap_key = job.creator.bitmap.get_bitmap_as_key_str()[:2]
-    except User.bitmap.RelatedObjectDoesNotExist:
-        print(job.creator.bitmap)
-        logger.info(f"[job:{job.pk} user:{user_id}] no bitmap found for user!")
-        user_bitmap_key = bin(UserBitmap.USER_PLAN_GUEST)[:2]
+    user_bitmap, created = UserBitmap.objects.get_or_create(user_id=user_id)
     logger.info(
         f"[job:{job.pk} user:{user_id}] launched! "
-        f"query:{query_hash} bitmap:{user_bitmap_key}"
+        f"- Using bitmap {user_bitmap.get_bitmap_as_int()} (created:{created}) "
+        f"- attachment:{attachment.pk}"
     )
+
+    update_job_progress(
+        task=self,
+        job=job,
+        taskstate=TASKSTATE_INIT,
+        progress=0.0,
+        logger=logger,
+        extra={"query": query, "query_hash": query_hash},
+    )
+
+    export_query_as_csv_progress.delay(
+        job_id=job.pk,
+        query=query,
+        query_hash=query_hash,
+        search_query_id=search_query_id,
+        user_bitmap_key=user_bitmap.get_bitmap_as_int(),
+    )
+
+
+@app.task(bind=True)
+def export_collection_as_csv(
+    self,
+    user_id: int,
+    collection_id: int,
+    query: str,
+    query_hash: str = "",
+) -> None:
+    """
+    Initiates a job to export a collection as a CSV file and starts the export_query_as_csv_progress task
+    like export_query_as_csv.
+
+    Args:
+        self: The instance of the class.
+        user_id (int): The ID of the user initiating the export.
+        collection_id (int): The ID of the collection to be exported.
+        query (str): The query string to be exported.
+        query_hash (str, optional): A hash of the query string. Defaults to an empty string.
+
+    Returns:
+        None
+
+    """
+    user_bitmap, created = UserBitmap.objects.get_or_create(user_id=user_id)
+    try:
+        collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
+    except Collection.DoesNotExist:
+        logger.error(f"[job:{job.pk} user:{user_id}] no collection found for user!")
+        return
+    # save current job then start export_query_as_csv task.
+    job = Job.objects.create(
+        type=Job.EXPORT_QUERY_AS_CSV,
+        creator_id=user_id,
+        description=collection.name,
+        extra={
+            "collection": get_collection_as_obj(collection),
+            "query": query,
+            "query_hash": query_hash,
+        },
+    )
+    # create empty attachment and attach automatically to the job
     attachment = Attachment.create_from_job(job, extension="csv")
-
-    if not search_query_id:
-        search_query, created = SearchQuery.objects.get_or_create(
-            id=SearchQuery.generate_id(creator_id=user_id, query=query_hash),
-            defaults={
-                "data": query_hash,
-                "description": description,
-                "creator_id": user_id,
-            },
-        )
-
-        search_query_id = search_query.pk
     logger.info(
-        f"[job:{job.pk} user:{user_id}] started!"
-        f" search_query_id:{search_query_id} created:{created}, attachment:{attachment.upload.path}"
+        f"[job:{job.pk} user:{user_id}] launched! "
+        f"- Using bitmap {user_bitmap.get_bitmap_as_int()} (created:{created}) "
+        f"- attachment:{attachment.pk} "
+        f"- query:{query_hash} description:{job.description}"
     )
 
     # add query to extra. Job status should be INIT
@@ -242,10 +281,6 @@ def export_query_as_csv(
         job=job,
         taskstate=TASKSTATE_INIT,
         progress=0.0,
-        extra={
-            "query": query_hash,
-            "search_query_id": search_query_id,
-        },
         logger=logger,
     )
 
@@ -253,8 +288,7 @@ def export_query_as_csv(
         job_id=job.pk,
         query=query,
         query_hash=query_hash,
-        search_query_id=search_query_id,
-        user_bitmap_key=user_bitmap_key,
+        user_bitmap_key=user_bitmap.get_bitmap_as_int(),
     )
 
 

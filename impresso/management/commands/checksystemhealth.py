@@ -4,17 +4,6 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import connection
 
-FLS = [
-    "id",
-    "content_length_i",
-    "snippet_plain",
-    "bm_explore_s",
-    "bm_get_tr_s",
-    "bm_get_img_s",
-    "meta_journal_s",
-    "meta_partnerid_s",
-]
-
 
 class Command(BaseCommand):
     help = "Check SOLR connectivity"
@@ -26,7 +15,11 @@ class Command(BaseCommand):
             database_name = cursor.fetchone()[0]
 
             self.stdout.write(
-                f"Current Database: \n   \033[94m{database_name}\033[0m\n\n"
+                f"Current Database: \n"
+                f"   host: \033[94m{settings.DATABASES["default"]["HOST"]}\033[0m\n"
+                f"   port: \033[94m{settings.DATABASES["default"]["PORT"]}\033[0m\n"
+                f"   engine: \033[94m{settings.DATABASES["default"]["ENGINE"]}\033[0m\n"
+                f"   name: \033[94m{database_name}\033[0m\n\n"
             )
             cursor.execute("SHOW TABLES")
             tables = [t[0] for t in cursor.fetchall()]
@@ -41,10 +34,13 @@ class Command(BaseCommand):
             self.stderr.write(f"Invalid SOLR URL: {solr_url}")
             return
 
+        self.stdout.write(
+            f"SOLR fl list (available for export): \n - {'\n - '.join(settings.IMPRESSO_SOLR_FIELDS_AS_LIST)}"
+        )
         params = {
             "q": "*:*",
             "rows": 2,
-            "fl": ",".join(FLS),
+            "fl": settings.IMPRESSO_SOLR_FIELDS,
         }
         solr_response = requests.get(
             solr_url,
@@ -52,20 +48,26 @@ class Command(BaseCommand):
             params=params,
         )
         solr_status = solr_response.status_code
+
         self.stdout.write(f"SOLR URL: \n - {solr_url}")
         self.stdout.write(f"SOLR Status: \n - {solr_status}")
+
+        if solr_status != 200:
+            self.stderr.write(f"Error: {solr_response.text}")
+            return
+        # example result
         # n of rows in solr
         solr_num_rows = solr_response.json()["response"]["numFound"]
         self.stdout.write(f"SOLR Num Rows: \n - {solr_num_rows}")
-        # example result
+
         docs = solr_response.json()["response"]["docs"]
-        self.stdout.write(f"\n SOLR Example Docs:")
+        self.stdout.write(f"SOLR Example Docs:")
 
         for doc in docs:
-            self.stdout.write(f" - \nid:\033[94m{doc.get('id')}\033[0m")
+            self.stdout.write(f"\n - {doc.get(settings.IMPRESSO_SOLR_ID_FIELD)}")
+            for field in settings.IMPRESSO_SOLR_FIELDS_AS_LIST:
+                self.stdout.write(f"  ├── {field}: \033[93m{doc.get(field)}\033[0m")
 
-            for field in FLS:
-                self.stdout.write(f"  {field}: {doc.get(field)}")
         # ping redis
         self.stdout.write("\nChecking Redis connectivity...")
         import redis

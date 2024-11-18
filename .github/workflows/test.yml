@@ -1,0 +1,53 @@
+name: Tests
+on:
+  push:
+    branches: ['develop']
+  pull_request:
+    branches: ['develop']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.4'
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install --dev
+
+      - name: Add a .env file
+        run: |
+          echo "SECRET_KEY=ThisisaVeryverysecretkey" >> .env
+          echo "DEBUG=True" >> .env 
+          echo "ALLOWED_HOSTS=localhost" >> .env
+          echo "CSRF_TRUSTED_ORIGINS=http://localhost" >> .env
+          echo "IMPRESSO_DB_ENGINE=mysal" >> .env
+          echo "IMPRESSO_DB_NAME=xxxxxxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_USER=xxxxxxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_PASSWORD=xxxxxxxxxxxxxx" >> .env
+          echo "IMPRESSO_DB_HOST=localhost" >> .env
+          echo "IMPRESSO_DB_PORT=0000" >> .env
+          echo "IMPRESSO_SOLR_URL=http://localhost:8983/solr" >> .env
+          echo "IMPRESSO_SOLR_PASSAGES_URL=http://localhost:8983/solr/passages" >> .env
+          echo "IMPRESSO_SOLR_USER=ssssssssssssssss" >> .env
+          echo "IMPRESSO_SOLR_USER_WRITE=ssssssssss" >> .env
+          echo "IMPRESSO_SOLR_PASSWORD=ssssssssssss" >> .env
+          echo "IMPRESSO_SOLR_PASSWORD_WRITE=ssssss" >> .env
+
+      - name: Set up debug logging, this requires a secific debug folder
+        run: |
+          mkdir -p logs
+          touch logs/debug.log
+
+      - name: Run Django tests
+        run: pipenv run ./manage.py test
+        env:
+          DJANGO_SETTINGS_MODULE: impresso.settings # replace with your actual settings module

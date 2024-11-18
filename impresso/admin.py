@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.translation import ngettext
-
+from django.utils import timezone
 from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
@@ -38,6 +38,7 @@ class UserBitmapAdmin(admin.ModelAdmin):
         "date_accepted_terms",
     )
     search_fields = ["user__username", "user__email"]
+    actions = ["set_terms_accepted_date"]
 
     def num_subscriptions(self, obj):
         return obj.subscriptions.count()
@@ -45,27 +46,28 @@ class UserBitmapAdmin(admin.ModelAdmin):
     def bitmap_display(self, obj):
         if obj.bitmap is None:
             return ""
-        return bin(int.from_bytes(obj.bitmap, byteorder="big"))
+        return bin(obj.get_bitmap_as_int())
 
     def user_plan_display(self, obj):
-        if obj.bitmap is None:
-            return "-"
-        bitmap_int = int.from_bytes(obj.bitmap, byteorder="big")
-        bitmap_length = bitmap_int.bit_length()
-        # Extract the first 5 bits
-        bitmap_plan = (
-            bitmap_int >> (bitmap_length - UserBitmap.BITMAP_PLAN_MAX_LENGTH)
-        ) & 0b11111
-        if bitmap_plan == UserBitmap.USER_PLAN_GUEST:
-            return "Guest"
-        if bitmap_plan == UserBitmap.USER_PLAN_AUTH_USER:
-            return "Impresso Registered User"
-        if bitmap_plan == UserBitmap.USER_PLAN_EDUCATIONAL:
-            return "Student or Teacher - Educational User"
-        if bitmap_plan == UserBitmap.USER_PLAN_RESEARCHER:
-            return "Researcher - Academic User"
+        return obj.get_user_plan()
 
-        return bin(bitmap_plan)
+    @admin.action(description="Accept the terms of use for selected users")
+    def set_terms_accepted_date(self, request, queryset):
+        # for each user, do a proper save
+        updated = queryset.count()
+        for user_bitmap in queryset:
+            user_bitmap.date_accepted_terms = timezone.now()
+            user_bitmap.save()
+        self.message_user(
+            request,
+            ngettext(
+                "%d user accepted the terms of use.",
+                "%d users accepted the terms of use.",
+                updated,
+            )
+            % updated,
+            messages.SUCCESS,
+        )
 
     user_plan_display.short_description = "User Plan"
 

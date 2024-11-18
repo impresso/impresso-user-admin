@@ -6,13 +6,14 @@ from os.path import basename
 from typing import Tuple
 from zipfile import ZipFile, ZIP_DEFLATED
 from ...models import Job
-from ...solr import find_all, solr_doc_to_content_item
-from ...utils.tasks import (
-    get_pagination,
+from ...solr import find_all
+from ...utils.tasks import get_pagination
+from ...utils.bitmask import BitMask64
+from ...utils.solr import (
     mapper_doc_remove_private_collections,
     mapper_doc_redact_contents,
+    serialize_solr_doc_content_item_to_plain_dict,
 )
-
 
 default_logger = logging.getLogger(__name__)
 
@@ -44,7 +45,8 @@ def helper_export_query_as_csv_progress(
     job: Job,
     query: str,
     query_hash: str,
-    user_bitmap_key: str,
+    user_bitmap_key: int,
+    ignore_fields: list = [],
     skip: int = 0,
     limit: int = 100,
     logger: logging.Logger = default_logger,
@@ -58,6 +60,8 @@ def helper_export_query_as_csv_progress(
     Args:
       job (Job): The job object containing user profile information.
       query (str): The SOLR query string.
+      query_hash (str): The hash of the query string.
+      user_bitmap_key (int): The user's bitmap key.
       skip (int, optional): The number of items to skip. Defaults to 0.
       limit (int, optional): The maximum number of items per page. Defaults to 0.
       logger (Any, optional): The logger object. Defaults to None.
@@ -67,9 +71,11 @@ def helper_export_query_as_csv_progress(
         - loops (int): The number of loops allowed.
         - progress (float): The progress percentage.
     """
-    contents = find_all(
-        q=query, fl=settings.IMPRESSO_SOLR_FIELDS, skip=skip, logger=logger
-    )
+    # remove fields to speed up the process
+    query_param_fl = [
+        field for field in settings.IMPRESSO_SOLR_FIELDS if field not in ignore_fields
+    ]
+    contents = find_all(q=query, fl=query_param_fl, skip=skip, logger=logger)
     total = contents["response"]["numFound"]
     qtime = contents["responseHeader"]["QTime"]
     # generate extra from job stats
@@ -90,7 +96,7 @@ def helper_export_query_as_csv_progress(
             loops,
             progress,
         )
-
+    user_bitmask = BitMask64(user_bitmap_key)
     logger.info(
         f"[job:{job.pk} user:{job.creator.pk}] Opening file in APPEND mode:"
         f"{job.attachment.upload.path}"
@@ -100,7 +106,7 @@ def helper_export_query_as_csv_progress(
     fieldnames = [
         field
         for field in settings.IMPRESSO_SOLR_ARTICLE_PROPS
-        if not field.startswith("_")
+        if not field.startswith("_") and field not in ignore_fields
     ]
     # Sort fieldnames with 'uid' first, then the rest alphabetically
     with open(
@@ -117,7 +123,6 @@ def helper_export_query_as_csv_progress(
             logger.info(
                 f"[job:{job.pk} user:{job.creator.pk}] writing header: {fieldnames}"
             )
-            w.writeheader()
             # write custom header
             w.writerow({fieldnames[0]: get_results_message(total, max_loops, limit)})
             w.writerow(
@@ -134,6 +139,7 @@ def helper_export_query_as_csv_progress(
             )
             # empty line
             w.writerow({})
+            w.writeheader()
 
         # filter out docs without proper metadata. We will warn about them in a moment
         rows = [
@@ -149,13 +155,13 @@ def helper_export_query_as_csv_progress(
             )
 
         for row in rows:
-            content_item = solr_doc_to_content_item(row)
+            content_item = serialize_solr_doc_content_item_to_plain_dict(row)
             content_item = mapper_doc_remove_private_collections(
                 doc=content_item, prefix=job.creator.profile.uid
             )
             content_item = mapper_doc_redact_contents(
                 doc=content_item,
-                user_bitmap_key=user_bitmap_key,
+                user_bitmask=user_bitmask,
             )
             # removed unwanted fields from the content_item
             content_item = {k: v for k, v in content_item.items() if k in fieldnames}

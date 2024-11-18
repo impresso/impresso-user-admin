@@ -75,8 +75,20 @@ DATABASES = {
         "PASSWORD": get_env_variable("IMPRESSO_DB_PASSWORD"),
         "HOST": get_env_variable("IMPRESSO_DB_HOST"),
         "PORT": get_env_variable("IMPRESSO_DB_PORT"),
+        "TEST": {
+            "NAME": get_env_variable("IMPRESSO_DB_NAME_TEST", "impresso_test"),
+            "ENGINE": get_env_variable(
+                "IMPRESSO_DB_ENGINE_TEST", "django.db.backends.sqlite3"
+            ),
+        },
     }
 }
+import sys
+
+if "test" in sys.argv:
+    DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
+    DATABASES["default"]["TEST"]["NAME"] = ":memory:"
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -165,20 +177,27 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "meta_issue_id_s": "issue",
     "meta_partnerid_s": "content_provider",
     "meta_topics_s": "newspaper_topics",
-    "meta_polorient_s": "political_orientation",
+    "meta_polorient_s": "newspaper_political_orientation",
     "olr_b": "is_olr",
-    "page_id_ss": "pages_uids",
+    # "page_id_ss": "pages_uids",
     "page_nb_is": "pages",
     "nb_pages_i": "nb_pages",
-    "front_b": "is_on_front",
+    "front_b": "is_on_front_page",
     "meta_date_dt": "date",
     "pers_mentions": "persons_mentioned",
     "loc_mentions": "locations_mentioned",
+    "nag_mentions": "newsagencies_mentioned",
     "access_right_s": "access_right",
     "score": "relevance",
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
-    "bm_get_tr_s": "_bitmap_get_tr",
+    "topics_dpfs": "topics",
+    # "cc_b": "cc_b",
+    # bitmap keys, we still maintain both for compatibility reasons
+    "bm_get_tr_s": "_bm_get_tr_s",
+    "bm_get_tr_i": "_bm_get_tr_i",
+    # note: `_bin` fields are deprecated as it would require a custom JSONEncoder (and regexp within the raw_decode, which is not the best idea)
+    # "bm_get_tr_bin": "_bm_get_tr_s_bin",
 }
 
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
@@ -198,18 +217,18 @@ IMPRESSO_SOLR_AUTH_WRITE = (
 IMPRESSO_SOLR_ID_FIELD = get_env_variable("IMPRESSO_SOLR_ID_FIELD", "id")
 IMPRESSO_SOLR_FIELDS = get_env_variable(
     "IMPRESSO_SOLR_FIELDS",
-    "id,item_type_s,meta_journal_s,lg_s,title_txt_de,title_txt_fr,content_txt_de,content_txt_fr,content_length_i,meta_date_dt,meta_year_i,meta_issue_id_s,page_nb_is,nb_pages_i,front_b,meta_country_code_s,pers_mentions,loc_mentions,access_right_s,meta_partnerid_s,exportable_plain,score,ucoll_ss,bm_get_tr_s",
+    ",".join(IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()),
 )
 
 # check that settings.IMPRESSO_SOLR_FIELDS is set according to the fields specified in the mapping
 # settings.IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.
 # raise an error if not
-impresso_solr_fields = IMPRESSO_SOLR_FIELDS.split(",")
+IMPRESSO_SOLR_FIELDS_AS_LIST = IMPRESSO_SOLR_FIELDS.split(",")
 # check that every item in impresso_solr_fields is in the keys of IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS
 impresso_solr_fields_to_article_props_keys = (
     IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()
 )
-for field in impresso_solr_fields:
+for field in IMPRESSO_SOLR_FIELDS_AS_LIST:
     if field not in impresso_solr_fields_to_article_props_keys:
         raise ValueError(
             f"IMPRESSO_SOLR_FIELDS and IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS do not match: check field {field}"
@@ -218,7 +237,10 @@ for field in impresso_solr_fields:
 IMPRESSO_SOLR_ARTICLE_PROPS = sorted(
     list(
         set(
-            [IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x) for x in impresso_solr_fields]
+            [
+                IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.get(x)
+                for x in IMPRESSO_SOLR_FIELDS_AS_LIST
+            ]
         )
     ),
     key=lambda x: (x != "uid", x),
@@ -249,6 +271,9 @@ IMPRESSO_SOLR_PASSAGES_URL_UPDATE = os.path.join(
 IMPRESSO_GIT_TAG = get_env_variable("IMPRESSO_GIT_TAG", "?")
 IMPRESSO_GIT_BRANCH = get_env_variable("IMPRESSO_GIT_BRANCH", "?")
 IMPRESSO_GIT_REVISION = get_env_variable("IMPRESSO_GIT_REVISION", "?")
+
+IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL = "plan-educational"
+IMPRESSO_GROUP_USER_PLAN_RESEARCHER = "plan-researcher"
 
 # Logging
 LOGGING = {

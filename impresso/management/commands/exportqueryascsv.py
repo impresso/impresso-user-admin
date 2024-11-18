@@ -4,7 +4,9 @@ from impresso.models import UserBitmap, Job, Attachment
 from impresso.utils.bitmap import check_bitmap_keys_overlap
 from impresso.tasks import export_query_as_csv
 from django.conf import settings
-from impresso.solr import find_all, solr_doc_to_content_item
+from impresso.solr import find_all
+from impresso.utils.bitmask import BitMask64, is_access_allowed
+from impresso.utils.solr import serialize_solr_doc_content_item_to_plain_dict
 from impresso.utils.tasks.export import helper_export_query_as_csv_progress
 
 
@@ -24,8 +26,22 @@ class Command(BaseCommand):
             action="store_true",
             help="Run the function behind the task immediately instead of delaying it with Celery",
         )
+        parser.add_argument(
+            "--query_hash",
+            type=str,
+            help="The hash of the query string, if any, used to identify the query in the database",
+        )
 
-    def handle(self, user_id, q, no_prompt=False, immediate=False, *args, **options):
+    def handle(
+        self,
+        user_id,
+        q,
+        no_prompt=False,
+        immediate=False,
+        query_hash="",
+        *args,
+        **options,
+    ):
         self.stdout.write("\n\n--- Export Solr Query as CSV file ---")
         self.stdout.write("Params \033[34m❤️\033[0m")
         self.stdout.write(f"  user_id: {user_id}")
@@ -55,17 +71,21 @@ class Command(BaseCommand):
         )
         # bitmap
         try:
-            user_bitmap = user.bitmap.get_up_to_date_bitmap()
+            user_bitmap_as_int = user.bitmap.get_bitmap_as_int()
 
         except User.bitmap.RelatedObjectDoesNotExist:
-            user_bitmap = UserBitmap.USER_PLAN_GUEST
+            user_bitmap_as_int = UserBitmap.USER_PLAN_GUEST
             self.stdout.write(
                 self.style.WARNING(
-                    f"  no bitmap found for user, using default bitmap: {bin(user_bitmap)}"
+                    f"  no bitmap found for user, using default bitmap: {bin(user_bitmap_as_int)}"
                 )
             )
 
-        self.stdout.write(f"  user_current_bitmap: \033[34m{bin(user_bitmap)}\033[0m")
+        self.stdout.write(
+            f"  user_current_bitmap: \033[34m{bin(user_bitmap_as_int)}\033[0m"
+        )
+        user_bitmap_as_str = BitMask64(user_bitmap_as_int)
+        self.stdout.write(f"  user bitmap as str: \033[34m{user_bitmap_as_str}\033[0m")
 
         # bitmap print out as base64
 
@@ -83,24 +103,23 @@ class Command(BaseCommand):
         self.stdout.write(f"First document found as example:")
 
         first_doc = results["response"]["docs"][0]
-        first_content_item = solr_doc_to_content_item(first_doc)
+        first_content_item = serialize_solr_doc_content_item_to_plain_dict(first_doc)
         for k, v in first_content_item.items():
             self.stdout.write(f"  {k}: \033[34m{v}\033[0m")
 
         # check that user has right to export using the bitmaps
-        if "_bitmap_get_tr" in first_content_item.keys():
+        if "_bm_get_tr_i" in first_doc.keys():
             self.stdout.write(
                 "\n\nCheck if user has right to export the first result Transcript using the bitmap"
             )
             # if bitmap is a string of 0 and 1, convert it to int first
-            first_content_item_bitmap = first_content_item["_bitmap_get_tr"]
-            user_bitmap_as_str = bin(user_bitmap)[2:]
-            self.stdout.write(f" user bitmap: \033[34m{user_bitmap_as_str}\033[0m")
+            first_content_item_bitmap = first_content_item["_bm_get_tr_i"]
             self.stdout.write(
                 f" content bitmap: \033[34m{first_content_item_bitmap}\033[0m"
             )
-            overlap = check_bitmap_keys_overlap(
-                user_bitmap_as_str, first_content_item_bitmap
+            overlap = is_access_allowed(
+                accessor=user_bitmap_as_str,
+                content=BitMask64(first_content_item_bitmap),
             )
             if overlap:
                 self.stdout.write(
@@ -133,7 +152,10 @@ class Command(BaseCommand):
                 return
         if not immediate:
             export_query_as_csv.delay(
-                query=q, user_id=user_id, description="from command management"
+                query=q,
+                user_id=user_id,
+                description="from command management",
+                query_hash=query_hash,
             )
             self.stdout.write('"test" task launched, check celery.')
             self.stdout.write("\n\n---- end ----\n\n")
@@ -153,7 +175,7 @@ class Command(BaseCommand):
         page, loops, progress = helper_export_query_as_csv_progress(
             job=job,
             query=q,
-            query_hash="",
+            query_hash=query_hash,
             user_bitmap_key=user_bitmap_as_str,
         )
         self.stdout.write(f"page: {page}, loops: {loops}, progress: {progress}")
