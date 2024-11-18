@@ -14,11 +14,14 @@ class FakeTask:
         pass
 
 
+USER_UID = "local-testuser"
+
+
 class JobTestCase(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", password="12345")
-        self.profile = Profile.objects.create(user=self.user, uid="local-testuser")
+        self.profile = Profile.objects.create(user=self.user, uid=USER_UID)
         # thsi is normally created directly inside the main celery task
         # to be tested in a specific test_tasks.py file
         self.job = Job.objects.create(
@@ -40,19 +43,11 @@ class JobTestCase(TestCase):
         )
         # get the job extra field as a dictionary from textfield
         task_meta = json.loads(self.job.extra)
-        # print(self.job.extra)
-        # # assert: {"task": "TES", "taskname": "Fake Task", "progress": 0.5, "job_type": "TES", "job_status": "REA", "job_date_created": "2024-11-11T07:07:27.141484+00:00", "user_id": 1, "user_uid": self.profile.uid}
-        # self.assertEqual(
-        #     self.job.extra,
-        #     '{"task": "TES", "taskname": "Fake Task", "progress": 0.5, "job_type": "TES", "job_status": "REA", "job_date_created": "2024-11-11T07:07:27.141484+00:00", "user_id": 1, "user_uid": self.profile.uid}'
-        # )
-        self.assertEqual(task_meta["task"], "TES")
+        # {'channel': 'local-testuser', 'taskname': 'Fake Task', 'taskstate': 'PROGRESS', 'progress': 0.1, 'message': 'Task is initialising'}
+        self.assertEqual(task_meta["channel"], USER_UID)
         self.assertEqual(task_meta["taskname"], "Fake Task")
         self.assertEqual(task_meta["progress"], 0.1)
-        self.assertEqual(task_meta["job_type"], "TES")
-        self.assertEqual(task_meta["job_status"], Job.READY)
-        self.assertEqual(task_meta["user_id"], self.user.pk)
-        self.assertEqual(task_meta["user_uid"], self.profile.uid)
+        self.assertEqual(task_meta["taskstate"], TASKSTATE_PROGRESS)
         self.assertEqual(task_meta["message"], "Task is initialising")
 
         # let's simulate progress task
@@ -66,14 +61,10 @@ class JobTestCase(TestCase):
             logger=None,
         )
         task_meta = json.loads(self.job.extra)
-        # {"task": "TES", "taskname": "Fake Task", "progress": 0.5, "job_type": "TES", "job_status": "RUN", "job_date_created": "2024-11-11T07:07:27.141484+00:00", "user_id": 1, "user_uid": self.profile.uid}
-        self.assertEqual(task_meta["task"], "TES")
+        self.assertEqual(task_meta["channel"], USER_UID)
         self.assertEqual(task_meta["taskname"], "Fake Task")
         self.assertEqual(task_meta["progress"], 0.5)
-        self.assertEqual(task_meta["job_type"], "TES")
-        self.assertEqual(task_meta["job_status"], Job.RUN)
-        self.assertEqual(task_meta["user_id"], self.user.pk)
-        self.assertEqual(task_meta["user_uid"], self.profile.uid)
+        self.assertEqual(task_meta["taskstate"], TASKSTATE_PROGRESS)
         self.assertEqual(task_meta["message"], "Task is progressing")
 
     def test_job_extra_after_task_complete(self):
@@ -82,10 +73,8 @@ class JobTestCase(TestCase):
             job=self.job,
         )
         task_meta = json.loads(self.job.extra)
-        # {"task": "TES", "taskname": "Fake Task", "progress": 1.0, "job_type": "TES", "job_status": "DON", "job_date_created": "2024-11-11T07:15:49.422087+00:00", "user_id": 1, "user_uid": self.profile.uid}
-        self.assertEqual(task_meta["task"], "TES")
+
+        self.assertEqual(task_meta["channel"], USER_UID)
         self.assertEqual(task_meta["taskname"], "Fake Task")
         self.assertEqual(task_meta["progress"], 1.0)
-        self.assertEqual(task_meta["job_type"], "TES")
-        self.assertEqual(task_meta["job_status"], Job.DONE)
-        self.assertEqual(task_meta["user_id"], self.user.pk)
+        self.assertEqual(task_meta["taskstate"], TASKSTATE_SUCCESS)
