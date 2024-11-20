@@ -73,9 +73,11 @@ def helper_export_query_as_csv_progress(
     """
     # remove fields to speed up the process
     query_param_fl = [
-        field for field in settings.IMPRESSO_SOLR_FIELDS if field not in ignore_fields
+        field
+        for field in settings.IMPRESSO_SOLR_FIELDS_AS_LIST
+        if field not in ignore_fields
     ]
-    contents = find_all(q=query, fl=query_param_fl, skip=skip, logger=logger)
+    contents = find_all(q=query, fl=",".join(query_param_fl), skip=skip, logger=logger)
     total = contents["response"]["numFound"]
     qtime = contents["responseHeader"]["QTime"]
     # generate extra from job stats
@@ -147,10 +149,11 @@ def helper_export_query_as_csv_progress(
             for doc in contents["response"]["docs"]
             if doc.get("meta_journal_s", False)
         ]
+
         if len(rows) != len(contents["response"]["docs"]):
             logger.warning(
                 f"[job:{job.pk} user:{job.creator.pk}] Warning: some docs do not have meta_journal_s field. Check: {[
-                    doc.get('id', 'no id') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
+                    doc.get('id', 'no id??') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
                 ]}"
             )
 
