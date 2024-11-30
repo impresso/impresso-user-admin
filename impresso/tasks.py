@@ -25,7 +25,7 @@ from .utils.tasks.account import (
     send_emails_after_user_activation,
     send_email_password_reset,
 )
-from .utils.tasks.userBitmap import update_user_bitmap
+from .utils.tasks.userBitmap import helper_update_user_bitmap
 from .utils.tasks.export import helper_export_query_as_csv_progress
 
 logger = get_task_logger(__name__)
@@ -1089,5 +1089,16 @@ def update_user_bitmap_task(self, user_id):
     Update the user bitmap for the given user.
     """
     logger.info(f"User bitmap update request for user {user_id}")
-    updated_bitmap = update_user_bitmap(user_id=user_id)
-    return updated_bitmap
+    # save current job!
+    job = Job.objects.create(
+        type=Job.UPDATE_USER_BITMAP, creator_id=user_id, status=Job.RUN
+    )
+    serialized_userBitmap = helper_update_user_bitmap(user_id=user_id)
+    # done!
+    update_job_completed(
+        task=self,
+        job=job,
+        message="User bitmap updated!",
+        extra={"userBitmap": serialized_userBitmap},
+    )
+    return serialized_userBitmap
