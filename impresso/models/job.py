@@ -16,6 +16,7 @@ class Job(models.Model):
     CREATE_UPLOADED_IMAGE = "IMG"
     REMOVE_FROM_SOLR = "RDX"
     REMOVE_COLLECTIONS_FROM_SOLR_TR = "RTR"
+    UPDATE_USER_BITMAP = "UUB"
 
     TYPE_CHOICES = (
         (BULK_COLLECTION_FROM_QUERY, "Bulk collection from query"),
@@ -36,6 +37,7 @@ class Job(models.Model):
         (SYNC_COLLECTIONS_TO_SOLR_TR, "Sync coll. to related TR passages"),
         (REMOVE_FROM_SOLR, "Remove collection from solr index"),
         (REMOVE_COLLECTIONS_FROM_SOLR_TR, "Remove coll. from SOLR TR index"),
+        (UPDATE_USER_BITMAP, "Update user bitmap"),
     )
 
     READY = "REA"
