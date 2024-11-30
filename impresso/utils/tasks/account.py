@@ -83,9 +83,9 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
             to=[
                 user.email,
             ],
-            cc=[
-                settings.DEFAULT_FROM_EMAIL,
-            ],
+            # cc=[
+            #     settings.DEFAULT_FROM_EMAIL,
+            # ],
             reply_to=[
                 settings.DEFAULT_FROM_EMAIL,
             ],
