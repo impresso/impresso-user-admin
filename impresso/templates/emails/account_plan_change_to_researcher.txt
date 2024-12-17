@@ -1,0 +1,6 @@
+Dear {{user.first_name}},
+
+we acknoledgodge reception of you plan change to get a Academic Plan.
+
+With best wishes,
+The impresso team

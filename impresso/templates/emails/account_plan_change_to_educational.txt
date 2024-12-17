@@ -1,0 +1,21 @@
+Dear {{user.first_name}},
+
+Thank you for requesting a change to your Impresso plan. We've received your request to switch from the [Current Plan Name] plan to the [New Plan Name] plan.
+
+We are now processing your request. This usually takes 1-2 business days.
+
+In the meantime, here's a summary of the changes you requested:
+
+*   Current Plan: {{ plan_from_name }}
+*   Requested Plan: {{ plan_to_name }}
+
+Upon successful completion of the plan change, your permission will be updated to reflect the {{ plan_to_name }} features
+according to the Corpus Overview page: https://impresso-project.ch/datalab/corpus-overview.
+
+We will send you another email once your plan has been successfully updated.
+
+If you have any questions or need to cancel your request, please contact our support team at {{ from_email }}.
+
+With best wishes,
+
+The Impresso team

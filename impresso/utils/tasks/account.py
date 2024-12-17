@@ -157,3 +157,64 @@ def send_email_password_reset(
     except Exception as e:
         logger.exception(f"Error sending email: {e}")
     logger.info(f"Password reset email sent to user={user_id}")
+
+
+def send_email_plan_change(
+    user_id: int,
+    plan: None,
+    callback_url: str = "https://impresso-project.ch/app/reset-password",
+    logger: Logger = default_logger,
+) -> None:
+    """
+    Sends the message to change plan to staff and a receipt email back to the sender with the given user_id.
+
+    Args:
+        user_id (int): The ID of the user that initiated the change plan request.".
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+
+    Raises:
+        User.DoesNotExist: If no active user with the given user_id is found.
+        Exception: If there is an error sending the email.
+    """
+    try:
+        user = User.objects.get(pk=user_id, is_active=True)
+    except User.DoesNotExist:
+        logger.exception(f"user={user_id} NOT FOUND!")
+        raise
+    if plan not in settings.IMPRESSO_GROUP_USERS_AVAILABLE_PLANS:
+        logger.error(
+            f"bad request, plan is not in {settings.IMPRESSO_GROUP_USERS_AVAILABLE_PLANS}"
+        )
+        return
+    # this suffix
+    plan_suffix = settings.IMPRESSO_GROUP_USER_PLAN_BASIC
+
+    if plan == settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER:
+        plan_suffix = "plan_researcher"
+    elif plan == settings.IMPRESSO_GROUP_USER_PLAN_EDUCTIONAL:
+        plan_suffix = "plan_educational"
+
+    txt_content, html_content = getEmailsContents(
+        prefix=f"account_plan_change_to_{plan_suffix}",
+        context=({"user": user}),
+    )
+    try:
+        emailMessage = EmailMultiAlternatives(
+            subject="Change plan for Impresso",
+            body=txt_content,
+            from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
+            to=[
+                user.email,
+            ],
+            cc=[],
+            reply_to=[
+                settings.DEFAULT_FROM_EMAIL,
+            ],
+        )
+        emailMessage.attach_alternative(html_content, "text/html")
+        emailMessage.send(fail_silently=False)
+    except smtplib.SMTPException as e:
+        logger.exception(f"SMTPException Error sending email: {e}")
+    except Exception as e:
+        logger.exception(f"Error sending email: {e}")
+    logger.info(f"Password reset email sent to user={user_id}")

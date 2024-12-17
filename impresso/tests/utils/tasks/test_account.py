@@ -21,3 +21,7 @@ class TestAccound(TestCase):
     def test_send_email_password_reset(self):
         send_email_password_reset(self.user.id, token="test", logger=logger)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Reset password for impresso")
+
+    def test_send_plan_change(self)
+        
