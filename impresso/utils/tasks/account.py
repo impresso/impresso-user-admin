@@ -1,4 +1,6 @@
 import logging
+import smtplib
+from logging import Logger
 from django.core import mail
 from django.contrib.auth.models import User
 from django_registration.backends.activation.views import RegistrationView
@@ -106,11 +108,24 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
 
 
 def send_email_password_reset(
-    user_id,
-    token="token",
-    callback_url="https://impresso-project.ch/app/reset-password",
-    logger=default_logger,
-):
+    user_id: int,
+    token: str = "token",
+    callback_url: str = "https://impresso-project.ch/app/reset-password",
+    logger: Logger = default_logger,
+) -> None:
+    """
+    Sends a password reset email to the user with the given user_id.
+
+    Args:
+        user_id (int): The ID of the user to send the password reset email to.
+        token (str, optional): The token to include in the password reset link. Defaults to "token".
+        callback_url (str, optional): The URL to use for the password reset link. Defaults to "https://impresso-project.ch/app/reset-password".
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+
+    Raises:
+        User.DoesNotExist: If no active user with the given user_id is found.
+        Exception: If there is an error sending the email.
+    """
     try:
         user = User.objects.get(pk=user_id, is_active=True)
     except User.DoesNotExist:
@@ -130,14 +145,15 @@ def send_email_password_reset(
             to=[
                 user.email,
             ],
-            cc=[
-                settings.DEFAULT_FROM_EMAIL,
-            ],
+            cc=[],
             reply_to=[
                 settings.DEFAULT_FROM_EMAIL,
             ],
         )
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
-    except Exception:
-        raise
+    except smtplib.SMTPException as e:
+        logger.exception(f"SMTPException Error sending email: {e}")
+    except Exception as e:
+        logger.exception(f"Error sending email: {e}")
+    logger.info(f"Password reset email sent to user={user_id}")
