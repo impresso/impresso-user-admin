@@ -24,6 +24,7 @@ from .utils.tasks.account import (
     send_emails_after_user_registration,
     send_emails_after_user_activation,
     send_email_password_reset,
+    send_email_plan_change,
 )
 from .utils.tasks.userBitmap import helper_update_user_bitmap
 from .utils.tasks.export import helper_export_query_as_csv_progress
@@ -933,6 +934,31 @@ def email_password_reset(
     send_email_password_reset(
         user_id=user_id, token=token, callback_url=callback_url, logger=logger
     ),
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def email_plan_change(self, user_id: int, plan: str = None) -> None:
+    """
+    Sends an email notification for a user's plan change request.
+
+    Args:
+        self: The task instance.
+        user_id (int): The ID of the user requesting the plan change.
+        plan (str, optional): The new plan requested by the user. Defaults to None.
+
+    Returns:
+        None
+    """
+    logger.info(f"user({user_id}) requested plan change to {plan}!")
+    # send confirmation email to the registered user
+    # and send email to impresso admins
+    send_email_plan_change(user_id=user_id, plan=plan, logger=logger)
 
 
 @app.task(
