@@ -13,6 +13,11 @@ from .models import UserBitmap, DatasetBitmapPosition, UserRequest
 
 from impresso.tasks import after_user_activation
 
+from .views.admin.userPlanRequestAdmin import UserPlanRequestAdmin
+
+# Register the User model with the custom view
+custom_admin_site = UserPlanRequestAdmin(name="custom_admin")
+
 
 @admin.register(UserRequest)
 class UserRequestAdmin(admin.ModelAdmin):
