@@ -1,8 +1,8 @@
-from django import forms
+from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.utils.translation import ngettext
 from django.utils import timezone
 from .models import Profile, Issue, Job, Page, Newspaper
@@ -10,13 +10,8 @@ from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
 from .models import UserBitmap, DatasetBitmapPosition, UserRequest
-
+from .models import UserChangePlanRequest
 from impresso.tasks import after_user_activation
-
-from .views.admin.userPlanRequestAdmin import UserPlanRequestAdmin
-
-# Register the User model with the custom view
-custom_admin_site = UserPlanRequestAdmin(name="custom_admin")
 
 
 @admin.register(UserRequest)
@@ -28,9 +23,23 @@ class UserRequestAdmin(admin.ModelAdmin):
         "status",
         "date_created",
     )
-    search_fields = ["subscriber__username", "subscription__name"]
+    search_fields = ["user__username", "subscription__name"]
     list_filter = ["status"]
     autocomplete_fields = ["user", "reviewer", "subscription"]
+
+
+@admin.register(UserChangePlanRequest)
+class UserChangePlanRequestAdmin(admin.ModelAdmin):
+    search_fields = ["user__username", "user__last_name"]
+    list_filter = ["status"]
+    search_help_text = "Search by requester user id (numeric) or username"
+    list_display = (
+        "user",
+        "plan",
+        "status",
+        "date_created",
+    )
+    autocomplete_fields = ["user", "plan"]
 
 
 @admin.register(UserBitmap)
