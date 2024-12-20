@@ -35,6 +35,13 @@ class UserChangePlanRequest(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
+            # get latest changelog status, if exists
+            if self.changelog:
+                latest_status = self.changelog[-1]["status"]
+                print("Saving UserChangePlanRequest with status", self.status, latest_status)
+            else:
+                latest_status = None
+                print("Saving UserChangePlanRequest with status", self.status)
             # Prepare the new changelog entry
             changelog_entry = {
                 "status": self.status,
@@ -45,5 +52,6 @@ class UserChangePlanRequest(models.Model):
 
             # Append the new entry to the changelog list
             self.changelog.append(changelog_entry)
+       
 
         super().save(*args, **kwargs)
