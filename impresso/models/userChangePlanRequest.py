@@ -38,9 +38,8 @@ class UserChangePlanRequest(models.Model):
             # Prepare the new changelog entry
             changelog_entry = {
                 "status": self.status,
-                "subscription": self.subscription.name if self.subscription else None,
+                "plan": self.plan.name if self.plan else None,
                 "date": self.date_last_modified.isoformat(),
-                "reviewer": self.reviewer.username if self.reviewer else None,
                 "notes": self.notes if self.notes else "",
             }
 
