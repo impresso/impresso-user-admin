@@ -1,4 +1,3 @@
-from django import forms
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -10,8 +9,10 @@ from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
 from .models import UserBitmap, DatasetBitmapPosition, UserRequest
-
+from .models import UserChangePlanRequest
 from impresso.tasks import after_user_activation
+
+from django.utils.html import format_html
 
 
 @admin.register(UserRequest)
@@ -23,9 +24,75 @@ class UserRequestAdmin(admin.ModelAdmin):
         "status",
         "date_created",
     )
-    search_fields = ["subscriber__username", "subscription__name"]
+    search_fields = ["user__username", "subscription__name"]
     list_filter = ["status"]
     autocomplete_fields = ["user", "reviewer", "subscription"]
+
+
+@admin.register(UserChangePlanRequest)
+class UserChangePlanRequestAdmin(admin.ModelAdmin):
+    search_fields = ["user__username", "user__last_name"]
+    list_filter = ["status"]
+    search_help_text = "Search by requester user id (numeric) or username"
+    list_display = ("user", "plan", "status", "date_created", "changelog_parsed")
+    autocomplete_fields = ["user", "plan"]
+    actions = ["approve_requests", "reject_requests"]
+
+    def changelog_parsed(self, obj):
+        try:
+            html = "<ul style='padding:0'>"
+            for entry in obj.changelog:
+                date = timezone.datetime.fromisoformat(entry["date"]).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+
+                html += (
+                    f"<li><b>{entry['plan']}</b><br/>{date} ({entry['status']})</li>"
+                )
+            html += "</ul>"
+            return format_html(html)
+        except AttributeError as e:
+            return f"Changelog error: {e}"
+        except (TypeError, ValueError):
+            return "Invalid JSON"
+
+    changelog_parsed.short_description = "Changes"
+
+    @admin.action(description="APPROVE selected requests")
+    def approve_requests(self, request, queryset):
+        updated = queryset.count()
+        for req in queryset:
+            req.status = UserChangePlanRequest.STATUS_APPROVED
+            # post_save method  in impresso.signals already include the code to add the user the Plan Group.
+            req.save()
+        self.message_user(
+            request,
+            ngettext(
+                "%d request was successfully approved.",
+                "%d requests were successfully approved.",
+                updated,
+            )
+            % updated,
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="REJECT selected requests")
+    def reject_requests(self, request, queryset):
+        updated = queryset.count()
+        for req in queryset:
+            req.status = UserChangePlanRequest.STATUS_REJECTED
+            # post_save() method in impresso.signals already includes the code to remove the Plan Group.
+            req.save()
+        self.message_user(
+            request,
+            ngettext(
+                "%d request was successfully rejected.",
+                "%d requests were successfully rejected.",
+                updated,
+            )
+            % updated,
+            messages.SUCCESS,
+        )
 
 
 @admin.register(UserBitmap)

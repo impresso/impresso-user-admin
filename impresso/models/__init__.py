@@ -18,3 +18,4 @@ from .uploadedImage import UploadedImage
 from .datasetBitmapPosition import DatasetBitmapPosition
 from .userBitmap import UserBitmap
 from .userRequest import UserRequest
+from .userChangePlanRequest import UserChangePlanRequest
