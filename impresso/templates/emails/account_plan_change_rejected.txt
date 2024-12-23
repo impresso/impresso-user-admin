@@ -1,0 +1,10 @@
+Dear {{ user.first_name }},
+
+We regret to inform you that your request to change your subscription plan to {{ plan_to_name }} has been rejected. Unfortunately, you will remain subscribed to your current plan.
+
+If you believe this is a mistake or have any questions, please reply to this email or contact our support team for further assistance.
+
+Thank you for your understanding.
+
+Best regards,
+The Impresso Team
