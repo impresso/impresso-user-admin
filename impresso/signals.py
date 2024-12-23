@@ -1,6 +1,7 @@
 import logging
 from django.conf import settings
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
+from impresso.tasks import after_change_plan_request_updated
 
 logger = logging.getLogger(__name__)
 
@@ -42,3 +43,19 @@ def create_default_groups(sender, **kwargs):
             logger.info(f"Group created successfully: {group_slug}")
         else:
             logger.info(f"Group already exists: {g.id} - {group_slug}")
+
+
+def post_save_user_change_plan_request(sender, instance, created, **kwargs):
+    logger.info(
+        f"@post_save UserChangePlanRequest for user={instance.user.pk} plan={instance.plan.name} status=instance.status"
+    )
+    after_change_plan_request_updated.delay(user_id=instance.user.pk)
+    #     # remove from the group if the user is attached to that group
+    #     if self.plan in self.user.groups.all():
+    #         self.user.groups.remove(self.plan)
+    # if instance.status == instance.STATUS_APPROVED:
+    #     after_plan_change_accepted.delay(user_id=instance.user.pk)
+    # elif instance.status == instance.STATUS_REJECTED:
+    #     # remove from the group if the user is attached to that group
+    #     # instance.user.groups.remove(instance.plan)
+    #     pass

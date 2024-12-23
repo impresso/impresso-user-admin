@@ -77,6 +77,8 @@ class TestAccount(TestCase):
         # accept the request
         req.status = UserChangePlanRequest.STATUS_APPROVED
         req.save()
+        # add user to the group. Done using celery task
+        self.user.groups.add(req.plan)
         # manually send the email
         send_email_plan_change_accepted(
             user_id=self.user.id, plan=req.plan.name, logger=logger
@@ -111,6 +113,7 @@ class TestAccount(TestCase):
         req.status = UserChangePlanRequest.STATUS_REJECTED
         req.notes = "Wrong acceptance!"
         req.save()
+        self.user.groups.remove(req.plan)
         user_bitmap.refresh_from_db()
         self.assertEqual(
             str(user_bitmap),

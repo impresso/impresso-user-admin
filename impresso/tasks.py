@@ -2,8 +2,9 @@ from __future__ import absolute_import
 
 import time
 from celery.utils.log import get_task_logger
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from .celery import app
+from celery import shared_task, chain
 from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
 from .models import UserBitmap
 from .models import UserChangePlanRequest
@@ -898,7 +899,7 @@ def remove_collection_in_tr_progress(self, collection_id, job_id, skip=0, limit=
     retry_jitter=True,
 )
 def after_user_registered(self, user_id):
-    logger.info(f"user({user_id}) just registered")
+    logger.info(f"[user:{user_id}] just registered")
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_emails_after_user_registration(user_id=user_id, logger=logger)
@@ -912,7 +913,7 @@ def after_user_registered(self, user_id):
     retry_jitter=True,
 )
 def after_user_activation(self, user_id):
-    logger.info(f"user({user_id}) is now active")
+    logger.info(f"[user:{user_id}] is now active")
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_emails_after_user_activation(user_id=user_id, logger=logger)
@@ -931,7 +932,7 @@ def email_password_reset(
     token="nonce",
     callback_url="https://impresso-project.ch/app/reset-password",
 ):
-    logger.info(f"user({user_id}) requested password reset!")
+    logger.info(f"[user:{user_id}] requested password reset!")
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_email_password_reset(
@@ -958,10 +959,46 @@ def email_plan_change(self, user_id: int, plan: str = None) -> None:
     Returns:
         None
     """
-    logger.info(f"user({user_id}) requested plan change to {plan}!")
+    logger.info(f"[user:{user_id}] requested plan change to {plan}!")
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_email_plan_change(user_id=user_id, plan=plan, logger=logger)
+
+
+@app.task(bind=True)
+def add_user_to_group_task(self, user_id: int, group_name: str) -> int:
+    """
+    Task to add a user to a group.
+
+    Args:
+        user_id (int): The ID of the user to be added to the group.
+        group_name (str): The name of the group to which the user will be added.
+
+    Returns:
+        int: The ID of the user after being added to the group.
+    """
+    logger.info(f"[user:{user_id}] adding user to group {group_name}")
+    user = User.objects.get(id=user_id)
+    group = Group.objects.get(name=group_name)
+    user.groups.add(group)
+
+
+@app.task(bind=True)
+def remove_user_from_group_task(self, user_id: int, group_name: str) -> int:
+    """
+    Task to remove a user from a group.
+
+    Args:
+        user_id (int): The ID of the user to be removed from the group.
+        group_name (str): The name of the group from which the user will be removed.
+
+    Returns:
+        int: The ID of the user after being removed from the group.
+    """
+    logger.info(f"[user:{user_id}] removing user from group {group_name}")
+    user = User.objects.get(id=user_id)
+    group = Group.objects.get(name=group_name)
+    user.groups.remove(group)
 
 
 @app.task(
@@ -971,7 +1008,31 @@ def email_plan_change(self, user_id: int, plan: str = None) -> None:
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def after_plan_change_accepted(self, user_id: int) -> None:
+def email_change_plan_request_accepted(self, user_id: int, plan: str = None) -> None:
+    logger.info(f"[user:{user_id}] sending email after plan change ACCEPTED")
+    send_email_plan_change_accepted(user_id=user_id, plan=plan, logger=logger)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def email_change_plan_request_rejected(self, user_id: int, plan: str = None) -> None:
+    logger.info(f"[user:{user_id}] sending email after plan change REJECTED")
+    send_email_plan_change_rejected(user_id=user_id, plan=plan, logger=logger)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def after_change_plan_request_updated(self, user_id: int) -> None:
     """
     Accepts user request (if it is not rejected!) then
     sends an email notification for an accepted plan change request.
@@ -987,19 +1048,20 @@ def after_plan_change_accepted(self, user_id: int) -> None:
     try:
         req = UserChangePlanRequest.objects.get(user_id=user_id)
     except UserChangePlanRequest.DoesNotExist:
-        logger.error(f"UserChangePlanRequest.DoesNotExist for user {user_id}")
+        logger.error(f"[user:{user_id}] UserChangePlanRequest.DoesNotExist")
         return
-    # if request is not PENDING, send out an error email.
-    if req.status == UserChangePlanRequest.STATUS_REJECTED:
-        logger.error(
-            f"user({user_id}) plan change to {req.plan.name} is REJECTED, can't do much. Change the status in the DB before !"
-        )
-    logger.info(f"user({user_id}) plan change to {req.plan.name} accepted!")
-    # save Approved status to the plan request
-    req.status = UserChangePlanRequest.STATUS_APPROVED
-    req.save()
-    # send confirmation email to the registered user
-    send_email_plan_change_accepted(user_id=user_id, plan=req.plan.name, logger=logger)
+    logger.info(f"[user:{user_id}] plan change to {req.plan.name} status {req.status}")
+
+    if req.status == UserChangePlanRequest.STATUS_APPROVED:
+        chain(
+            add_user_to_group_task.si(user_id, req.plan.name),
+            email_change_plan_request_accepted.si(user_id, req.plan.name),
+        )()
+    else:
+        chain(
+            remove_user_from_group_task.si(user_id, req.plan.name),
+            email_change_plan_request_rejected.si(user_id, req.plan.name),
+        )()
 
 
 @app.task(
@@ -1030,10 +1092,10 @@ def after_plan_change_rejected(self, user_id: int) -> None:
     # if request is not PENDING, send out an error email.
     if req.status == UserChangePlanRequest.STATUS_APPROVED:
         logger.error(
-            f"user({user_id}) plan change to {req.plan.name} is APPROVED, can't reject. Change the status in the DB before !"
+            f"[user:{user_id}] plan change to {req.plan.name} is APPROVED, can't reject. Change the status in the DB before !"
         )
     logger.info(
-        f"user({user_id}) request to change plan to {req.plan.name} has been REJECTED!"
+        f"[user:{user_id}] request to change plan to {req.plan.name} has been REJECTED!"
     )
     # save Rejected status to the plan request
     req.status = UserChangePlanRequest.STATUS_REJECTED

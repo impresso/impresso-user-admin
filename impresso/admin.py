@@ -1,8 +1,7 @@
-from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.utils.translation import ngettext
 from django.utils import timezone
 from .models import Profile, Issue, Job, Page, Newspaper
@@ -12,7 +11,9 @@ from .models import Attachment, UploadedImage
 from .models import UserBitmap, DatasetBitmapPosition, UserRequest
 from .models import UserChangePlanRequest
 from impresso.tasks import after_user_activation
+
 from django.utils.html import format_html
+
 
 @admin.register(UserRequest)
 class UserRequestAdmin(admin.ModelAdmin):
@@ -33,23 +34,21 @@ class UserChangePlanRequestAdmin(admin.ModelAdmin):
     search_fields = ["user__username", "user__last_name"]
     list_filter = ["status"]
     search_help_text = "Search by requester user id (numeric) or username"
-    list_display = (
-        "user",
-        "plan",
-        "status",
-        "date_created",
-        "changelog_parsed"
-    )
+    list_display = ("user", "plan", "status", "date_created", "changelog_parsed")
     autocomplete_fields = ["user", "plan"]
-    actions = ["approve_requests"]
+    actions = ["approve_requests", "reject_requests"]
 
     def changelog_parsed(self, obj):
         try:
             html = "<ul style='padding:0'>"
             for entry in obj.changelog:
-                date = timezone.datetime.fromisoformat(entry['date']).strftime('%Y-%m-%d %H:%M:%S')
-            
-                html += f"<li><b>{entry['plan']}</b><br/>{date} ({entry['status']})</li>"
+                date = timezone.datetime.fromisoformat(entry["date"]).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+
+                html += (
+                    f"<li><b>{entry['plan']}</b><br/>{date} ({entry['status']})</li>"
+                )
             html += "</ul>"
             return format_html(html)
         except AttributeError as e:
@@ -64,6 +63,7 @@ class UserChangePlanRequestAdmin(admin.ModelAdmin):
         updated = queryset.count()
         for req in queryset:
             req.status = UserChangePlanRequest.STATUS_APPROVED
+            # post_save method  in impresso.signals already include the code to add the user the Plan Group.
             req.save()
         self.message_user(
             request,
@@ -76,6 +76,23 @@ class UserChangePlanRequestAdmin(admin.ModelAdmin):
             messages.SUCCESS,
         )
 
+    @admin.action(description="REJECT selected requests")
+    def reject_requests(self, request, queryset):
+        updated = queryset.count()
+        for req in queryset:
+            req.status = UserChangePlanRequest.STATUS_REJECTED
+            # post_save() method in impresso.signals already includes the code to remove the Plan Group.
+            req.save()
+        self.message_user(
+            request,
+            ngettext(
+                "%d request was successfully rejected.",
+                "%d requests were successfully rejected.",
+                updated,
+            )
+            % updated,
+            messages.SUCCESS,
+        )
 
 
 @admin.register(UserBitmap)
