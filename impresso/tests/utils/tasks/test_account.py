@@ -2,16 +2,24 @@ import logging
 from django.conf import settings
 from django.test import TestCase
 from django.contrib.auth.models import User
-from impresso.utils.tasks.account import send_email_password_reset
-from impresso.utils.tasks.account import send_email_plan_change
+from impresso.models import UserChangePlanRequest
+from impresso.models import UserBitmap
+from impresso.utils.tasks.account import (
+    send_email_password_reset,
+    send_email_plan_change,
+    send_email_plan_change_accepted,
+    send_email_plan_change_rejected,
+)
+from django.utils import timezone
 from django.core import mail
 
 logger = logging.getLogger("console")
 
 
-class TestAccound(TestCase):
+class TestAccount(TestCase):
     """
     Test the task helper for update_user_bitmap_task
+    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account
     """
 
     def setUp(self):
@@ -59,38 +67,65 @@ class TestAccound(TestCase):
         self.assertEqual(mail.outbox[0].subject, "Change plan for Impresso")
         # first line of the email is: Dear Jane,
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
-        # check user is in the right group
-        # reload user groups
-        self.user.refresh_from_db()
-        # get the groups
-        self.assertTrue(
-            self.user.groups.filter(
-                name=settings.IMPRESSO_GROUP_USER_PLAN_REQUEST_EDUCATIONAL
-            ),
-            "right after the request, user should be associated with the REQUEST for educational group",
-        )
-        # as the user already requested, successive, probably erroneous requests should not change anything
-        send_email_plan_change(
-            user_id=self.user.id,
-            plan=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL,
-            logger=logger,
-        )
-        # reload user groups
-        self.user.refresh_from_db()
-        # get the groups
-        self.assertEqual(
-            settings.IMPRESSO_GROUP_USER_PLAN_REQUEST_EDUCATIONAL,
-            ",".join(self.user.groups.all().values_list("name", flat=True)),
-            "Now our user is ONLY ssociated with the REQUEST for educational group",
-        )
 
+        req = UserChangePlanRequest.objects.get(user=self.user)
+
+        self.assertEqual(req.status, UserChangePlanRequest.STATUS_PENDING)
+        self.assertEqual(req.plan.name, settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL)
         # clean outbox
         mail.outbox = []
-        send_email_plan_change(
-            user_id=self.user.id,
-            plan=settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER,
-            logger=logger,
+        # accept the request
+        req.status = UserChangePlanRequest.STATUS_APPROVED
+        req.save()
+        # manually send the email
+        send_email_plan_change_accepted(
+            user_id=self.user.id, plan=req.plan.name, logger=logger
         )
-        self.assertEqual(len(mail.outbox), 2)
-        # first email contains this subject
-        self.assertEqual(mail.outbox[0].subject, "Change plan for Impresso")
+        self.assertEqual(len(mail.outbox), 1)
+        # Check that the body starts with Dear Jane, and contains the settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
+        self.assertTrue("Dear Jane," in mail.outbox[0].body)
+        self.assertTrue(
+            settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL in mail.outbox[0].body,
+            f"should receive corrrect email:f{mail.outbox[0].body}",
+        )
+
+        # get user bitmap
+        user_bitmap = UserBitmap.objects.get(user=self.user)
+
+        self.assertEqual(
+            user_bitmap.get_bitmap_as_int(),
+            UserBitmap.USER_PLAN_GUEST,
+            "user is Guest auntill they accept the terms",
+        )
+        # accept the terms
+        user_bitmap.date_accepted_terms = timezone.now()
+        user_bitmap.save()
+        user_bitmap.refresh_from_db()
+        self.assertEqual(
+            str(user_bitmap),
+            f"testuser Bitmap {bin(UserBitmap.USER_PLAN_EDUCATIONAL)}",
+            "User plan USER_PLAN_EDUCATIONAL activated!",
+        )
+
+        # now we manually reject the request, as approving was an error
+        req.status = UserChangePlanRequest.STATUS_REJECTED
+        req.notes = "Wrong acceptance!"
+        req.save()
+        user_bitmap.refresh_from_db()
+        self.assertEqual(
+            str(user_bitmap),
+            f"testuser Bitmap {bin(UserBitmap.USER_PLAN_AUTH_USER)}",
+            "User plan back to USER_PLAN_AUTH_USER !",
+        )
+        mail.outbox = []
+        send_email_plan_change_rejected(
+            user_id=self.user.id, plan=req.plan.name, logger=logger
+        )
+        self.assertEqual(len(mail.outbox), 1)
+
+        self.assertTrue("Dear Jane," in mail.outbox[0].body)
+        self.assertTrue("rejected" in mail.outbox[0].body)
+        self.assertTrue(
+            settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL in mail.outbox[0].body,
+            f"should receive corrrect email:f{mail.outbox[0].body}",
+        )

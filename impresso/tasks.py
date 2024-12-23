@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from .celery import app
 from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
 from .models import UserBitmap
+from .models import UserChangePlanRequest
 from .utils.tasks import (
     TASKSTATE_INIT,
     update_job_progress,
@@ -25,6 +26,8 @@ from .utils.tasks.account import (
     send_emails_after_user_activation,
     send_email_password_reset,
     send_email_plan_change,
+    send_email_plan_change_accepted,
+    send_email_plan_change_rejected,
 )
 from .utils.tasks.userBitmap import helper_update_user_bitmap
 from .utils.tasks.export import helper_export_query_as_csv_progress
@@ -959,6 +962,84 @@ def email_plan_change(self, user_id: int, plan: str = None) -> None:
     # send confirmation email to the registered user
     # and send email to impresso admins
     send_email_plan_change(user_id=user_id, plan=plan, logger=logger)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def after_plan_change_accepted(self, user_id: int) -> None:
+    """
+    Accepts user request (if it is not rejected!) then
+    sends an email notification for an accepted plan change request.
+
+    Args:
+        self: The task instance.
+        user_id (int): The ID of the user requesting the plan change.
+
+    Returns:
+        None
+    """
+    # get request
+    try:
+        req = UserChangePlanRequest.objects.get(user_id=user_id)
+    except UserChangePlanRequest.DoesNotExist:
+        logger.error(f"UserChangePlanRequest.DoesNotExist for user {user_id}")
+        return
+    # if request is not PENDING, send out an error email.
+    if req.status == UserChangePlanRequest.STATUS_REJECTED:
+        logger.error(
+            f"user({user_id}) plan change to {req.plan.name} is REJECTED, can't do much. Change the status in the DB before !"
+        )
+    logger.info(f"user({user_id}) plan change to {req.plan.name} accepted!")
+    # save Approved status to the plan request
+    req.status = UserChangePlanRequest.STATUS_APPROVED
+    req.save()
+    # send confirmation email to the registered user
+    send_email_plan_change_accepted(user_id=user_id, plan=req.plan.name, logger=logger)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def after_plan_change_rejected(self, user_id: int) -> None:
+    """
+    Rejects user request (if it is not already accepted!) then
+    sends an email notification for a rejected plan change request.
+
+    Args:
+        self: The task instance.
+        user_id (int): The ID of the user requesting the plan change.
+
+    Returns:
+        None
+    """
+    # get request
+    try:
+        req = UserChangePlanRequest.objects.get(user_id=user_id)
+    except UserChangePlanRequest.DoesNotExist:
+        logger.error(f"UserChangePlanRequest.DoesNotExist for user {user_id}")
+        return
+    # if request is not PENDING, send out an error email.
+    if req.status == UserChangePlanRequest.STATUS_APPROVED:
+        logger.error(
+            f"user({user_id}) plan change to {req.plan.name} is APPROVED, can't reject. Change the status in the DB before !"
+        )
+    logger.info(
+        f"user({user_id}) request to change plan to {req.plan.name} has been REJECTED!"
+    )
+    # save Rejected status to the plan request
+    req.status = UserChangePlanRequest.STATUS_REJECTED
+    req.save()
+    # send confirmation email to the registered user
+    send_email_plan_change_rejected(user_id=user_id, plan=req.plan.name, logger=logger)
 
 
 @app.task(
