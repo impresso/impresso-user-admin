@@ -241,6 +241,9 @@ def send_email_plan_change(
             "plan": plan_as_group,
         },
     )
+    if not created:
+        change_plan_request.plan = plan_as_group
+        change_plan_request.save()
 
     logger.info(
         f"user={user_id} created={created} change_plan_request={change_plan_request}"
