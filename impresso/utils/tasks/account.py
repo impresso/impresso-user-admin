@@ -243,6 +243,7 @@ def send_email_plan_change(
     )
     if not created:
         change_plan_request.plan = plan_as_group
+        change_plan_request.status = UserChangePlanRequest.STATUS_PENDING
         change_plan_request.save()
 
     logger.info(
