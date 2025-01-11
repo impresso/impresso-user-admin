@@ -1057,7 +1057,7 @@ def after_change_plan_request_updated(self, user_id: int) -> None:
             add_user_to_group_task.si(user_id, req.plan.name),
             email_change_plan_request_accepted.si(user_id, req.plan.name),
         )()
-    else:
+    elif req.status == UserChangePlanRequest.STATUS_REJECTED:
         chain(
             remove_user_from_group_task.si(user_id, req.plan.name),
             email_change_plan_request_rejected.si(user_id, req.plan.name),
