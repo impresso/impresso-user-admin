@@ -81,6 +81,7 @@ DATABASES = {
                 "IMPRESSO_DB_ENGINE_TEST", "django.db.backends.sqlite3"
             ),
         },
+        'OPTIONS': {'ssl': {'rejectUnauthorized': False}},
     }
 }
 import sys
