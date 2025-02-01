@@ -81,7 +81,7 @@ DATABASES = {
                 "IMPRESSO_DB_ENGINE_TEST", "django.db.backends.sqlite3"
             ),
         },
-        'OPTIONS': {'ssl': {'rejectUnauthorized': False}},
+        "OPTIONS": {"ssl": {"rejectUnauthorized": False}},
     }
 }
 import sys
@@ -89,7 +89,7 @@ import sys
 if "test" in sys.argv:
     DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
     DATABASES["default"]["TEST"]["NAME"] = ":memory:"
-
+    DATABASES["default"]["OPTIONS"] = {"timeout": 20}
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -289,6 +289,7 @@ IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL = "Basic User Plan"
 IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL = "Student User Plan"
 IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL = "Academic User Plan"
 
+
 IMPRESSO_DEFAULT_GROUP_USERS = (
     (IMPRESSO_GROUP_USER_PLAN_REQUEST_EDUCATIONAL, "Request Student User Plan"),
     (IMPRESSO_GROUP_USER_PLAN_REQUEST_RESEARCHER, "Request Academic User Plan"),
@@ -297,6 +298,17 @@ IMPRESSO_DEFAULT_GROUP_USERS = (
     (IMPRESSO_GROUP_USER_PLAN_RESEARCHER, IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL),
 )
 
+
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC = "Access to Impresso"
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL = (
+    "Access to Impresso - Student User Plan"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER = (
+    "Access to Impresso - Academic User Plan"
+)
+IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET = (
+    "Password reset request for your Impresso account"
+)
 
 # Logging
 LOGGING = {
