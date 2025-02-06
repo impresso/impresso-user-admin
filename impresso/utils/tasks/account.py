@@ -28,23 +28,54 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
     return txt_content, html_content
 
 
-def send_emails_after_user_registration(user_id, logger=default_logger, test=False):
-    logger.info(f"looking for user={user_id}...")
+def send_emails_after_user_registration(user_id: int, logger=default_logger):
+    """
+    Sends a confirmation email to the user with the given user_id.
+    At this stage, the user record in the database has already been created and assigned to
+    user desired "plan" group (one of the settings.IMPRESSO_GROUP_USERS_AVAILABLE_PLANS),
+    but it is NOT ACTIVE. In parallel, staff receives a message via email
+    (to settings.DEFAULT_FROM_EMAIL)
+
+    Args:
+        user_id (int): The ID of the user to send the password reset email to.
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+
+    Raises:
+        User.DoesNotExist: If no active user with the given user_id is found.
+        Exception: If there is an error sending the email.
+    """
+    logger.info(f"Send email to user={user_id}...")
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
         logger.info(f"user={user_id} NOT FOUND!")
         raise
 
-    logger.info(f"user={user_id} active={user.is_active}")
+    groups_names = [g for g in user.groups.values_list("name", flat=True)]
+    logger.info(f"user={user_id} active={user.is_active} groups_names={groups_names}")
+
+    email_template_prefix = "account_created_mailto_user"
+    email_subject = settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC
+    if settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in groups_names:
+        email_template_prefix = "account_created_mailto_educational"
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
+        )
+    elif settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in groups_names:
+        email_template_prefix = "account_created_mailto_researcher"
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER
+        )
+
     view = RegistrationView()
     key = view.get_activation_key(user)
+
     txt_content, html_content = getEmailsContents(
-        prefix="account_created_mailto_user", context=({"user": user, "key": key})
+        prefix=email_template_prefix, context=({"user": user, "key": key})
     )
     try:
         emailMessage = EmailMultiAlternatives(
-            subject="Access to the impresso interface",
+            subject=email_subject,
             body=txt_content,
             from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
             to=[
@@ -59,17 +90,11 @@ def send_emails_after_user_registration(user_id, logger=default_logger, test=Fal
         )
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
-
-    except Exception:
-        raise
-    try:
-        first_message = mail.outbox[0]
-        print(first_message.subject)
-        print(first_message.body)
-    except Exception:
-        logger.info("It looks like the mail settings is not a TEST environment :)")
-        pass
-    # send email to the user to confirm the subscription
+    except smtplib.SMTPException as e:
+        logger.exception(f"SMTPException Error sending email: {e}")
+    except Exception as e:
+        logger.exception(f"Error sending email '{email_template_prefix}', error: {e}")
+    logger.info(f"Email '{email_template_prefix}' succeffully sent to user={user_id}")
 
 
 def send_emails_after_user_activation(user_id, logger=default_logger):
@@ -79,7 +104,9 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
     except User.DoesNotExist:
         logger.info(f"user={user_id} NOT FOUND!")
         raise
-    logger.info(f"user={user_id} active={user.is_active}")
+
+    groups_names = user.groups.values_list("name", flat=True)
+    logger.info(f"user={user_id} active={user.is_active} groups={groups_names}")
     txt_content, html_content = getEmailsContents(
         prefix="account_activated_mailto_user",
         context=(
@@ -96,26 +123,17 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
             to=[
                 user.email,
             ],
-            # cc=[
-            #     settings.DEFAULT_FROM_EMAIL,
-            # ],
             reply_to=[
                 settings.DEFAULT_FROM_EMAIL,
             ],
         )
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
-
-    except Exception:
-        raise
-    try:
-        first_message = mail.outbox[0]
-        logger.info("READING email in THE FAKE OUTBOX:")
-        print(first_message.subject)
-        print(first_message.body)
-    except Exception:
-        logger.info("It looks like the mail settings is not a TEST environment :)")
-        pass
+    except smtplib.SMTPException as e:
+        logger.exception(f"SMTPException Error sending email: {e}")
+    except Exception as e:
+        logger.exception(f"Error sending email: {e}")
+    logger.info(f"Password reset email sent to user={user_id}")
 
 
 def send_email_password_reset(
@@ -150,7 +168,7 @@ def send_email_password_reset(
     )
     try:
         emailMessage = EmailMultiAlternatives(
-            subject="Reset password for impresso",
+            subject=settings.IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET,
             body=txt_content,
             from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
             to=[

@@ -1,4 +1,19 @@
 Dear {{user.first_name}},
+Thank you for your request to modify your access level to the {{ plan_to_name }} plan.
+Your request is currently being processed by our team. This process typically requires 1-2 business days to ensure proper implementation of access protocols.
+Once completed, you will have full access to the media collections which are included in the {{ plan_to_name }}.
+We will notify you via email when your access has been confirmed. Should you need to discuss your request or require any clarification, our team is available at {{ from_email }}.
+
+We appreciate your interest in our collections,
+
+The Impresso Project
+
+
+
+
+
+
+Dear {{user.first_name}},
 
 Thank you for requesting a change to your Impresso plan. We've received your request to switch to the *{{ plan_to_name }}* plan.
 

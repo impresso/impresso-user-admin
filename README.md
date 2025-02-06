@@ -154,6 +154,14 @@ Stop a specific job from command line:
 ENV=dev pipenv run python ./manage.py stopjob 1234
 ```
 
+## Running tests
+
+Specify the environment variable `ENV=test` to run the tests with the `console` email backend:
+
+```sh
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend ENV=dev pipenv run ./manage.py test
+```
+
 ## Use in production
 
 Please check the included Dockerfile to generate your own docker image or use the docker image available on impresso dockerhub.
