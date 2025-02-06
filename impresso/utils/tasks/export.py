@@ -157,15 +157,23 @@ def helper_export_query_as_csv_progress(
                 ]}"
             )
 
+        user_allow_temporarily_no_redaction = job.creator.groups.filter(
+            name=settings.IMPRESSO_GROUP_USER_PLAN_NO_REDACTION
+        ).exists()
+        logger.info(
+            f"[job:{job.pk} user:{job.creator.pk}] "
+            f"User allow temporarily no redaction: {user_allow_temporarily_no_redaction}"
+        )
         for row in rows:
             content_item = serialize_solr_doc_content_item_to_plain_dict(row)
             content_item = mapper_doc_remove_private_collections(
                 doc=content_item, prefix=job.creator.profile.uid
             )
-            content_item = mapper_doc_redact_contents(
-                doc=content_item,
-                user_bitmask=user_bitmask,
-            )
+            if not user_allow_temporarily_no_redaction:
+                content_item = mapper_doc_redact_contents(
+                    doc=content_item,
+                    user_bitmask=user_bitmask,
+                )
             # removed unwanted fields from the content_item
             content_item = {k: v for k, v in content_item.items() if k in fieldnames}
             w.writerow(content_item)

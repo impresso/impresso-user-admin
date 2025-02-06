@@ -12,6 +12,8 @@ class BitMask64:
             if len(value) > 8:
                 raise ValueError("Bytes must contain maximum 8 bytes")
             self._value = int.from_bytes(value, byteorder="big")
+        elif isinstance(value, BitMask64):
+            self._value = value._value
         else:
             raise TypeError(
                 "Value must be a string of bits or an integer. Type:", type(value)
