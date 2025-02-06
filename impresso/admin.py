@@ -1,9 +1,10 @@
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.utils.translation import ngettext
 from django.utils import timezone
+from django.conf import settings
 from .models import Profile, Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
@@ -13,6 +14,20 @@ from .models import UserChangePlanRequest
 from impresso.tasks import after_user_activation
 
 from django.utils.html import format_html
+
+
+class GroupFilter(admin.SimpleListFilter):
+    title = "Group"
+    parameter_name = "group"
+
+    def lookups(self, request, model_admin):
+        groups = Group.objects.all()
+        return [(group.id, group.name) for group in groups]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(groups__id=self.value())
+        return queryset
 
 
 @admin.register(UserRequest)
@@ -307,8 +322,46 @@ class UserAdmin(BaseUserAdmin):
         "max_loops_allowed",
         "max_parallel_jobs",
     )
-    actions = ["make_active", "make_suspended"]
+    actions = [
+        "make_active",
+        "make_suspended",
+        "remove_from_group__no_redaction",
+        "add_to_group__no_redaction",
+    ]
     search_fields = ["username", "profile__uid", "email"]
+    list_filter = (GroupFilter, "is_staff", "is_active")
+
+    @admin.action(description="BEWARE! Add selected users to No Redaction group")
+    def add_to_group__no_redaction(modeladmin, request, queryset):
+        group_name = settings.IMPRESSO_GROUP_USER_PLAN_NO_REDACTION
+        try:
+            group, created = Group.objects.get_or_create(name=group_name)
+            added_count = 0
+            for user in queryset:
+                if group not in user.groups.all():
+                    user.groups.add(group)
+                    added_count += 1
+            messages.success(request, f"Added {added_count} users to '{group_name}'.")
+        except Exception as e:
+            messages.error(request, f"Error adding users to '{group_name}': {e}")
+
+    @admin.action(description="Detach selected users from No Redaction group")
+    def remove_from_group__no_redaction(modeladmin, request, queryset):
+        group_name = (
+            settings.IMPRESSO_GROUP_USER_PLAN_NO_REDACTION
+        )  # Change this to your actual group name
+        try:
+            group = Group.objects.get(name=group_name)
+            removed_count = 0
+            for user in queryset:
+                if group in user.groups.all():
+                    user.groups.remove(group)
+                    removed_count += 1
+            messages.success(
+                request, f"Removed {removed_count} users from '{group_name}'."
+            )
+        except Group.DoesNotExist:
+            messages.error(request, f"Group '{group_name}' does not exist.")
 
     @admin.action(description="ACTIVATE selected users")
     def make_active(self, request, queryset):
