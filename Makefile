@@ -21,4 +21,4 @@ run-dev:
 	pipenv run ./manage.py runserver 8888
 
 mypy:
-	mypy impresso/**/*.py 
+	mypy impresso
