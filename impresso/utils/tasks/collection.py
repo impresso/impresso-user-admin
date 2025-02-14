@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Tuple, Any, Optional
+from typing import Tuple, Any, Optional, cast
 from django.conf import settings
 from django.db.utils import IntegrityError
 from . import get_pagination, is_task_stopped, get_list_diff
@@ -69,7 +69,7 @@ def update_collections_in_tr_passages(
             logger=logger,
         )
         result_response_header = result.get("responseHeader")
-        result_adds = len(result.get("adds"))
+        result_adds = len(result.get("adds", []))
         logger.info(
             f"(update) solr updates response={result_response_header}, "
             f"adds={result_adds}"
@@ -137,7 +137,7 @@ def helper_remove_collection_progress(
     collection_id: int,
     job: Job,
     limit: int = 100,
-    logger: Optional[Any] = default_logger,
+    logger: logging.Logger = default_logger,
 ) -> Tuple[int, int, float]:
     """
     Deletes a collection in chuncks of `limit` content items from the database and SOLR.
@@ -178,7 +178,7 @@ def helper_remove_collection_progress(
         f" page:{page} - progress:{progress} -"
     )
     solr_updates_needed = []
-    solr_content_items = content_items.get("response").get("docs", [])
+    solr_content_items = content_items.get("response", {}).get("docs", [])
     for doc in solr_content_items:
         # get list of collection in ucoll_ss field
         ucoll_list = doc.get("ucoll_ss", [])
@@ -204,7 +204,7 @@ def helper_remove_collection_progress(
             logger=logger,
         )
         result_response_header = result.get("responseHeader")
-        result_adds = len(result.get("adds"))
+        result_adds = len(result.get("adds", []))
         logger.info(
             f"[job:{job.pk} user:{job.creator.pk}] delete_collection "
             f"(update) solr updates response={result_response_header}, "
@@ -281,8 +281,8 @@ def helper_store_collection_progress(
         skip=skip, limit=limit, total=total_content_items, job=job
     )
 
-    solr_content_items = content_items.get("response").get("docs", [])
-    qtime = content_items.get("responseHeader").get("QTime")
+    solr_content_items = content_items.get("response", {}).get("docs", [])
+    qtime = content_items.get("responseHeader", {}).get("QTime")
     logger.info(
         f"[job:{job.pk}, user:{job.creator.pk}] helper_store_collection_progress "
         f" total:{total_content_items} in {qtime}ms -"
@@ -336,7 +336,7 @@ def helper_store_collection_progress(
             logger=logger,
         )
         result_response_header = result.get("responseHeader")
-        result_adds = len(result.get("adds"))
+        result_adds = len(cast(list, result.get("adds")) or [])
         logger.info(
             f"(update) solr updates response={result_response_header}, "
             f"adds={result_adds}"

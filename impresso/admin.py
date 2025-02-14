@@ -71,7 +71,7 @@ class UserChangePlanRequestAdmin(admin.ModelAdmin):
         except (TypeError, ValueError):
             return "Invalid JSON"
 
-    changelog_parsed.short_description = "Changes"
+    changelog_parsed.short_description = "Changes"  # type: ignore[attr-defined]
 
     @admin.action(description="APPROVE selected requests")
     def approve_requests(self, request, queryset):
@@ -151,7 +151,7 @@ class UserBitmapAdmin(admin.ModelAdmin):
             messages.SUCCESS,
         )
 
-    user_plan_display.short_description = "User Plan"
+    user_plan_display.short_description = "User Plan"  # type: ignore[attr-defined]
 
 
 @admin.register(DatasetBitmapPosition)
@@ -403,9 +403,9 @@ class UserAdmin(BaseUserAdmin):
     def max_parallel_jobs(self, user):
         return user.profile.max_parallel_jobs if hasattr(user, "profile") else None
 
-    uid.short_description = "short unique identifier"
-    max_loops_allowed.short_description = "max loops"
-    max_parallel_jobs.short_description = "max parallel jobs"
+    uid.short_description = "short unique identifier"  # type: ignore[attr-defined]
+    max_loops_allowed.short_description = "max loops"  # type: ignore[attr-defined]
+    max_parallel_jobs.short_description = "max parallel jobs"  # type: ignore[attr-defined]
 
 
 admin.site.unregister(User)

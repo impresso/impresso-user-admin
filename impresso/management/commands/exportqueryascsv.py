@@ -92,7 +92,7 @@ class Command(BaseCommand):
         # test query
         results = find_all(q=q, fl=settings.IMPRESSO_SOLR_FIELDS)
         self.stdout.write(
-            f"\ntotal documents found: {self.style.SUCCESS(results["response"]["numFound"])}\n\n"
+            f"\ntotal documents found: {self.style.SUCCESS(results['response']['numFound'])}\n\n"
         )
 
         if not results["response"]["numFound"]:

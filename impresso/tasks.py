@@ -179,9 +179,9 @@ def export_query_as_csv(
     self,
     user_id: int,
     query: str,
-    description: str = "",
-    query_hash: str = "",
-    search_query_id: int = None,
+    description: str,
+    query_hash: str,
+    search_query_id: int,
 ) -> None:
     """
     Initiates a job to export a query as a CSV file and starts the export_query_as_csv_progress task.
@@ -258,7 +258,7 @@ def export_collection_as_csv(
     try:
         collection = Collection.objects.get(pk=collection_id, creator__id=user_id)
     except Collection.DoesNotExist:
-        logger.error(f"[job:{job.pk} user:{user_id}] no collection found for user!")
+        logger.error(f"[user:{user_id}] no collection {collection_id} found for user!")
         return
     # save current job then start export_query_as_csv task.
     job = Job.objects.create(
@@ -307,7 +307,7 @@ def export_collection_as_csv(
 def store_collection_progress(
     self,
     job_id: int,
-    collection_id: int,
+    collection_id: str,
     items_ids: list[int],
     skip: int,
     limit: int,
@@ -337,6 +337,7 @@ def store_collection_progress(
     Returns:
         None
     """
+    extra: dict = {}
 
     job = Job.objects.get(pk=job_id)
     try:
@@ -444,12 +445,13 @@ def store_collection(
     # @todo check if the collection is not deleted
     try:
         collection = Collection.objects.get(pk=collection_id)
+        collection_to_update = collection.status != Collection.DELETED
+
         if collection.status == Collection.DELETED:
             logger.info(
                 f"Collection found with pk={collection_id}, "
                 f"status={collection_to_update}"
             )
-        collection_to_update = collection.status != Collection.DELETED
         logger.info(
             f"Collection found with pk={collection_id}, "
             f"status={collection_to_update}"
@@ -779,7 +781,7 @@ def update_collections_in_tr_passages_progress(
     """
     # get the job so that we can update its status
     job = Job.objects.get(pk=job_id)
-    extra = {}
+    extra: dict = {}
     if is_task_stopped(task=self, job=job, progress=progress, extra=extra):
         return
     page, loops, progress = helper_update_collections_in_tr_passages_progress(
@@ -947,7 +949,7 @@ def email_password_reset(
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def email_plan_change(self, user_id: int, plan: str = None) -> None:
+def email_plan_change(self, user_id: int, plan: str) -> None:
     """
     Sends an email notification for a user's plan change request.
 
@@ -966,7 +968,7 @@ def email_plan_change(self, user_id: int, plan: str = None) -> None:
 
 
 @app.task(bind=True)
-def add_user_to_group_task(self, user_id: int, group_name: str) -> int:
+def add_user_to_group_task(self, user_id: int, group_name: str) -> None:
     """
     Task to add a user to a group.
 
@@ -984,7 +986,7 @@ def add_user_to_group_task(self, user_id: int, group_name: str) -> int:
 
 
 @app.task(bind=True)
-def remove_user_from_group_task(self, user_id: int, group_name: str) -> int:
+def remove_user_from_group_task(self, user_id: int, group_name: str) -> None:
     """
     Task to remove a user from a group.
 
@@ -1008,7 +1010,7 @@ def remove_user_from_group_task(self, user_id: int, group_name: str) -> int:
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def email_change_plan_request_accepted(self, user_id: int, plan: str = None) -> None:
+def email_change_plan_request_accepted(self, user_id: int, plan: str) -> None:
     logger.info(f"[user:{user_id}] sending email after plan change ACCEPTED")
     send_email_plan_change_accepted(user_id=user_id, plan=plan, logger=logger)
 
@@ -1020,7 +1022,7 @@ def email_change_plan_request_accepted(self, user_id: int, plan: str = None) -> 
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def email_change_plan_request_rejected(self, user_id: int, plan: str = None) -> None:
+def email_change_plan_request_rejected(self, user_id: int, plan: str) -> None:
     logger.info(f"[user:{user_id}] sending email after plan change REJECTED")
     send_email_plan_change_rejected(user_id=user_id, plan=plan, logger=logger)
 

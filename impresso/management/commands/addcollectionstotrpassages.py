@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
 # from impresso.tasks import store_collection, count_items_in_collection
 from django.conf import settings
-from ...utils.tasks.collection import sync_collections_in_tr_passages
-from ...tasks import update_collections_in_tr_passages
+from impresso.utils.tasks.collection import sync_collections_in_tr_passages
+from impresso.tasks import update_collections_in_tr_passages
 
 
 class Command(BaseCommand):

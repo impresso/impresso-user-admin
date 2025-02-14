@@ -24,8 +24,8 @@ def is_access_allowed(
     max_len = max(len(user_permissions_mask), len(content_permissions_mask))
     user_mask_padded = user_permissions_mask.rjust(max_len, b"\x00")
     content_mask_padded = content_permissions_mask.rjust(max_len, b"\x00")
-    print(f"user_mask_padded: {user_mask_padded}")
-    print(f"content_mask_padded: {content_mask_padded}")
+    print(f"user_mask_padded: {str(user_mask_padded)}")
+    print(f"content_mask_padded: {str(content_mask_padded)}")
     # Perform bitwise AND on each byte pair to check for overlap
     for user_byte, content_byte in zip(user_mask_padded, content_mask_padded):
         if user_byte & content_byte:

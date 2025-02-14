@@ -190,7 +190,7 @@ def send_email_password_reset(
 
 def send_email_plan_change(
     user_id: int,
-    plan: None,
+    plan: str,
     logger: Logger = default_logger,
 ) -> None:
     """

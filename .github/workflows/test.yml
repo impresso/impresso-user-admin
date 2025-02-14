@@ -47,6 +47,9 @@ jobs:
           mkdir -p logs
           touch logs/debug.log
 
+      - name: Run mypy
+        run: pipenv run mypy impresso/**/*.py
+
       - name: Run Django tests
         run: pipenv run ./manage.py test
         env:

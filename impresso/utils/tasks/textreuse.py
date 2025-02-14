@@ -10,7 +10,7 @@ default_logger = logging.getLogger(__name__)
 
 
 def get_indexed_tr_passages_by_items(
-    items_ids=[], limit=10, skip=0, logger=default_logger
+    items_ids, limit, skip, job, logger
 ):
     """
     Searches for indexed passages for a given list of item IDs using the Solr search engine.
@@ -37,7 +37,7 @@ def get_indexed_tr_passages_by_items(
     )
     total = res["response"]["numFound"]
     # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-    page, loops, progress = get_pagination(skip=skip, limit=limit, total=total)
+    page, loops, progress = get_pagination(skip=skip, limit=limit, total=total, job=job)
     logger.info(
         f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
     )
@@ -90,10 +90,10 @@ def remove_collection_from_tr_passages(
         f" page:{page} - progress:{progress} -"
     )
     # 2. get update objects for text reuse index.
-    solr_tr_passages = tr_passages_request.get("response").get("docs", [])
+    solr_tr_passages = tr_passages_request.get("response", {}).get("docs", [])
     solr_updates_needed = []
     logger.info(
-        f"[job:{job.pk} user:{job.creator.pk}] " f"{tr_passages_request["response"]}"
+        f"[job:{job.pk} user:{job.creator.pk}] " f"{tr_passages_request['response']}"
     )
     for doc in solr_tr_passages:
         # get list of collection in ucoll_ss field
@@ -121,7 +121,7 @@ def remove_collection_from_tr_passages(
             logger=logger,
         )
         result_response_header = result.get("responseHeader")
-        result_adds = len(result.get("adds"))
+        result_adds = len(result.get("adds", []))
         logger.info(
             f"(update) solr updates response={result_response_header}, "
             f"adds={result_adds}"
@@ -176,7 +176,7 @@ def add_tr_passages_query_results_to_collection(
     page, loops, progress, max_loops = get_pagination(
         skip=skip, limit=limit, total=total_content_items, job=job
     )
-    solr_content_items = content_items.get("response").get("docs", [])
+    solr_content_items = content_items.get("response", {}).get("docs", [])
     logger.info(
         f"SOLR find_all success, numFound={total_content_items} "
         f"max_loops={max_loops} page={page} loops={loops}"
@@ -226,6 +226,7 @@ def add_tr_passages_query_results_to_collection(
             items_ids=items_ids,
             limit=limit,
             skip=tr_page * limit,
+            job=job,
             logger=logger,
         )
 

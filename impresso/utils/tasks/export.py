@@ -151,10 +151,11 @@ def helper_export_query_as_csv_progress(
         ]
 
         if len(rows) != len(contents["response"]["docs"]):
+            to_check = [
+                doc.get('id', 'no id??') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
+            ]
             logger.warning(
-                f"[job:{job.pk} user:{job.creator.pk}] Warning: some docs do not have meta_journal_s field. Check: {[
-                    doc.get('id', 'no id??') for doc in contents['response']['docs'] if not doc.get('meta_journal_s', False)
-                ]}"
+                f"[job:{job.pk} user:{job.creator.pk}] Warning: some docs do not have meta_journal_s field. Check: {to_check}"
             )
 
         user_allow_temporarily_no_redaction = job.creator.groups.filter(
