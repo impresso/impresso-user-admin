@@ -48,7 +48,7 @@ jobs:
           touch logs/debug.log
 
       - name: Run mypy
-        run: pipenv run mypy --config-file ./.mypy.ini impresso/**/*.py  
+        run: pipenv run mypy --config-file ./.mypy.ini impresso  
 
       - name: Run Django tests
         run: pipenv run ./manage.py test
