@@ -14,16 +14,19 @@ class Command(BaseCommand):
             cursor.execute("SELECT DATABASE()")
             database_name = cursor.fetchone()[0]
 
+            default_db_settings = settings.DATABASES["default"]
+
             self.stdout.write(
                 f"Current Database: \n"
-                f"   host: \033[94m{settings.DATABASES["default"]["HOST"]}\033[0m\n"
-                f"   port: \033[94m{settings.DATABASES["default"]["PORT"]}\033[0m\n"
-                f"   engine: \033[94m{settings.DATABASES["default"]["ENGINE"]}\033[0m\n"
+                f"   host: \033[94m{default_db_settings['HOST']}\033[0m\n"
+                f"   port: \033[94m{default_db_settings['PORT']}\033[0m\n"
+                f"   engine: \033[94m{default_db_settings['ENGINE']}\033[0m\n"
                 f"   name: \033[94m{database_name}\033[0m\n\n"
             )
             cursor.execute("SHOW TABLES")
             tables = [t[0] for t in cursor.fetchall()]
-            self.stdout.write(f"Database Tables: \n - {'\n - '.join(tables)}")
+            tables_bullet_point = '\n - '.join(tables)
+            self.stdout.write(f"Database Tables: \n - {tables_bullet_point}")
 
         # test solr connectivity usin g settings
         self.stdout.write("\nChecking SOLR connectivity...")
@@ -33,9 +36,13 @@ class Command(BaseCommand):
         if not re.match(r"^https?://.*\/solr/[^\/]+\/select$", solr_url):
             self.stderr.write(f"Invalid SOLR URL: {solr_url}")
             return
+        
+        solr_fields_bullet_point = '\n - '.join(
+            settings.IMPRESSO_SOLR_FIELDS_AS_LIST,
+        )
 
         self.stdout.write(
-            f"SOLR fl list (available for export): \n - {'\n - '.join(settings.IMPRESSO_SOLR_FIELDS_AS_LIST)}"
+            f"SOLR fl list (available for export): \n - {solr_fields_bullet_point}"
         )
         params = {
             "q": "*:*",

@@ -17,7 +17,8 @@ class Command(BaseCommand):
         self.stdout.write(f"User: pk={user.id} \033[34m{user.username}\033[0m")
         # rpint out user groups
         groups = [group.name for group in user.groups.all()]
-        self.stdout.write(f"User groups: \n \033[34m{'\n '.join(groups)}\033[0m")
+        groups_list = '\n '.join(groups)
+        self.stdout.write(f"User groups: \n \033[34m{groups_list}\033[0m")
         # print out its related user bitmap. If no one, just create it.
         user_bitmap = user.bitmap.get_up_to_date_bitmap()
         user.bitmap = user_bitmap
@@ -37,9 +38,11 @@ class Command(BaseCommand):
         subscriptions = list(
             user.bitmap.subscriptions.values("name", "bitmap_position")
         )
+
+        subscription_names = '\n '.join([s.get('name') for s in subscriptions])
         # verify that the user subscription positions are correct
         self.stdout.write(
-            f"User subscriptions: \n \033[34m{'\n '.join([s.get('name') for s in subscriptions])}\033[0m"
+            f"User subscriptions: \n \033[34m{subscription_names}\033[0m"
         )
         max_subscription_position = (
             max([s["bitmap_position"] for s in subscriptions]) if subscriptions else -1

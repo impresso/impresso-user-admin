@@ -31,11 +31,11 @@ def get_pagination(
             - max_loops (int): The maximum number of loops allowed.
     """
     limit = min(limit, settings.IMPRESSO_SOLR_EXEC_LIMIT)
-    max_loops = min(
+    max_loops: int = min(
         job.creator.profile.max_loops_allowed, settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
     )
 
-    page = 1 + skip / limit
+    page = int(1 + skip / limit)
     # get n of loops allowed
     if ignore_max_loops:
         loops = math.ceil(total / limit)
@@ -145,7 +145,7 @@ def update_job_completed(
 
 
 def is_task_stopped(
-    task, job: Job, progress: float = None, extra: dict = {}, logger=None
+    task, job: Job, progress: float = 0, extra: dict = {}, logger=None
 ) -> bool:
     """
     Check if a job has been stopped by the user.
