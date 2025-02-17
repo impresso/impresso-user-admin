@@ -37,7 +37,7 @@ def get_indexed_tr_passages_by_items(
     )
     total = res["response"]["numFound"]
     # we don't use the get_pagination `Job` object here not to limit loops. See settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-    page, loops, progress = get_pagination(skip=skip, limit=limit, total=total, job=job)
+    page, loops, progress, _max_loops = get_pagination(skip=skip, limit=limit, total=total, job=job)
     logger.info(
         f"SUCCESS numFound={total} page={page} loops={loops} progress={progress}"
     )
