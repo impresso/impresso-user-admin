@@ -116,7 +116,6 @@ def export_query_as_csv_progress(
     self,
     job_id: int,
     query: str,
-    search_query_id: int,
     user_bitmap_key: int,
     query_hash: str = "",
     progress: float = 0.0,
@@ -134,7 +133,6 @@ def export_query_as_csv_progress(
         self: The task instance.
         job_id (int): The ID of the job to update.
         query (str): The query string to execute.
-        search_query_id (int): The ID of the search query.
         user_bitmap_key (int): The user bitmap key, as int.
         query_hash (str, optional): The hash of the query. Defaults to an empty string.
         skip (int, optional): The number of records to skip. Defaults to 0.
@@ -165,7 +163,6 @@ def export_query_as_csv_progress(
             job_id=job.pk,
             query=query,
             query_hash=query_hash,
-            search_query_id=search_query_id,
             user_bitmap_key=user_bitmap_key,
             skip=page * limit,
             limit=limit,
@@ -181,7 +178,6 @@ def export_query_as_csv(
     query: str,
     description: str,
     query_hash: str,
-    search_query_id: int,
 ) -> None:
     """
     Initiates a job to export a query as a CSV file and starts the export_query_as_csv_progress task.
@@ -192,7 +188,6 @@ def export_query_as_csv(
         query (str): The query string to be exported.
         description (str, optional): A description for the job. Defaults to an empty string.
         query_hash (str, optional): A hash of the query string. Defaults to an empty string.
-        search_query_id (int, optional): The ID of the search query. Defaults to None.
 
     Returns:
         None
@@ -226,7 +221,6 @@ def export_query_as_csv(
         job_id=job.pk,
         query=query,
         query_hash=query_hash,
-        search_query_id=search_query_id,
         user_bitmap_key=user_bitmap.get_bitmap_as_int(),
     )
 
