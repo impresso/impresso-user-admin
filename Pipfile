@@ -9,13 +9,15 @@ pip = "*"
 celery = "*"
 requests = "*"
 redis = "*"
-django = "==5.0.7"
+django = "==5.1.4"
 pymysql = "*"
 django-registration = "*"
 gunicorn = "*"
+python-dotenv = "*"
 
 [dev-packages]
 "flake8" = "*"
+mypy = "1.9.0"
 
 [requires]
 python_version = "3.12.4"

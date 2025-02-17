@@ -1,0 +1,31 @@
+Dear {{user.first_name}},
+Thank you for your request to modify your access level to the {{ plan_to_name }} plan.
+Your request is currently being processed by our team. This process typically requires 1-2 business days to ensure proper implementation of access protocols.
+Once completed, you will have full access to the media collections which are included in the {{ plan_to_name }}.
+We will notify you via email when your access has been confirmed. Should you need to discuss your request or require any clarification, our team is available at {{ from_email }}.
+
+We appreciate your interest in our collections,
+
+The Impresso Project
+
+
+
+
+
+
+Dear {{user.first_name}},
+
+Thank you for requesting a change to your Impresso plan. We've received your request to switch to the *{{ plan_to_name }}* plan.
+
+We are now processing your request. This usually takes 1-2 business days.
+
+Upon successful completion of the plan change, your permissions will be updated to reflect the {{ plan_to_name }} features.
+
+Have a look at the Corpus Overview page: https://impresso-project.ch/datalab/corpus-overview to see what you can do with your new plan.
+
+We will send you another email once your plan has been successfully updated.
+
+If you have any questions or need to cancel your request, please contact our support team at {{ from_email }}.
+
+With best wishes,
+The Impresso team

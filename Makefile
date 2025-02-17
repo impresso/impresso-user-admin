@@ -19,3 +19,6 @@ run-dev:
 	IMPRESSO_GIT_BRANCH=$(shell git rev-parse --abbrev-ref HEAD) \
 	IMPRESSO_GIT_REVISION=$(shell git rev-parse --short HEAD) \
 	pipenv run ./manage.py runserver 8888
+
+mypy:
+	mypy impresso
