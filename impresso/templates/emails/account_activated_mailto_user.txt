@@ -7,34 +7,14 @@ You can login with your email following this link: https://impresso-project.ch/a
 Please do not hesitate to let us know in case you encounter any problems.
 
 In order to help you make the most of the interface, we prepared a range of
-materials for students and advanced researchers.
-
-About the interface
----
-
-This short video gives an overview of the impresso project and its ambitions
-while the impresso Challenges offer a step-by-step guide with advanced
-exploratory workflows around which the interface was designed.
-
-You can follow a guided tour of the interface in a series of YouTube videos.
-
-Researching digitised newspapers
----
-Our lesson on the Ranke2 learning platform gives a first overview of the
-peculiarities of digitised newspapers as historical sources.
-Our tutorial on the PARTHENOS platform discusses the challenges and
-opportunities researchers face when dealing with semantically enriched,
-digitised newspapers.
-
-If you encounter any difficulty, do not hesitate to visit the FAQ page or
-to get in touch with us, either via email or via the chat box on the interface
-(black envelope).
-
-All links are also available on ourproject homepage https://impresso-project.ch/theapp/usage/
+materials for students and advanced researchers, available on the project homepage https://impresso-project.ch/the-app/usage/
 alongside blog posts on the methods we used and additional information about
 the project and its outputs.
+
+If you encounter any difficulty, do not hesitate to visit the FAQ page or
+to get in touch with us, either via email or via the Impresso community Discord group (https://discord.gg/qBnxe2aj)
 
 We wish you a pleasant exploration! Stay in touch!
 
 With best wishes,
-The impresso team
+The Impresso team
