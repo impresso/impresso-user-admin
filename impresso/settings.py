@@ -154,6 +154,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
     get_env_variable("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", False) == "True"
 )
 
+IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
 
 # Solr
 # this is the complete mapping. Please check that the values of your IMPRESSO_SOLR_FIELDS
