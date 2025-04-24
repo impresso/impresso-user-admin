@@ -1,0 +1,15 @@
+Hello,
+{{user.first_name}} {{user.last_name}} has requested a change in their plan.
+
+Current plan: {{current_plan_name}}  
+Requested plan: {{plan_to_name}}  
+User email: {{user.email}}
+
+To process this request, please update their status in the "Change User Change Plan Request" section of the Admin page to either "Approved" or "Declined".
+
+You can access the relevant page by visiting: {{absolute_admin_url_to_handle_change_request}}
+
+Once updated, an email will be automatically sent to the user, and no further action is required from you.
+
+With best wishes,  
+The Impresso team

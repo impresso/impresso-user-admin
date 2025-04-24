@@ -1,0 +1,29 @@
+Hello,
+
+<p>
+  {{user.first_name}} {{user.last_name}} has requested a change in their plan.
+  <br />
+  current plan: <b>{{current_plan_label}}</b>
+  <br />
+  requested plan: <b>{{ plan_label }} </b>
+  <br />
+  user email: {{ user.email}}
+</p>
+<p>
+  To process this request, please update their status in the "Change User Change
+  Plan Request" section of the Admin page to either "Approved" or "Declined".
+</p>
+<p>
+  You can access the relevant page by visiting:
+  <a href="{{ absolute_admin_url_to_handle_change_request }}"
+    >{{ absolute_admin_url_to_handle_change_request }}</a
+  >
+</p>
+<p>
+  Once updated, an email will be automatically sent to the user, and no further
+  action is required from you.
+</p>
+<p>
+  With best wishes,<br />
+  The <i>Impresso</i> team
+</p>
