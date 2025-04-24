@@ -5,6 +5,12 @@ Current plan: {{current_plan_name}}
 Requested plan: {{plan_to_name}}  
 User email: {{user.email}}
 
+{% if email_being_sent_without_error %}
+The email was sent successfully without any errors.
+{% else %}
+There was an error sending the email. Please check the server logs for more details.
+{% endif %}
+
 To process this request, please update their status in the "Change User Change Plan Request" section of the Admin page to either "Approved" or "Declined".
 
 You can access the relevant page by visiting: {{absolute_admin_url_to_handle_change_request}}

@@ -57,23 +57,29 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
 
     email_template_prefix = "account_created_mailto_user"
     email_subject = settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC
-    if settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in groups_names:
-        email_template_prefix = "account_created_mailto_educational"
-        email_subject = (
-            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
-        )
-    elif settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in groups_names:
+    plan_label = settings.IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL
+
+    if settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in groups_names:
         email_template_prefix = "account_created_mailto_researcher"
+        plan_label = settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL
         email_subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER
+        )
+    elif settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in groups_names:
+        email_template_prefix = "account_created_mailto_educational"
+        plan_label = settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
         )
 
     view = RegistrationView()
     key = view.get_activation_key(user)
 
     txt_content, html_content = getEmailsContents(
-        prefix=email_template_prefix, context=({"user": user, "key": key})
+        prefix=email_template_prefix,
+        context=({"user": user, "key": key, "plan_label": plan_label}),
     )
+    email_being_sent_without_error = False
     try:
         emailMessage = EmailMultiAlternatives(
             subject=email_subject,
@@ -82,20 +88,64 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
             to=[
                 user.email,
             ],
-            cc=[
-                settings.DEFAULT_FROM_EMAIL,
-            ],
             reply_to=[
                 settings.DEFAULT_FROM_EMAIL,
             ],
         )
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
+        email_being_sent_without_error = True
     except smtplib.SMTPException as e:
         logger.exception(f"SMTPException Error sending email: {e}")
     except Exception as e:
         logger.exception(f"Error sending email '{email_template_prefix}', error: {e}")
     logger.info(f"Email '{email_template_prefix}' succeffully sent to user={user_id}")
+
+    # send email to staff
+    logger.info(
+        f"Send email to staff with plan={groups_names} for user={user_id} template={email_template_prefix}"
+    )
+    admin_url_to_handle_change_request = reverse(
+        # admin/auth/user/123/change/
+        "admin:auth_user_change",
+        args=[user.id],
+    )
+    absolute_admin_url_to_handle_change_request = (
+        f"{settings.IMPRESSO_BASE_URL}{admin_url_to_handle_change_request}"
+    )
+    txt_content, html_content = getEmailsContents(
+        prefix="account_created_mailto_staff",
+        context=(
+            {
+                "user": user,
+                "key": key,
+                "plan_label": plan_label,
+                "email_being_sent_without_error": email_being_sent_without_error,
+                "absolute_admin_url_to_handle_change_request": absolute_admin_url_to_handle_change_request,
+            }
+        ),
+    )
+    try:
+        emailMessage = EmailMultiAlternatives(
+            subject=f"Request: {email_subject}",
+            body=txt_content,
+            from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
+            to=[
+                settings.DEFAULT_FROM_EMAIL,
+            ],
+            cc=[],
+        )
+        emailMessage.attach_alternative(html_content, "text/html")
+        emailMessage.send(fail_silently=False)
+        logger.info(
+            f"user={user_id} Sending email to staff for plan change request generated from user"
+        )
+    except smtplib.SMTPException as e:
+        logger.exception(
+            f"user={user_id} SMTPException Error sending email: {e} to staff"
+        )
+    except Exception as e:
+        logger.exception(f"user={user_id} Error sending email: {e} to staff")
 
 
 def send_emails_after_user_activation(user_id, logger=default_logger):
@@ -306,8 +356,7 @@ def send_email_plan_change(
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
         email_being_sent_without_error = True
-
-        logger.info(f"Password reset email sent to user={user_id}")
+        logger.info(f"Change plan request RECEPIT email sent to user={user_id}")
     except smtplib.SMTPException as e:
         logger.exception(f"SMTPException Error sending email: {e} to user={user_id}")
     except Exception as e:

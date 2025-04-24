@@ -19,6 +19,16 @@ Hello,
     >{{ absolute_admin_url_to_handle_change_request }}</a
   >
 </p>
+
+{% if email_being_sent_without_error %}
+<p style="color: green">The email was sent successfully without any errors.</p>
+{% else %}
+<p style="color: red">
+  There was an error sending the email. Please check the server logs for more
+  details.
+</p>
+{% endif %}
+
 <p>
   Once updated, an email will be automatically sent to the user, and no further
   action is required from you.

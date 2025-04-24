@@ -17,6 +17,63 @@ from django.core import mail
 logger = logging.getLogger("console")
 
 
+class TestAccountPlanChangeToBasicUser(TestCase):
+    """
+    Test account plan change request
+    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestAccountPlanChangeToBasicUser
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            first_name="Jane",
+            last_name="Doe",
+            password="12345",
+            email="test@test.com",
+        )
+        # create default groups
+        from impresso.signals import create_default_groups
+
+        create_default_groups(sender="impresso")
+
+    def test_send_email_plan_change(self):
+        # add user to the group. Done using celery task
+        group_plan_educational = Group.objects.get(
+            name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
+        )
+        self.user.groups.add(group_plan_educational)
+        self.user.active = True
+        self.user.save()
+        send_emails_after_user_registration(self.user.id)
+        self.assertEqual(len(mail.outbox), 2)
+        print(mail.outbox[0].body)
+        print(mail.outbox[1].body)
+        # clean outbox
+        mail.outbox = []
+        send_email_plan_change(
+            user_id=self.user.id,
+            plan=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL,
+            logger=logger,
+        )
+        self.assertEqual(
+            len(mail.outbox),
+            0,
+            "the user is already in the group=plan-educational, no need to change",
+        )
+
+        send_email_plan_change(
+            user_id=self.user.id,
+            plan=settings.IMPRESSO_GROUP_USER_PLAN_BASIC,
+            logger=logger,
+        )
+
+        # first email contains this subject
+        self.assertEqual(mail.outbox[0].subject, "Change plan for Impresso")
+        # first line of the email is: Dear Jane,
+        self.assertTrue("Dear Jane," in mail.outbox[0].body)
+        print(mail.outbox[1].body)
+
+
 class TestAccountCreation(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -33,11 +90,15 @@ class TestAccountCreation(TestCase):
 
     def test_send_emails_after_user_registration(self):
         send_emails_after_user_registration(self.user.id)
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)
         # check the subject
         self.assertEqual(
             mail.outbox[0].subject,
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC,
+        )
+        self.assertEqual(
+            mail.outbox[1].subject,
+            f"Request: {settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC}",
         )
 
     def test_send_emails_after_educational_registration(self):
@@ -47,11 +108,11 @@ class TestAccountCreation(TestCase):
         self.user.groups.add(group_plan_educational)
         self.user.save()
         send_emails_after_user_registration(self.user.id)
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)
         # check the subject
         self.assertEqual(
-            mail.outbox[0].subject,
-            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL,
+            mail.outbox[1].subject,
+            f"Request: {settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL}",
         )
 
     def test_send_emails_after_researcher_registration(self):
@@ -63,7 +124,7 @@ class TestAccountCreation(TestCase):
         self.user.save()
 
         send_emails_after_user_registration(self.user.id)
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)
         # check the subject
         self.assertEqual(
             mail.outbox[0].subject,

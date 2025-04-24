@@ -1,0 +1,26 @@
+Hi there,
+
+A new user has created an account on Impresso:
+
+* First name: {{ user.first_name}}
+* Last name: {{ user.last_name}}
+* Email: {{ user.email}}
+* Chosen plan: {{ plan_label }}
+
+{% if email_being_sent_without_error %}
+The receipt email to the user was sent successfully without any errors.
+{% else %}
+There was an error sending the email. Please check the server logs for more details.
+{% endif %}
+
+Link to Admin Dashboard to activate the user:
+{{ absolute_admin_url_to_handle_change_request }}
+
+Please note that the plan is already selected from the user, as this is not a change plan 
+request.
+This means that **as soon as users are set as "active", the plan they chose will be 
+automatically validated**.
+In case of doubts, DO NOT ACTIVATE the user and contact them via email.
+
+Best regards,
+The Impresso Team
