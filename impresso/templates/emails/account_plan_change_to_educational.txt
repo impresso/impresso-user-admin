@@ -1,12 +1,17 @@
 Dear {{user.first_name}},
 
 Thank you for requesting a change to your Impresso plan. We've received your request to switch to the *{{ plan_to_name }}*.
+
 We are now processing your request. This usually takes 1-2 business days.
+
+Note that your request approval is subject to your confirmation of enrolment in an educational or research institution. Please, send your proof of enrolment (Eg. University website profile) to {{ from_email }}.
+
 Upon successful completion of the plan change, your permissions will be updated to reflect the {{ plan_to_name }} features.
 
 Have a look at the Corpus Overview page: https://impresso-project.ch/datalab/corpus-overview to see what you can do with your new plan.
 
 We will send you another email once your plan has been successfully updated.
+
 If you have any questions or need to cancel your request, please contact our support team at {{ from_email }}.
 
 With best wishes,
