@@ -71,10 +71,10 @@ class TestAccountCreation(TestCase):
         )
 
 
-class TestAccount(TestCase):
+class TestAccountPlanChange(TestCase):
     """
-    Test the task helper for update_user_bitmap_task
-    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account
+    Test account plan change request
+    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestAccountPlanChange
     """
 
     def setUp(self):
@@ -83,21 +83,12 @@ class TestAccount(TestCase):
             first_name="Jane",
             last_name="Doe",
             password="12345",
-            email="test@test.com",
+            email="jane@doe.com",
         )
         # create default groups
         from impresso.signals import create_default_groups
 
         create_default_groups(sender="impresso")
-
-    def test_send_email_password_reset(self):
-        send_email_password_reset(self.user.id, token="test", logger=logger)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(
-            mail.outbox[0].subject, settings.IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET
-        )
-        # clean outbox
-        mail.outbox = []
 
     def test_send_plan_change_exceptions(self):
         with self.assertRaises(ValueError, msg="this plan does not exist"):
@@ -129,6 +120,14 @@ class TestAccount(TestCase):
 
         self.assertEqual(req.status, UserChangePlanRequest.STATUS_PENDING)
         self.assertEqual(req.plan.name, settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL)
+        # get staff email:
+        self.assertEqual(
+            mail.outbox[1].subject, f"Plan Change Request from {self.user.username}"
+        )
+        # first line of the email is: Dear Jane,
+        self.assertTrue("Current plan: Basic User Plan" in mail.outbox[1].body)
+        self.assertTrue("Requested plan: Student User Plan" in mail.outbox[1].body)
+        self.assertTrue(f"User email: {self.user.email}" in mail.outbox[1].body)
         # clean outbox
         mail.outbox = []
         # accept the request
@@ -189,3 +188,32 @@ class TestAccount(TestCase):
             settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL in mail.outbox[0].body,
             f"should receive corrrect email:f{mail.outbox[0].body}",
         )
+
+
+class TestAccount(TestCase):
+    """
+    Test the task helper for update_user_bitmap_task
+    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            first_name="Jane",
+            last_name="Doe",
+            password="12345",
+            email="test@test.com",
+        )
+        # create default groups
+        from impresso.signals import create_default_groups
+
+        create_default_groups(sender="impresso")
+
+    def test_send_email_password_reset(self):
+        send_email_password_reset(self.user.id, token="test", logger=logger)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject, settings.IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET
+        )
+        # clean outbox
+        mail.outbox = []

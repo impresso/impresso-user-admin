@@ -8,6 +8,7 @@ from django_registration.backends.activation.views import RegistrationView
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.urls import reverse
 
 default_logger = logging.getLogger(__name__)
 
@@ -217,7 +218,6 @@ def send_email_plan_change(
         raise ValueError(
             f"plan={plan} is not in {settings.IMPRESSO_GROUP_USERS_AVAILABLE_PLANS}"
         )
-        return
     # this suffix to get the right email template
     plan_template_suffix = "_basic"
     # label for the plan, plain string
@@ -232,12 +232,17 @@ def send_email_plan_change(
         plan_template_suffix = "_educational"
         plan_label = settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
         plan_group_name = settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
-
     # check if the user already belongs to the group, print out user groups to be 100% sure
     user_groups_names = [n for n in user.groups.values_list("name", flat=True)]
+    # retrieve user current plan
+    current_plan_label = settings.IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL
+    if settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in user_groups_names:
+        current_plan_label = settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL
+    elif settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in user_groups_names:
+        current_plan_label = settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
 
     logger.info(
-        f"user={user_id} Checking if user already associated groups  groups={user_groups_names} ..."
+        f"user={user_id} Checking if user already associated groups... groups={user_groups_names} ..."
     )
 
     if plan_group_name in user_groups_names:
@@ -246,8 +251,7 @@ def send_email_plan_change(
         )
         return
 
-    # add the user to the REQUEST group
-
+    # create the user change plan request in the DB
     plan_as_group = Group.objects.get(name=plan_group_name)
     logger.info(
         f"user={user_id} creating or updating related UserChangePlanRequest to {plan_group_name}"
@@ -280,6 +284,7 @@ def send_email_plan_change(
             {
                 "user": user,
                 "plan_to_name": plan_label,
+                "current_plan_name": current_plan_label,
                 "from_email": settings.DEFAULT_FROM_EMAIL,
             }
         ),
@@ -309,9 +314,16 @@ def send_email_plan_change(
         logger.exception(f"Error sending email: {e} to user={user_id}")
 
     # email for the staff
-    prefix = f"account_plan_change_to_{plan_template_suffix.split('_')[-1]}_staff"
+    prefix = f"account_plan_change_to_staff"
     logger.info(
         f"Sending email to staff with plan={plan} for user={user_id} template={prefix}"
+    )
+    admin_url_to_handle_change_request = reverse(
+        "admin:impresso_userchangeplanrequest_change",
+        args=[change_plan_request.id],
+    )
+    absolute_admin_url_to_handle_change_request = (
+        f"{settings.IMPRESSO_BASE_URL}{admin_url_to_handle_change_request}"
     )
 
     txt_content, html_content = getEmailsContents(
@@ -320,8 +332,10 @@ def send_email_plan_change(
             {
                 "user": user,
                 "plan_to_name": plan_label,
+                "current_plan_name": current_plan_label,
                 "from_email": settings.DEFAULT_FROM_EMAIL,
                 "email_being_sent_without_error": email_being_sent_without_error,
+                "absolute_admin_url_to_handle_change_request": absolute_admin_url_to_handle_change_request,
             }
         ),
     )
@@ -329,24 +343,25 @@ def send_email_plan_change(
     # send email to the staff
     try:
         emailMessage = EmailMultiAlternatives(
-            subject="Change plan for Impresso",
+            subject=f"Plan Change Request from {user.username}",
             body=txt_content,
             from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
             to=[
                 settings.DEFAULT_FROM_EMAIL,
             ],
             cc=[],
-            reply_to=[
-                settings.DEFAULT_FROM_EMAIL,
-            ],
         )
         emailMessage.attach_alternative(html_content, "text/html")
         emailMessage.send(fail_silently=False)
-        logger.info(f"Password reset email sent to staff")
+        logger.info(
+            f"user={user_id} Sending email to staff for plan change request generated from user"
+        )
     except smtplib.SMTPException as e:
-        logger.exception(f"SMTPException Error sending email: {e} to staff")
+        logger.exception(
+            f"user={user_id} SMTPException Error sending email: {e} to staff"
+        )
     except Exception as e:
-        logger.exception(f"Error sending email: {e} to staff")
+        logger.exception(f"user={user_id} Error sending email: {e} to staff")
 
 
 def send_email_plan_change_accepted(
