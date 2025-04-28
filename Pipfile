@@ -14,6 +14,7 @@ pymysql = "*"
 django-registration = "*"
 gunicorn = "*"
 python-dotenv = "*"
+django-unfold = "*"
 
 [dev-packages]
 "flake8" = "*"

@@ -1,5 +1,6 @@
 import os
 from .base import get_env_variable
+from django import __version__ as django_version
 
 VERSION = (2, 2, 0)
 
@@ -23,6 +24,13 @@ CSRF_TRUSTED_ORIGINS = get_env_variable("CSRF_TRUSTED_ORIGINS", "").split(",")
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",  # before django.contrib.admin
+    "unfold.contrib.filters",  # optional, if special filters are needed
+    "unfold.contrib.forms",  # optional, if special form elements are needed
+    "unfold.contrib.inlines",  # optional, if special inlines are needed
+    "unfold.contrib.import_export",  # optional, if django-import-export package is used
+    "unfold.contrib.guardian",  # optional, if django-guardian package is used
+    "unfold.contrib.simple_history",  # optional, if django-simple-history package is 
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -270,7 +278,7 @@ IMPRESSO_SOLR_PASSAGES_URL_UPDATE = os.path.join(
     get_env_variable("IMPRESSO_SOLR_PASSAGES_URL"), "update"
 )
 
-IMPRESSO_GIT_TAG = get_env_variable("IMPRESSO_GIT_TAG", "?")
+IMPRESSO_GIT_TAG = get_env_variable("IMPRESSO_GIT_TAG", ".".join(map(str, VERSION)))
 IMPRESSO_GIT_BRANCH = get_env_variable("IMPRESSO_GIT_BRANCH", "?")
 IMPRESSO_GIT_REVISION = get_env_variable("IMPRESSO_GIT_REVISION", "?")
 
@@ -286,7 +294,7 @@ IMPRESSO_GROUP_USERS_AVAILABLE_PLANS = [
     IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL,
     IMPRESSO_GROUP_USER_PLAN_RESEARCHER,
 ]
-
+IMPRESSO_GROUP_USER_PLAN_NONE_LABEL = "No plan selected"
 IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL = "Basic User Plan"
 IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL = "Student User Plan"
 IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL = "Academic User Plan"
@@ -355,4 +363,38 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+
+
+UNFOLD = {
+    "SITE_TITLE": "Impresso User Admin",
+    "SITE_HEADER": "Impresso User Admin",
+    "SITE_SUBHEADER": f"v.{IMPRESSO_GIT_TAG} - Django v.{django_version}",
+     "SIDEBAR": {
+        "show_search": True,  # Search in applications and models names
+     },
+     "COLORS": {
+        "base": {
+            "50": "249 250 251",
+            "100": "243 244 246",
+            "200": "229 231 235",
+            "300": "209 213 219",
+            "400": "156 163 175",
+            "500": "107 114 128",
+            "600": "75 85 99",
+            "700": "55 65 81",
+            "800": "31 41 55",
+            "900": "17 24 39",
+            "950": "3 7 18",
+        },
+        "primary": {
+            "500": "0, 102, 255",
+            "600": "52, 58, 64",
+            "700": "45, 55, 72",
+            "800": "30, 41, 59",
+            "900": "15, 23, 42",
+            "950": "3, 0, 15",
+        },
+     }
 }
