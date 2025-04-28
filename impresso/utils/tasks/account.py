@@ -103,11 +103,11 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
 
     # send email to staff
     logger.info(
-        f"Send email to staff with plan={groups_names} for user={user_id} template={email_template_prefix}"
+        f"Send email to staff with plan={plan_label} for user={user_id} template={email_template_prefix}"
     )
     admin_url_to_handle_change_request = reverse(
         # admin/auth/user/123/change/
-        "admin:auth_user_change",
+        "admin:user_toggle_status",
         args=[user.id],
     )
     absolute_admin_url_to_handle_change_request = (
