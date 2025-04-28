@@ -3,9 +3,9 @@ from django.contrib.auth.models import Group, User
 from django.contrib import messages
 from impresso.models import Profile
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from unfold.admin import StackedInline
-from unfold.admin import ModelAdmin
-from unfold.decorators import action
+from unfold.admin import StackedInline # type: ignore
+from unfold.admin import ModelAdmin # type: ignore
+from unfold.decorators import action # type: ignore
 from django.conf import settings
 from impresso.tasks import after_user_activation
 from django.utils.translation import ngettext

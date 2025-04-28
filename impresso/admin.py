@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin # type: ignore
 from django.contrib.auth.models import User
 from django.utils.translation import ngettext
 from django.utils import timezone
