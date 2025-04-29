@@ -1,17 +1,20 @@
 from django.contrib import admin
-from django.contrib.auth.models import Group, User
-from django.contrib import messages
-from impresso.models import Profile
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from unfold.admin import StackedInline # type: ignore
-from unfold.admin import ModelAdmin # type: ignore
-from unfold.decorators import action # type: ignore
 from django.conf import settings
-from impresso.tasks import after_user_activation
+from django.contrib.auth.models import Group
+from django.contrib import messages
+from django.views.generic import TemplateView
 from django.utils.translation import ngettext
 from django.urls import path
 from django.shortcuts import render, redirect, get_object_or_404
+
+from unfold.admin import StackedInline # type: ignore
+from unfold.admin import ModelAdmin # type: ignore
+from unfold.decorators import action # type: ignore
+from unfold.views import UnfoldModelAdminViewMixin # type: ignore
+
+from impresso.tasks import after_user_activation
 from impresso.utils.models.user import get_plan_from_user_groups 
+from impresso.models import Profile
 
 
 
@@ -42,8 +45,6 @@ class ProfileInline(StackedInline):
         else:
             return []
 
-from django.views.generic import TemplateView
-from unfold.views import UnfoldModelAdminViewMixin
 
 class ToggleStatus(UnfoldModelAdminViewMixin, TemplateView):
     title = "Custom Title"  # required: custom page header title
