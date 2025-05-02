@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.utils.translation import ngettext
 from django.utils import timezone
 from django.utils.html import format_html
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin  # type: ignore
 from impresso.models import UserChangePlanRequest
 from impresso.utils.models.user import get_plan_from_group_name
 
