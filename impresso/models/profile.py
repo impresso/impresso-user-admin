@@ -42,6 +42,14 @@ class Profile(models.Model):
         max_length=10, choices=PROVIDER_CHOICES, default=PROVIDER_LOCAL
     )
 
+    # affiliation, e; g institution if any
+    affiliation = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name="Affiliation"
+    )
+    institutional_url = models.URLField(
+        blank=True, null=True, verbose_name="Institutional URL"
+    )
+
     # social auth fields
     displayname = models.CharField(max_length=100, null=True, blank=True)
     picture = models.URLField(null=True, blank=True)
