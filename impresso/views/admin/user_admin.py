@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.conf import settings
+from django.urls import reverse
+from django.utils.html import format_html
 from django.contrib.auth.models import Group
 from django.contrib import messages
 from django.views.generic import TemplateView
@@ -7,15 +9,14 @@ from django.utils.translation import ngettext
 from django.urls import path
 from django.shortcuts import render, redirect, get_object_or_404
 
-from unfold.admin import StackedInline # type: ignore
-from unfold.admin import ModelAdmin # type: ignore
-from unfold.decorators import action # type: ignore
-from unfold.views import UnfoldModelAdminViewMixin # type: ignore
+from unfold.admin import StackedInline  # type: ignore
+from unfold.admin import ModelAdmin  # type: ignore
+from unfold.decorators import action  # type: ignore
+from unfold.views import UnfoldModelAdminViewMixin  # type: ignore
 
 from impresso.tasks import after_user_activation
-from impresso.utils.models.user import get_plan_from_user_groups 
+from impresso.utils.models.user import get_plan_from_user_groups
 from impresso.models import Profile
-
 
 
 class GroupFilter(admin.SimpleListFilter):
@@ -48,20 +49,22 @@ class ProfileInline(StackedInline):
 
 class ToggleStatus(UnfoldModelAdminViewMixin, TemplateView):
     title = "Custom Title"  # required: custom page header title
-    permission_required = () # required: tuple of permissions
+    permission_required = ()  # required: tuple of permissions
     template_name = "admin/users/toggle_status.html"
     model_admin = None  # this will be injected via `as_view(model_admin=self)`
 
     def dispatch(self, request, *args, **kwargs):
         self.user_id = kwargs.get("user_id")
         return super().dispatch(request, *args, **kwargs)
-    
+
     def get(self, request, *args, **kwargs):
         target_user = get_object_or_404(self.model_admin.model, pk=self.user_id)
-         # get plan from its groups 
+        # get plan from its groups
         plan_label, plan_group_name = get_plan_from_user_groups(target_user)
         context = {
-            **self.model_admin.admin_site.each_context(request),  # 👈 gets admin site context
+            **self.model_admin.admin_site.each_context(
+                request
+            ),  # 👈 gets admin site context
             "user": request.user,
             "target_user": target_user,
             "plan_label": plan_label,
@@ -84,22 +87,27 @@ class ToggleStatus(UnfoldModelAdminViewMixin, TemplateView):
             # DO NOT SEND EMAIL
             messages.success(request, "User status toggled to active, no email sent.")
         else:
-            messages.success(request, f"User status toggled to {'active' if user.is_active else 'inactive'}.")
+            messages.success(
+                request,
+                f"User status toggled to {'active' if user.is_active else 'inactive'}.",
+            )
         return redirect("admin:auth_user_change", object_id=self.user_id)
-    
+
 
 class UserAdmin(ModelAdmin):
     inlines = (ProfileInline,)
     list_display = (
-        "username",
-        "uid",
-        "is_staff",
-        "is_active",
+        "first_name",
+        "last_name",
+        "plan",
         "email",
-        "date_joined",
+        "institutional_url",
+        "affiliation",
         "last_login",
-        "max_loops_allowed",
-        "max_parallel_jobs",
+        "date_joined",
+        "link_to_activate",
+        "is_staff",
+        "uid",
     )
     actions = [
         "make_active",
@@ -116,7 +124,7 @@ class UserAdmin(ModelAdmin):
         custom_urls = [
             path(
                 "<int:user_id>/toggle-status/",
-                self.admin_site.admin_view( ToggleStatus.as_view(model_admin=self)),
+                self.admin_site.admin_view(ToggleStatus.as_view(model_admin=self)),
                 name="user_toggle_status",
             ),
         ]
@@ -188,12 +196,48 @@ class UserAdmin(ModelAdmin):
     def uid(self, user):
         return user.profile.uid if hasattr(user, "profile") else None
 
-    def max_loops_allowed(self, user):
-        return user.profile.max_loops_allowed if hasattr(user, "profile") else None
+    def link_to_activate(self, user):
+        url = reverse(
+            "admin:user_toggle_status", args=[user.pk]
+        )  # Replace 'your_app_name'
+        if not user.is_active:
+            return format_html(
+                """<div class="flex items-center ">
+                <div class="block mr-3 outline rounded-full ml-1 h-1 w-1 bg-red-500 outline-red-200 dark:outline-red-500/20"></div>
+                <a href="{}" style="text-decoration: underline">Activate</a>
+                </div>
+                """,
+                url,
+            )
+        return format_html(
+            """<div class="flex items-center ">
+            <div class="block mr-3 outline rounded-full ml-1 h-1 w-1 bg-green-500 outline-green-200 dark:outline-green-500/20"></div>
+            <a href="{}" style="text-decoration: underline">Suspend</a>
+            </div>
+            """,
+            url,
+        )
 
-    def max_parallel_jobs(self, user):
-        return user.profile.max_parallel_jobs if hasattr(user, "profile") else None
+    # def max_loops_allowed(self, user):
+    #     return user.profile.max_loops_allowed if hasattr(user, "profile") else None
+
+    # def max_parallel_jobs(self, user):
+    #     return user.profile.max_parallel_jobs if hasattr(user, "profile") else None
+    def institutional_url(self, user):
+        return user.profile.institutional_url if hasattr(user, "profile") else None
+
+    def affiliation(self, user):
+        return user.profile.affiliation if hasattr(user, "profile") else None
+
+    def plan(self, user):
+        label, group_name = get_plan_from_user_groups(user)
+        return label
+
+    plan.short_description = "Plan"  # type: ignore[attr-defined]
+    institutional_url.short_description = "Institutional URL"  # type: ignore[attr-defined]
+    affiliation.short_description = "Affiliation"  # type: ignore[attr-defined]
 
     uid.short_description = "short unique identifier"  # type: ignore[attr-defined]
-    max_loops_allowed.short_description = "max loops"  # type: ignore[attr-defined]
-    max_parallel_jobs.short_description = "max parallel jobs"  # type: ignore[attr-defined]
+    link_to_activate.short_description = "Activation Status"  # type: ignore[attr-defined]
+    # max_loops_allowed.short_description = "max loops"  # type: ignore[attr-defined]
+    # max_parallel_jobs.short_description = "max parallel jobs"  # type: ignore[attr-defined]
