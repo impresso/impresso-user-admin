@@ -1,25 +1,28 @@
 Dear {{user.first_name}},
 
-Thank you for your interest in Impresso!
+Thanks for signing up for Impresso! We've received your registration details
+and are excited to get you started.
 
-To gain access to the full corpus including copyright-protected content,
-we are required to ask you for a signed Non-Disclosure-Agreement (NDA).
+As mentioned in the app, the activation of your account is a quick, manual
+step. One of our team members is now reviewing your information to ensure
+everything is set up correctly.
 
-- Please download the NDA here: https://impresso-project.ch/assets/documents/impresso_NDA.pdf, sign it electronically or manually and email it back to info@impresso-project.ch.
+You'll receive a separate email notification as soon as your account is
+activated and ready to go. We appreciate your patience during this brief
+process and look forward to you experiencing all that Impresso has to offer!
 
-Once we have verified your signed NDA,
-we will activate your account - note that this may take up to two working days.
-
-In the meantime, we invite you to explore the publicly available Impresso corpus (https://impresso-project.ch/app/search?sq=) as well as the accompanying documentation and learning materials (https://impresso-project.ch/the-app/usage) designed to foster the critical and methodologically reflected usage of the app.
+In the meantime, we invite you to explore the publicly available Impresso corpus (https://impresso-project.ch/app/search?sq=)
+as well as the accompanying documentation and learning materials (https://impresso-project.ch/the-app/usage/) designed to
+foster the critical and methodologically reflected usage of the app.
 
 They cover source criticism for digitized and semantically enriched newspapers,
 tips for Impresso expert users, documentation of the methods and decisions made
-during the creation of the Impresso corpus as well as a range of
-Frequently Asked Questions.
+during the creation of the Impresso corpus as well as a range of Frequently
+Asked Questions.
 
-We hope you will enjoy working with Impresso and do let us know how you get on.
-To reach us, you can reply to this email, or join the Impresso community
-Discord group: https://discord.gg/tYvuD8Nfur.
+We hope you will enjoy working with Impresso and do let us know how you get on. To reach us,
+you can reply to this email, join the Impresso community Discord group (https://discord.gg/tYvuD8Nfur) or click
+the feedback button in the lower right of the interface.
 
-With best wishes,  
+Welcome aboard!
 The Impresso team

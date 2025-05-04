@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     "unfold.contrib.inlines",  # optional, if special inlines are needed
     "unfold.contrib.import_export",  # optional, if django-import-export package is used
     "unfold.contrib.guardian",  # optional, if django-guardian package is used
-    "unfold.contrib.simple_history",  # optional, if django-simple-history package is 
+    "unfold.contrib.simple_history",  # optional, if django-simple-history package is
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -175,9 +175,9 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "title_txt_fr": "title",
     "title_txt_de": "title",
     "title_txt_en": "title",
-    "content_txt_fr": "content",
-    "content_txt_de": "content",
-    "content_txt_en": "content",
+    "content_txt_fr": "transcript",
+    "content_txt_de": "transcript",
+    "content_txt_en": "transcript",
     "content_length_i": "size",
     "meta_country_code_s": "country",
     "meta_province_code_s": "province",
@@ -262,6 +262,7 @@ IMPRESSO_SOLR_EXEC_MAX_LOOPS = int(
 )  # aka 500000 docs
 IMPRESSO_SOLR_EXEC_LIMIT = int(get_env_variable("IMPRESSO_SOLR_EXEC_LIMIT", 100))
 
+IMPRESSO_CONTENT_REDACTED_LABEL = "[Copyright restricted]"
 IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR = int(
     get_env_variable("IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR", 1871)
 )
@@ -366,14 +367,13 @@ LOGGING = {
 }
 
 
-
 UNFOLD = {
     "SITE_TITLE": "Impresso User Admin",
     "SITE_HEADER": "Impresso User Admin",
     "SITE_SUBHEADER": f"v.{IMPRESSO_GIT_TAG} - Django v.{django_version}",
-     "SIDEBAR": {
+    "SIDEBAR": {
         "show_search": True,  # Search in applications and models names
-     },
+    },
     #  "COLORS": {
     #     "base": {
     #         "50": "249 250 251",

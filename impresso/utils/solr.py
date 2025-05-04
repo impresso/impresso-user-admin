@@ -76,14 +76,14 @@ def mapper_doc_redact_contents(doc: dict, user_bitmask: BitMask64) -> dict:
     # edge cases
     elif doc_year < settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
         is_transcript_available = True
-        doc["content"] = "[redacted]"
+        doc["content"] = settings.IMPRESSO_CONTENT_REDACTED_LABEL
         doc["is_content_available"] = "N"
         # doc["is_content_available_notes"] = "year restricted"
     if is_transcript_available:
         doc["is_content_available"] = "Y"
     else:
-        doc["content"] = "[redacted]"
-        doc["excerpt"] = "[redacted]"
+        doc["content"] = settings.IMPRESSO_CONTENT_REDACTED_LABEL
+        doc["excerpt"] = settings.IMPRESSO_CONTENT_REDACTED_LABEL
         doc["is_content_available"] = "N"
 
     return doc
