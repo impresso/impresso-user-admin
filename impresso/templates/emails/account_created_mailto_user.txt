@@ -17,7 +17,7 @@ foster the critical and methodologically reflected usage of the app.
 
 They cover source criticism for digitized and semantically enriched newspapers,
 tips for Impresso expert users, documentation of the methods and decisions made
-during the creation of the Impresso corpus as well as a range of of Frequently
+during the creation of the Impresso corpus as well as a range of Frequently
 Asked Questions.
 
 We hope you will enjoy working with Impresso and do let us know how you get on. To reach us,
