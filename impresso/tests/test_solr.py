@@ -1,4 +1,5 @@
 import unittest
+from django.conf import settings
 from impresso.utils.solr import serialize_solr_doc_content_item_to_plain_dict
 from impresso.utils.solr import mapper_doc_redact_contents
 from impresso.utils.bitmask import BitMask64
@@ -18,7 +19,7 @@ class SolrTestCase(unittest.TestCase):
         self.assertEqual(result.get("_bm_get_tr_i"), 181)
         self.assertEqual(result.get("title"), "Subskription.")
         self.assertEqual(
-            result.get("content"),
+            result.get("transcript"),
             "Subskription. Gebet gerne! Wer durch eine Geldspende soziales Schaffen ermöglicht,",
         )
         self.assertEqual(result.get("size"), 103)
@@ -52,7 +53,10 @@ class SolrTestCase(unittest.TestCase):
             # not working user bitmask key
             user_bitmask=BitMask64("0000"),
         )
-        self.assertEqual(result_redacted.get("content"), "[redacted]")
+        self.assertEqual(
+            result_redacted.get("transcript"),
+            settings.IMPRESSO_CONTENT_REDACTED_LABEL,
+        )
         self.assertEqual(result_redacted.get("title"), doc.get("title"))
 
         result_ok = mapper_doc_redact_contents(
@@ -61,7 +65,7 @@ class SolrTestCase(unittest.TestCase):
             user_bitmask=BitMask64("1100"),  # 0b10110101
         )
         self.assertEqual(
-            result_ok.get("content"),
+            result_ok.get("transcript"),
             "Subskription. Gebet gerne! Wer durch eine Geldspende soziales Schaffen ermöglicht,",
             "Content is available: the user has a 1 in the right position, the content item is available",
         )
