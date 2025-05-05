@@ -25,7 +25,7 @@ class Command(BaseCommand):
             )
             cursor.execute("SHOW TABLES")
             tables = [t[0] for t in cursor.fetchall()]
-            tables_bullet_point = '\n - '.join(tables)
+            tables_bullet_point = "\n - ".join(tables)
             self.stdout.write(f"Database Tables: \n - {tables_bullet_point}")
 
         # test solr connectivity usin g settings
@@ -36,8 +36,8 @@ class Command(BaseCommand):
         if not re.match(r"^https?://.*\/solr/[^\/]+\/select$", solr_url):
             self.stderr.write(f"Invalid SOLR URL: {solr_url}")
             return
-        
-        solr_fields_bullet_point = '\n - '.join(
+
+        solr_fields_bullet_point = "\n - ".join(
             settings.IMPRESSO_SOLR_FIELDS_AS_LIST,
         )
 
@@ -71,7 +71,7 @@ class Command(BaseCommand):
         self.stdout.write(f"SOLR Example Docs:")
 
         for doc in docs:
-            self.stdout.write(f"\n - {doc.get(settings.IMPRESSO_SOLR_ID_FIELD)}")
+            self.stdout.write(f"\n - {doc.get(settings.IMPRESSO_SOLR_FL_ID)}")
             for field in settings.IMPRESSO_SOLR_FIELDS_AS_LIST:
                 self.stdout.write(f"  ├── {field}: \033[93m{doc.get(field)}\033[0m")
 

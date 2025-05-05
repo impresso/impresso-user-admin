@@ -165,9 +165,39 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
 IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
 
 # Solr
+IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
+IMPRESSO_SOLR_URL_UPDATE = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "update")
+IMPRESSO_SOLR_USER = get_env_variable("IMPRESSO_SOLR_USER")
+IMPRESSO_SOLR_USER_WRITE = get_env_variable("IMPRESSO_SOLR_USER_WRITE")
+IMPRESSO_SOLR_PASSWORD = get_env_variable("IMPRESSO_SOLR_PASSWORD")
+IMPRESSO_SOLR_PASSWORD_WRITE = get_env_variable("IMPRESSO_SOLR_PASSWORD_WRITE")
+IMPRESSO_SOLR_AUTH = (
+    IMPRESSO_SOLR_USER,
+    IMPRESSO_SOLR_PASSWORD,
+)
+IMPRESSO_SOLR_AUTH_WRITE = (
+    IMPRESSO_SOLR_USER_WRITE,
+    IMPRESSO_SOLR_PASSWORD_WRITE,
+)
+IMPRESSO_SOLR_FL_ID = get_env_variable("IMPRESSO_SOLR_FL_ID", "id")
+IMPRESSO_SOLR_FL_TRANSCRIPT_BM = get_env_variable(
+    "IMPRESSO_SOLR_FL_TRANSCRIPT_BM_FIELD", "rights_bm_get_tr_l"
+)
+IMPRESSO_SOLR_FL_COPYRIGHT = get_env_variable(
+    "IMPRESSO_SOLR_FL_COPYRIGHT", "rights_copyright_s"
+)
 # this is the complete mapping. Please check that the values of your IMPRESSO_SOLR_FIELDS
 # are correctly spelled, as well as the IMPRESSO_SOLR_ARTICLE_PROPS
-# The values starting with an underscore are not returned to user but used internally
+# The values starting with an underscore "_"
+# are NOT returned to users, but are used for internal purposes
+# E.G "rights_data_domain_s":"prt",
+# "rights_copyright_s":"in_cpy",
+# "rights_perm_use_explore_plain":"prs-rsh-edu",
+# "rights_perm_use_get_tr_plain":"rsh",
+# "rights_perm_use_get_img_plain":"rsh",
+# "rights_bm_explore_l":10,
+# "rights_bm_get_tr_l":1000,
+# "rights_bm_get_img_l":1000,
 IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "id": "uid",
     "item_type_s": "type",
@@ -202,29 +232,9 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "exportable_plain": "is_content_available",
     "ucoll_ss": "collections",
     "topics_dpfs": "topics",
-    # "cc_b": "cc_b",
-    # bitmap keys, we still maintain both for compatibility reasons
-    "bm_get_tr_s": "_bm_get_tr_s",
-    "bm_get_tr_i": "_bm_get_tr_i",
-    # note: `_bin` fields are deprecated as it would require a custom JSONEncoder (and regexp within the raw_decode, which is not the best idea)
-    # "bm_get_tr_bin": "_bm_get_tr_s_bin",
+    IMPRESSO_SOLR_FL_COPYRIGHT: f"_{IMPRESSO_SOLR_FL_COPYRIGHT}",
+    IMPRESSO_SOLR_FL_TRANSCRIPT_BM: f"_{IMPRESSO_SOLR_FL_TRANSCRIPT_BM}",
 }
-
-IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
-IMPRESSO_SOLR_URL_UPDATE = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "update")
-IMPRESSO_SOLR_USER = get_env_variable("IMPRESSO_SOLR_USER")
-IMPRESSO_SOLR_USER_WRITE = get_env_variable("IMPRESSO_SOLR_USER_WRITE")
-IMPRESSO_SOLR_PASSWORD = get_env_variable("IMPRESSO_SOLR_PASSWORD")
-IMPRESSO_SOLR_PASSWORD_WRITE = get_env_variable("IMPRESSO_SOLR_PASSWORD_WRITE")
-IMPRESSO_SOLR_AUTH = (
-    IMPRESSO_SOLR_USER,
-    IMPRESSO_SOLR_PASSWORD,
-)
-IMPRESSO_SOLR_AUTH_WRITE = (
-    IMPRESSO_SOLR_USER_WRITE,
-    IMPRESSO_SOLR_PASSWORD_WRITE,
-)
-IMPRESSO_SOLR_ID_FIELD = get_env_variable("IMPRESSO_SOLR_ID_FIELD", "id")
 IMPRESSO_SOLR_FIELDS = get_env_variable(
     "IMPRESSO_SOLR_FIELDS",
     ",".join(IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS.keys()),

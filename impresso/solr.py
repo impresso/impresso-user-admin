@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 
 def find_all(
     q: str = "*:*",
-    fl: str = settings.IMPRESSO_SOLR_ID_FIELD,
+    fl: str = settings.IMPRESSO_SOLR_FL_ID,
     skip: int = 0,
     limit: int = settings.IMPRESSO_SOLR_EXEC_LIMIT,
     url: str = settings.IMPRESSO_SOLR_URL_SELECT,
@@ -21,7 +21,7 @@ def find_all(
 
     Args:
         q (str): The query string. Defaults to "*:*".
-        fl (str): The fields to return. Defaults to settings.IMPRESSO_SOLR_ID_FIELD.
+        fl (str): The fields to return. Defaults to settings.IMPRESSO_SOLR_FL_ID.
         skip (int): The number of records to skip. Defaults to 0.
         limit (int): The maximum number of records to return. Defaults to settings.IMPRESSO_SOLR_EXEC_LIMIT.
         url (str): The Solr URL to send the request to. Defaults to settings.IMPRESSO_SOLR_URL_SELECT.
