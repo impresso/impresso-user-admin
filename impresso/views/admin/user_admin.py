@@ -15,7 +15,10 @@ from unfold.decorators import action  # type: ignore
 from unfold.views import UnfoldModelAdminViewMixin  # type: ignore
 
 from impresso.tasks import after_user_activation
-from impresso.utils.models.user import get_plan_from_user_groups
+from impresso.utils.models.user import (
+    get_plan_from_user_groups,
+    get_plan_from_group_name,
+)
 from impresso.models import Profile
 
 
@@ -96,18 +99,22 @@ class ToggleStatus(UnfoldModelAdminViewMixin, TemplateView):
 
 class UserAdmin(ModelAdmin):
     inlines = (ProfileInline,)
+    list_per_page = 10
     list_display = (
+        "uid",
         "first_name",
         "last_name",
         "plan",
+        "key",
         "email",
-        "institutional_url",
-        "affiliation",
+        "affiliation_with_link",
+        "date_accepted_terms",
+        # "institutional_url",
+        # "affiliation",
         "last_login",
         "date_joined",
         "link_to_activate",
         "is_staff",
-        "uid",
     )
     actions = [
         "make_active",
@@ -196,6 +203,16 @@ class UserAdmin(ModelAdmin):
     def uid(self, user):
         return user.profile.uid if hasattr(user, "profile") else None
 
+    def date_accepted_terms(self, user):
+        return user.bitmap.date_accepted_terms if hasattr(user, "bitmap") else None
+
+    date_accepted_terms.short_description = "Terms accepted on:"  # type: ignore[attr-defined]
+
+    def key(self, user):
+        return user.bitmap.get_bitmap_as_key_str() if hasattr(user, "bitmap") else None
+
+    key.short_description = "Key"  # type: ignore[attr-defined]
+
     def link_to_activate(self, user):
         url = reverse(
             "admin:user_toggle_status", args=[user.pk]
@@ -212,11 +229,24 @@ class UserAdmin(ModelAdmin):
         return format_html(
             """<div class="flex items-center ">
             <div class="block mr-3 outline rounded-full ml-1 h-1 w-1 bg-green-500 outline-green-200 dark:outline-green-500/20"></div>
-            <a href="{}" style="text-decoration: underline">Suspend</a>
+            <div>Active<br/>
+            <a href="{}" style="text-decoration: underline">change</a></div>
             </div>
             """,
             url,
         )
+
+    def affiliation_with_link(self, user):
+        affiliation = " - "
+        url = ""
+        if hasattr(user, "profile") and user.profile.affiliation:
+            affiliation = user.profile.affiliation
+        if hasattr(user, "profile") and user.profile.institutional_url:
+            url = f'<div><a href="{user.profile.institutional_url}" target="_blank" style="word-break: break-all;text-decoration: underline">{user.profile.institutional_url}</a><div>'
+
+        return format_html(affiliation + url)
+
+    affiliation_with_link.short_description = "Affiliation, institutional URL"  # type: ignore[attr-defined]
 
     # def max_loops_allowed(self, user):
     #     return user.profile.max_loops_allowed if hasattr(user, "profile") else None
@@ -230,14 +260,35 @@ class UserAdmin(ModelAdmin):
         return user.profile.affiliation if hasattr(user, "profile") else None
 
     def plan(self, user):
-        label, group_name = get_plan_from_user_groups(user)
-        return label
+        (label, f) = get_plan_from_user_groups(user)
+        activated_plan_label = settings.IMPRESSO_GROUP_USER_PLAN_GUEST_LABEL
+        # if user is not in any group, return None
+        if hasattr(user, "bitmap"):
+            if not user.bitmap.date_accepted_terms:
+                activated_plan_label = settings.IMPRESSO_GROUP_USER_PLAN_GUEST_LABEL
+            else:
+                (activated_plan_label, f) = get_plan_from_group_name(
+                    user.bitmap.get_user_plan()
+                )
+        if activated_plan_label == label:
+            return format_html("<b>{}", label)
+
+        return format_html(
+            """
+            <div style="width: 150px">
+            <div style="text-decoration: line-through">{}</div>
+            <b>{}</b>
+            </div>
+            """,
+            label,
+            activated_plan_label,
+        )
 
     plan.short_description = "Plan"  # type: ignore[attr-defined]
     institutional_url.short_description = "Institutional URL"  # type: ignore[attr-defined]
     affiliation.short_description = "Affiliation"  # type: ignore[attr-defined]
 
-    uid.short_description = "short unique identifier"  # type: ignore[attr-defined]
-    link_to_activate.short_description = "Activation Status"  # type: ignore[attr-defined]
+    uid.short_description = "identifier"  # type: ignore[attr-defined]
+    link_to_activate.short_description = "Status"  # type: ignore[attr-defined]
     # max_loops_allowed.short_description = "max loops"  # type: ignore[attr-defined]
     # max_parallel_jobs.short_description = "max parallel jobs"  # type: ignore[attr-defined]
