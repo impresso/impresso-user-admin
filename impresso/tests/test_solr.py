@@ -93,8 +93,39 @@ class SolrTestCase(unittest.TestCase):
             # guest user
             user_bitmask=BitMask64(UserBitmap.USER_PLAN_GUEST),
         )
-        print(doc)
-        print(result_redacted)
+
+        self.assertEqual(
+            result_redacted[settings.IMPRESSO_SOLR_FL_CONTENT_LABEL],
+            doc[settings.IMPRESSO_SOLR_FL_CONTENT_LABEL],
+            "Content is available as it is Public Domain",
+        )
+        self.assertEqual(
+            result_redacted[settings.IMPRESSO_SOLR_FL_TITLE_LABEL],
+            doc[settings.IMPRESSO_SOLR_FL_TITLE_LABEL],
+            "Title is available: it is metadata",
+        )
+
+    def test_mapper_get_content_protected(self):
+        doc = serialize_solr_doc_content_item_to_plain_dict(PROTECTED_SOLR_DOC)
+        # Test the function with a valid input, a document parsed from solr
+        result_redacted = mapper_doc_redact_contents(
+            doc={**doc},
+            # guest user
+            user_bitmask=BitMask64(UserBitmap.USER_PLAN_GUEST),
+        )
+        # print(doc)
+        # print()
+        # print(result_redacted)
+        self.assertEqual(
+            result_redacted[settings.IMPRESSO_SOLR_FL_CONTENT_LABEL],
+            settings.IMPRESSO_CONTENT_REDACTED_LABEL,
+            "Content is not available: the user has a 0 in the right position, the content item is not available",
+        )
+        self.assertEqual(
+            result_redacted[settings.IMPRESSO_SOLR_FL_TITLE_LABEL],
+            "------CE TEXTE EST PROTÉGÉ PAR LE DROIT D'AUTEUR ET NE PEUT ÊTRE UTILISÉ SANS AUTORISATION.",
+            "Title is available: it is metadata",
+        )
 
 
 FAKE_SOLR_DOC: Dict[str, Any] = {
@@ -173,12 +204,49 @@ PUBLIC_DOMAIN_SOLR_DOC: Dict[str, Any] = {
     "content_length_i": 14,
     "snippet_plain": "SUPPLÉMENTAU SUPPLÉMENTAU BULLETINDESSÉANCES DE LA CONSTITUANTE VALAISANNE m / /«/ woow m / w ",
     "title_txt_fr": "SUPPLÉMENTAU BULLETINDESSÉANCES",
-    "pp_plain": '[{"id": "BDC-1839-01-20-a-p0003", "n": 3, "t": [{"c": [330, 54, 281, 35], "s": 0, "l": 12, "hy2": true}, {"c": [455, 100, 33, 23], "s": 13, "l": 12, "hy2": true}, {"c": [29, 141, 887, 57], "s": 26, "l": 18}, {"c": [176, 205, 40, 28], "s": 45, "l": 2}, {"c": [232, 205, 41, 28], "s": 48, "l": 2}, {"c": [288, 205, 249, 28], "s": 51, "l": 12}, {"c": [558, 205, 207, 28], "s": 64, "l": 10}, {"c": [30, 245, 20, 23], "s": 75, "l": 1}, {"c": [50, 245, 8, 23], "s": 77, "l": 1}, {"c": [402, 245, 30, 23], "s": 79, "l": 3}, {"c": [432, 245, 65, 23], "s": 83, "l": 4}, {"c": [685, 245, 20, 23], "s": 88, "l": 1}, {"c": [705, 245, 9, 23], "s": 90, "l": 1}, {"c": [714, 245, 18, 23], "s": 92, "l": 1}], "r": [[30, 41, 884, 144], [176, 207, 586, 20], [30, 251, 44, 12], [380, 251, 132, 12], [686, 251, 48, 12]]}]',
-    "rc_plains": [
-        "{'pid': 'BDC-1839-01-20-a-p0003', 'c': [[30, 41, 884, 144], [176, 207, 586, 20], [30, 251, 44, 12], [380, 251, 132, 12], [686, 251, 48, 12]]}"
-    ],
-    "lb_plain": "[10, 15, 44, 74, 78, 87, 93]",
-    "pb_plain": "[45, 75, 79, 88]",
-    "rb_plain": "[45, 75, 79, 88]",
     "cc_b": True,
+}
+
+PROTECTED_SOLR_DOC: Dict[str, Any] = {
+    "id": "abcdefgh-1882-01-21-a-i0004",
+    "meta_journal_s": "abcdefgh",
+    "meta_year_i": 1882,
+    "meta_month_i": 1,
+    "meta_yearmonth_s": "1882-01",
+    "meta_day_i": 21,
+    "meta_ed_s": "a",
+    "meta_date_dt": "1882-01-21T00:00:00Z",
+    "meta_issue_id_s": "abcdefgh-1882-01-21-a",
+    "meta_source_type_s": "newspaper",
+    "page_id_ss": ["abcdefgh-1882-01-21-a-p0002"],
+    "page_nb_is": [2],
+    "nb_pages_i": 1,
+    "front_b": False,
+    "reading_order_i": 4,
+    "meta_country_code_s": "LU",
+    "meta_province_code_s": "na",
+    "meta_periodicity_s": "na",
+    "meta_topics_s": "Satirical",
+    "meta_polorient_s": "na",
+    "meta_partnerid_s": "BNL",
+    "rights_data_domain_s": "prt",
+    "rights_copyright_s": "in_cpy",
+    "rights_perm_use_explore_plain": "prs-rsh-edu",
+    "rights_perm_use_get_tr_plain": "rsh",
+    "rights_perm_use_get_img_plain": "rsh",
+    "rights_bm_explore_l": 10,
+    "rights_bm_get_tr_l": 1000000,
+    "rights_bm_get_img_l": 1000000,
+    "doc_type_s": "ci",
+    "item_type_s": "ar",
+    "olr_b": True,
+    "lg_orig_s": "fr",
+    "lg_s": "fr",
+    "content_txt_fr": "------CE TEXTE EST PROTÉGÉ PAR LE DROIT D'AUTEUR ET NE PEUT ÊTRE UTILISÉ SANS AUTORISATION.",
+    "content_length_i": 34,
+    "snippet_plain": "-------CE TEXTE EST PROTÉGÉ PAR LE DROIT D'AUTEUR ET NE PEUT ÊTRE UTILISÉ SANS AUTORISATION.",
+    "title_txt_fr": "------CE TEXTE EST PROTÉGÉ PAR LE DROIT D'AUTEUR ET NE PEUT ÊTRE UTILISÉ SANS AUTORISATION.",
+    "cc_b": True,
+    "ocrqa_f": 0.9,
+    "_version_": 1830940593239359489,
 }
