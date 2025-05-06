@@ -186,6 +186,11 @@ IMPRESSO_SOLR_FL_TRANSCRIPT_BM = get_env_variable(
 IMPRESSO_SOLR_FL_COPYRIGHT = get_env_variable(
     "IMPRESSO_SOLR_FL_COPYRIGHT", "rights_copyright_s"
 )
+# Full mapping
+IMPRESSO_SOLR_FL_TITLE_LABEL = "title"
+IMPRESSO_SOLR_FL_CONTENT_LABEL = "transcript"
+IMPRESSO_SOLR_FL_EXCERPT_LABEL = "excerpt"
+IMPRESSO_SOLR_FL_YEAR_LABEL = "year"
 # this is the complete mapping. Please check that the values of your IMPRESSO_SOLR_FIELDS
 # are correctly spelled, as well as the IMPRESSO_SOLR_ARTICLE_PROPS
 # The values starting with an underscore "_"
@@ -202,17 +207,18 @@ IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
     "id": "uid",
     "item_type_s": "type",
     "lg_s": "language",
-    "title_txt_fr": "title",
-    "title_txt_de": "title",
-    "title_txt_en": "title",
-    "content_txt_fr": "transcript",
-    "content_txt_de": "transcript",
-    "content_txt_en": "transcript",
+    "title_txt_fr": IMPRESSO_SOLR_FL_TITLE_LABEL,
+    "title_txt_de": IMPRESSO_SOLR_FL_TITLE_LABEL,
+    "title_txt_en": IMPRESSO_SOLR_FL_TITLE_LABEL,
+    "content_txt_fr": IMPRESSO_SOLR_FL_CONTENT_LABEL,
+    "content_txt_de": IMPRESSO_SOLR_FL_CONTENT_LABEL,
+    "content_txt_en": IMPRESSO_SOLR_FL_CONTENT_LABEL,
+    "snippet_plain": IMPRESSO_SOLR_FL_EXCERPT_LABEL,
     "content_length_i": "size",
     "meta_country_code_s": "country",
     "meta_province_code_s": "province",
     "meta_periodicity_s": "periodicity",
-    "meta_year_i": "year",
+    "meta_year_i": IMPRESSO_SOLR_FL_YEAR_LABEL,
     "meta_journal_s": "newspaper",
     "meta_issue_id_s": "issue",
     "meta_partnerid_s": "content_provider",
