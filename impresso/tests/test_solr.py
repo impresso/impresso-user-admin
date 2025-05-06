@@ -21,7 +21,7 @@ class SolrTestCase(unittest.TestCase):
         # Test the function with a valid input, a document parsed from solr
         result = serialize_solr_doc_content_item_to_plain_dict(FAKE_SOLR_DOC)
 
-        self.assertEqual(result.get("_bm_get_tr_i"), 181)
+        self.assertEqual(result.get("_" + settings.IMPRESSO_SOLR_FL_TRANSCRIPT_BM), 181)
         self.assertEqual(result.get("title"), "Subskription.")
         self.assertEqual(
             result.get("transcript"),
@@ -48,7 +48,7 @@ class SolrTestCase(unittest.TestCase):
                 "content_txt_de": "Subskription. Gebet gerne! Wer durch eine Geldspende soziales Schaffen ermöglicht,",
                 "title_txt_de": "Subskription.",
                 "meta_year_i": 1927,
-                "bm_get_tr_i": 181,
+                settings.IMPRESSO_SOLR_FL_TRANSCRIPT_BM: 181,
             }
         )
         print(doc)
@@ -111,5 +111,5 @@ FAKE_SOLR_DOC: Dict[str, Any] = {
     ],
     "ucoll_ss": None,
     settings.IMPRESSO_SOLR_FL_COPYRIGHT: "in_cpy",
-    settings.IMPRESSO_SOLR_FL_TRANSCRIPT_BM: 9223372036854775807,
+    settings.IMPRESSO_SOLR_FL_TRANSCRIPT_BM: 181,
 }
