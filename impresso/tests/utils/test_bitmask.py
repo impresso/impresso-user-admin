@@ -4,7 +4,7 @@ from impresso.utils.bitmask import BitMask64, is_access_allowed
 
 def multiple_assert_equal(
     instance: unittest.TestCase,
-    accessor_contents_expectedResult: list[tuple[int, int, bool]] = [
+    accessor_contents_expectedResult: list[tuple[str | int, str | int, bool]] = [
         (0b101111, 10, True),
         (0b101111, 0b100000000, False),
         (0b1, 9223372036854775807, True),
