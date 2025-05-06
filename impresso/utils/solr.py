@@ -53,7 +53,7 @@ def mapper_doc_redact_contents(doc: dict, user_bitmask: BitMask64) -> dict:
           defined in settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR, the content is redacted.
     """
     try:
-        doc_year = int(doc["year"])
+        doc_year = int(doc[settings.IMPRESSO_SOLR_FL_YEAR_LABEL])
     except KeyError:
         print(doc)
         raise ValueError("Document does not contain a 'year' field.")

@@ -179,7 +179,6 @@ IMPRESSO_SOLR_AUTH_WRITE = (
     IMPRESSO_SOLR_USER_WRITE,
     IMPRESSO_SOLR_PASSWORD_WRITE,
 )
-IMPRESSO_SOLR_FL_ID = get_env_variable("IMPRESSO_SOLR_FL_ID", "id")
 IMPRESSO_SOLR_FL_TRANSCRIPT_BM = get_env_variable(
     "IMPRESSO_SOLR_FL_TRANSCRIPT_BM_FIELD", "rights_bm_get_tr_l"
 )
@@ -187,10 +186,55 @@ IMPRESSO_SOLR_FL_COPYRIGHT = get_env_variable(
     "IMPRESSO_SOLR_FL_COPYRIGHT", "rights_copyright_s"
 )
 # Full mapping
-IMPRESSO_SOLR_FL_TITLE_LABEL = "title"
-IMPRESSO_SOLR_FL_CONTENT_LABEL = "transcript"
+IMPRESSO_SOLR_FL_ID = get_env_variable("IMPRESSO_SOLR_FL_ID", "id")
+IMPRESSO_SOLR_FL_ID_LABEL = "uid"
+
+IMPRESSO_SOLR_FL_TYPE = "item_type_s"
+IMPRESSO_SOLR_FL_TYPE_LABEL = "type"
+
+IMPRESSO_SOLR_FL_TITLE_LABEL = "title"  # Multilingual field
+
+IMPRESSO_SOLR_FL_EXCERPT = "snippet_plain"
 IMPRESSO_SOLR_FL_EXCERPT_LABEL = "excerpt"
+
+IMPRESSO_SOLR_FL_COUNTRY = "meta_country_code_s"
+IMPRESSO_SOLR_FL_COUNTRY_LABEL = "countryCode"
+# province
+IMPRESSO_SOLR_FL_PROVINCE = "meta_province_code_s"
+IMPRESSO_SOLR_FL_PROVINCE_LABEL = "provinceCode"
+# periodicity
+IMPRESSO_SOLR_FL_PERIODICITY = "meta_periodicity_s"
+IMPRESSO_SOLR_FL_PERIODICITY_LABEL = "periodicity"
+
+IMPRESSO_SOLR_FL_LANGUAGE = "lg_s"
+IMPRESSO_SOLR_FL_LANGUAGE_LABEL = "languageCode"
+
+IMPRESSO_SOLR_FL_CONTENT_LABEL = "transcript"
+
+IMPRESSO_SOLR_FL_CONTENT_LENGTH = "content_length_i"
+IMPRESSO_SOLR_FL_CONTENT_LENGTH_LABEL = "transcriptLength"
+IMPRESSO_SOLR_FL_YEAR = "meta_year_i"
 IMPRESSO_SOLR_FL_YEAR_LABEL = "year"
+IMPRESSO_SOLR_FL_TOTAL_PAGES = "nb_pages_i"
+IMPRESSO_SOLR_FL_TOTAL_PAGES_LABEL = "totalPages"
+
+IMPRESSO_SOLR_FL_DATA_PROVIDER = "meta_partnerid_s"
+IMPRESSO_SOLR_FL_DATA_PROVIDER_LABEL = "dataProviderCode"
+
+IMPRESSO_SOLR_FL_MEDIA_CODE = "meta_journal_s"
+IMPRESSO_SOLR_FL_MEDIA_CODE_LABEL = "mediaCode"
+# media political orientation
+IMPRESSO_SOLR_FL_MEDIA_POLITICAL_ORIENTATION = "meta_polorient_s"
+IMPRESSO_SOLR_FL_MEDIA_POLITICAL_ORIENTATION_LABEL = "mediaPoliticalOrientation"
+# media topics
+IMPRESSO_SOLR_FL_MEDIA_TOPICS = "meta_topics_s"
+IMPRESSO_SOLR_FL_MEDIA_TOPICS_LABEL = "mediaTopics"
+# date
+IMPRESSO_SOLR_FL_DATE = "meta_date_dt"
+IMPRESSO_SOLR_FL_DATE_LABEL = "publicationDate"
+# front page
+IMPRESSO_SOLR_FL_FRONT_PAGE = "front_b"
+IMPRESSO_SOLR_FL_FRONT_PAGE_LABEL = "isOnFrontPage"
 # this is the complete mapping. Please check that the values of your IMPRESSO_SOLR_FIELDS
 # are correctly spelled, as well as the IMPRESSO_SOLR_ARTICLE_PROPS
 # The values starting with an underscore "_"
@@ -204,32 +248,32 @@ IMPRESSO_SOLR_FL_YEAR_LABEL = "year"
 # "rights_bm_get_tr_l":1000,
 # "rights_bm_get_img_l":1000,
 IMPRESSO_SOLR_FIELDS_TO_ARTICLE_PROPS = {
-    "id": "uid",
-    "item_type_s": "type",
-    "lg_s": "language",
+    IMPRESSO_SOLR_FL_ID: IMPRESSO_SOLR_FL_ID_LABEL,
+    IMPRESSO_SOLR_FL_TYPE: IMPRESSO_SOLR_FL_TYPE_LABEL,
+    IMPRESSO_SOLR_FL_LANGUAGE: IMPRESSO_SOLR_FL_LANGUAGE_LABEL,
     "title_txt_fr": IMPRESSO_SOLR_FL_TITLE_LABEL,
     "title_txt_de": IMPRESSO_SOLR_FL_TITLE_LABEL,
     "title_txt_en": IMPRESSO_SOLR_FL_TITLE_LABEL,
     "content_txt_fr": IMPRESSO_SOLR_FL_CONTENT_LABEL,
     "content_txt_de": IMPRESSO_SOLR_FL_CONTENT_LABEL,
     "content_txt_en": IMPRESSO_SOLR_FL_CONTENT_LABEL,
-    "snippet_plain": IMPRESSO_SOLR_FL_EXCERPT_LABEL,
-    "content_length_i": "size",
-    "meta_country_code_s": "country",
-    "meta_province_code_s": "province",
-    "meta_periodicity_s": "periodicity",
-    "meta_year_i": IMPRESSO_SOLR_FL_YEAR_LABEL,
-    "meta_journal_s": "newspaper",
+    IMPRESSO_SOLR_FL_EXCERPT: IMPRESSO_SOLR_FL_EXCERPT_LABEL,
+    IMPRESSO_SOLR_FL_CONTENT_LENGTH: IMPRESSO_SOLR_FL_CONTENT_LENGTH_LABEL,
+    IMPRESSO_SOLR_FL_COUNTRY: IMPRESSO_SOLR_FL_COUNTRY_LABEL,
+    IMPRESSO_SOLR_FL_PROVINCE: IMPRESSO_SOLR_FL_PROVINCE_LABEL,
+    IMPRESSO_SOLR_FL_PERIODICITY: IMPRESSO_SOLR_FL_PERIODICITY_LABEL,
+    IMPRESSO_SOLR_FL_YEAR: IMPRESSO_SOLR_FL_YEAR_LABEL,
+    IMPRESSO_SOLR_FL_MEDIA_CODE: IMPRESSO_SOLR_FL_MEDIA_CODE_LABEL,
     "meta_issue_id_s": "issue",
-    "meta_partnerid_s": "content_provider",
-    "meta_topics_s": "newspaper_topics",
-    "meta_polorient_s": "newspaper_political_orientation",
+    IMPRESSO_SOLR_FL_DATA_PROVIDER: IMPRESSO_SOLR_FL_DATA_PROVIDER_LABEL,
+    IMPRESSO_SOLR_FL_MEDIA_TOPICS: IMPRESSO_SOLR_FL_MEDIA_TOPICS_LABEL,
+    IMPRESSO_SOLR_FL_MEDIA_POLITICAL_ORIENTATION: IMPRESSO_SOLR_FL_MEDIA_POLITICAL_ORIENTATION_LABEL,
     "olr_b": "is_olr",
     # "page_id_ss": "pages_uids",
     "page_nb_is": "pages",
-    "nb_pages_i": "nb_pages",
-    "front_b": "is_on_front_page",
-    "meta_date_dt": "date",
+    IMPRESSO_SOLR_FL_TOTAL_PAGES: IMPRESSO_SOLR_FL_TOTAL_PAGES_LABEL,
+    IMPRESSO_SOLR_FL_FRONT_PAGE: IMPRESSO_SOLR_FL_FRONT_PAGE_LABEL,
+    IMPRESSO_SOLR_FL_DATE: IMPRESSO_SOLR_FL_DATE_LABEL,
     "pers_mentions": "persons_mentioned",
     "loc_mentions": "locations_mentioned",
     "nag_mentions": "newsagencies_mentioned",
