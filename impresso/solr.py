@@ -49,8 +49,24 @@ def find_all(
         "hl": "off",
         "sort": sort,
     }
+    if settings.IMPRESSO_SOLR_PROXY_HOST and settings.IMPRESSO_SOLR_PROXY_PORT:
+        PROXY_HOST = settings.IMPRESSO_SOLR_PROXY_HOST
+        PROXY_PORT = settings.IMPRESSO_SOLR_PROXY_PORT
 
-    res = requests.post(url, auth=auth, params=params, data=data)
+        if logger:
+            logger.info(
+                f"Using proxy: {settings.IMPRESSO_SOLR_PROXY_HOST}:{settings.IMPRESSO_SOLR_PROXY_PORT}"
+            )
+
+        proxies = {
+            "http": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+            "https": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+        }
+        res = requests.post(url, auth=auth, params=params, proxies=proxies, data=data)
+    else:
+        if logger:
+            logger.info("No proxy used for Solr query.")
+        res = requests.post(url, auth=auth, params=params, data=data)
     try:
         res.raise_for_status()
     except requests.exceptions.HTTPError as err:
@@ -76,14 +92,31 @@ def find_collections_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
 def update(
     todos: List[Dict[str, Any]],
     url: Optional[str] = None,
-    auth: tuple = settings.IMPRESSO_SOLR_AUTH,
+    auth: tuple = settings.IMPRESSO_SOLR_AUTH_WRITE,
     logger: Optional[logging.Logger] = None,
 ) -> Dict[str, Any]:
     if logger:
         logger.info(f"todos n:{len(todos)} for url:{url}")
+
+    proxies = None
+    if settings.IMPRESSO_SOLR_PROXY_HOST and settings.IMPRESSO_SOLR_PROXY_PORT:
+        PROXY_HOST = settings.IMPRESSO_SOLR_PROXY_HOST
+        PROXY_PORT = settings.IMPRESSO_SOLR_PROXY_PORT
+
+        if logger:
+            logger.info(
+                f"Using proxy: {settings.IMPRESSO_SOLR_PROXY_HOST}:{settings.IMPRESSO_SOLR_PROXY_PORT}"
+            )
+
+        proxies = {
+            "http": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+            "https": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+        }
+
     res = requests.post(
         url,
-        auth=settings.IMPRESSO_SOLR_AUTH_WRITE,
+        proxies=proxies,
+        auth=auth,
         params={"commit": "true", "versions": "true", "fl": "id"},
         data=json.dumps(todos),
         json=True,

@@ -142,6 +142,7 @@ class CollectionAdmin(ModelAdmin):
         "status",
         "date_created",
     )
+    ordering = ("-date_created",)
     readonly_fields = (
         "date_created",
         "date_last_modified",

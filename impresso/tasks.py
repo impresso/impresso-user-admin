@@ -530,6 +530,8 @@ def add_to_collection_from_query(
             "serializedQuery": serialized_query,
         },
     )
+    collection.serialized_search_query = serialized_query
+    collection.save(update_fields=["serialized_search_query"])
     # execute premiminary query
     add_to_collection_from_query_progress.delay(
         query=query,

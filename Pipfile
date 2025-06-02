@@ -7,7 +7,6 @@ verify_ssl = true
 pytz = "==2018.7"
 pip = "*"
 celery = "*"
-requests = "*"
 redis = "*"
 django = "==5.2"
 pymysql = "*"
@@ -16,6 +15,7 @@ gunicorn = "*"
 python-dotenv = "*"
 django-unfold = "*"
 mypy = "*"
+requests = {extras = ["socks"], version = "*"}
 
 [dev-packages]
 "flake8" = "*"
