@@ -100,7 +100,7 @@ class Collection(Bucket):
     serialized_search_query = models.TextField(
         null=True,
         blank=True,
-        help_text="Initital search query that generated the collection.",
+        help_text="Initial search query that generated the collection.",
     )
 
     def add_items_to_index(
