@@ -97,6 +97,11 @@ class Collection(Bucket):
     )
 
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
+    serialized_search_query = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Initial search query that generated the collection.",
+    )
 
     def add_items_to_index(
         self,

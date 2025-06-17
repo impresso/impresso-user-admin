@@ -20,5 +20,11 @@ run-dev:
 	IMPRESSO_GIT_REVISION=$(shell git rev-parse --short HEAD) \
 	pipenv run ./manage.py runserver 8888
 
+run-celery:
+	IMPRESSO_GIT_TAG=${BUILD_TAG} \
+	IMPRESSO_GIT_BRANCH=$(shell git rev-parse --abbrev-ref HEAD) \
+	IMPRESSO_GIT_REVISION=$(shell git rev-parse --short HEAD) \
+	pipenv run celery -A impresso worker -l info
+	
 mypy:
 	mypy impresso

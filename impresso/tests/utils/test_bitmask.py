@@ -82,6 +82,11 @@ class TestBitMask64(unittest.TestCase):
             str(BitMask64(10)),
             "0000000000000000000000000000000000000000000000000000000000001010",
         )
+        self.assertEqual(
+            str(BitMask64(34359738368, reverse=True)),
+            "0000000000000000000000000000100000000000000000000000000000000000",
+        )
+
         multiple_assert_equal(
             self,
             accessor_contents_expectedResult=[
@@ -89,5 +94,25 @@ class TestBitMask64(unittest.TestCase):
                 (0b101111, 0b100000000, False),
                 (0b1, 9223372036854775807, True),
                 (181, 0b10000000, True),
+                (
+                    0b0000000000000000000000000000100000000000000000000000000000000000,
+                    34359738368,
+                    True,
+                ),
+            ],
+        )
+
+    def test_special_membership(self):
+        multiple_assert_equal(
+            self,
+            accessor_contents_expectedResult=[
+                (
+                    0b1000000000000000000000000000000000000000100000000000000000000000,
+                    8388608,
+                    True,
+                ),
+                (0b1000000000000000000000111, 2, True),
+                (0b1000111, 64, True),
+                (0b1000000000000000000000111, 64, False),
             ],
         )
