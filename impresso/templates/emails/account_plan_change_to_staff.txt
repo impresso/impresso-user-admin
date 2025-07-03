@@ -1,8 +1,8 @@
 Hello,
 {{user.first_name}} {{user.last_name}} has requested a change in their plan.
 
-Current plan: {{current_plan_label}}  
-Requested plan: {{plan_label}}  
+Current plan: {{current_plan_name}}  
+Requested plan: {{plan_to_name}}  
 User email: {{user.email}}
 
 {% if email_being_sent_without_error %}
