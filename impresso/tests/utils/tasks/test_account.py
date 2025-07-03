@@ -186,10 +186,13 @@ class TestAccountPlanChange(TestCase):
             mail.outbox[1].subject, f"Plan Change Request from {self.user.username}"
         )
         # first line of the email is: Dear Jane,
-        self.assertTrue("Current plan: Basic User Plan" in mail.outbox[1].body)
+        self.assertTrue(
+            "Current plan: Basic User Plan" in mail.outbox[1].body,
+            "should be Basic User Plan",
+        )
         self.assertTrue("Requested plan: Student User Plan" in mail.outbox[1].body)
         self.assertTrue(f"User email: {self.user.email}" in mail.outbox[1].body)
-        # clean outbox
+
         mail.outbox = []
         # accept the request
         req.status = UserChangePlanRequest.STATUS_APPROVED

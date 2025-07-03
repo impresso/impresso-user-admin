@@ -385,7 +385,7 @@ def store_collection_progress(
         limit=limit,
         logger=logger,
     )
-    if page < loops:
+    if page <= loops:
         job.status = Job.RUN
         update_job_progress(
             task=self, job=job, progress=progress, extra=extra, logger=logger
