@@ -179,6 +179,14 @@ The task of creating a collection is a long running one because it uses a solr s
 
 The task of creating a collection is delegated to the _Celery_ task manager and a `Job` instance stored in the database is assigned to the task to allow the follow-up of the task progress. The task is executed asynchronously. In the future releases, the user will be notified via email when the task is completed (still todo).
 
+### Using a proxy
+
+If the database is only accessible via a socks proxy, add the following to your `.env` file:
+
+```bash
+IMPRESSO_SOCKS_PROXY_CONFIG='{ "host": "localhost", "port": 1080, "domains": ["db.domain.com"] }'
+```
+
 ## Project
 
 The 'impresso - Media Monitoring of the Past' project is funded by the Swiss National Science Foundation (SNSF) under grant number [CRSII5_173719](http://p3.snf.ch/project-173719) (Sinergia program). The project aims at developing tools to process and explore large-scale collections of historical newspapers, and at studying the impact of this new tooling on historical research practices. More information at https://impresso-project.ch.

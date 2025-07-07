@@ -1,6 +1,13 @@
 import os
+import socket
+
+from impresso.utils.proxy import with_optional_proxy
 from .base import get_env_variable
 from django import __version__ as django_version
+
+import MySQLdb as Database
+
+Database.connect = with_optional_proxy(Database.connect)
 
 VERSION = (2, 2, 0)
 
