@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import socket
 from typing import TypedDict
 import sockslib
@@ -70,7 +69,7 @@ def load_proxy_settings() -> ImpressoProxySettings | None:
     try:
         data = json.loads(get_env_variable("IMPRESSO_SOCKS_PROXY_CONFIG", None))
 
-        return ImpressoProxySettings(**data)
+        return ImpressoProxySettings(**data)  # type: ignore[typeddict-item]
     except (KeyError, json.JSONDecodeError, TypeError):
         return None
 
