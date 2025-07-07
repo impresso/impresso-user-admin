@@ -4,6 +4,8 @@ import logging
 from django.conf import settings
 from typing import Dict, Any, Optional, List
 
+from impresso.utils.proxy import get_proxy_for_host_or_url
+
 
 def find_all(
     q: str = "*:*",
@@ -49,18 +51,16 @@ def find_all(
         "hl": "off",
         "sort": sort,
     }
-    if settings.IMPRESSO_SOLR_PROXY_HOST and settings.IMPRESSO_SOLR_PROXY_PORT:
-        PROXY_HOST = settings.IMPRESSO_SOLR_PROXY_HOST
-        PROXY_PORT = settings.IMPRESSO_SOLR_PROXY_PORT
 
+    proxy = get_proxy_for_host_or_url(url)
+
+    if proxy:
         if logger:
-            logger.info(
-                f"Using proxy: {settings.IMPRESSO_SOLR_PROXY_HOST}:{settings.IMPRESSO_SOLR_PROXY_PORT}"
-            )
+            logger.info(f"Using proxy: {proxy[0]}:{proxy[1]}")
 
         proxies = {
-            "http": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
-            "https": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+            "http": f"socks4://{proxy[0]}:{proxy[1]}",
+            "https": f"socks4://{proxy[0]}:{proxy[1]}",
         }
         res = requests.post(url, auth=auth, params=params, proxies=proxies, data=data)
     else:
@@ -99,14 +99,12 @@ def update(
         logger.info(f"todos n:{len(todos)} for url:{url}")
 
     proxies = None
-    if settings.IMPRESSO_SOLR_PROXY_HOST and settings.IMPRESSO_SOLR_PROXY_PORT:
-        PROXY_HOST = settings.IMPRESSO_SOLR_PROXY_HOST
-        PROXY_PORT = settings.IMPRESSO_SOLR_PROXY_PORT
+    proxy = get_proxy_for_host_or_url(url or "")
 
+    if proxy:
+        PROXY_HOST, PROXY_PORT = proxy
         if logger:
-            logger.info(
-                f"Using proxy: {settings.IMPRESSO_SOLR_PROXY_HOST}:{settings.IMPRESSO_SOLR_PROXY_PORT}"
-            )
+            logger.info(f"Using proxy: {PROXY_HOST}:{PROXY_PORT}")
 
         proxies = {
             "http": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
