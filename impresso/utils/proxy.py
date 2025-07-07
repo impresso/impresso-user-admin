@@ -27,11 +27,14 @@ def proxy_interceptor(proxy_settings: ImpressoProxySettings | None = None):
 
             if proxy_settings is not None and host in proxy_settings["domains"]:
 
+                proxy_ip = socket.gethostbyname(proxy_settings["host"])
+
                 logger.info(
-                    "Establishing MySQL connection to %s through SOCKS proxy (%s:%d).",
+                    "Establishing MySQL connection to %s through SOCKS proxy (%s:%d with IP :%s).",
                     host,
                     proxy_settings["host"],
                     proxy_settings["port"],
+                    proxy_ip,
                 )
 
                 # Call the original connect method
@@ -42,7 +45,7 @@ def proxy_interceptor(proxy_settings: ImpressoProxySettings | None = None):
                 )
 
                 sockslib.set_default_proxy(
-                    (proxy_settings["host"], proxy_settings["port"]),
+                    (proxy_ip, proxy_settings["port"]),
                     sockslib.Socks.SOCKS5,
                     socket.AF_INET6,
                 )
