@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from impresso.models import UserBitmap
 from impresso.models import DatasetBitmapPosition
+from ...utils.bitmask import BitMask64
 
 
 class Command(BaseCommand):
@@ -17,33 +18,28 @@ class Command(BaseCommand):
         self.stdout.write(f"User: pk={user.id} \033[34m{user.username}\033[0m")
         # rpint out user groups
         groups = [group.name for group in user.groups.all()]
-        groups_list = '\n '.join(groups)
+        groups_list = "\n ".join(groups)
         self.stdout.write(f"User groups: \n \033[34m{groups_list}\033[0m")
         # print out its related user bitmap. If no one, just create it.
-        user_bitmap = user.bitmap.get_up_to_date_bitmap()
-        user.bitmap = user_bitmap
-        user.save()
-        user_bitmap_length = user_bitmap.bit_length()
-        # print user_bitmap binary as sequence of 0 and 1
-        self.stdout.write(
-            f"user get_up_to_date_bitmap(): \033[34m{bin(user_bitmap)}\033[0m"
-        )
-        # get the total number of bits
-        self.stdout.write(f"user bitmap length: \033[34m{user_bitmap_length}\033[0m")
 
-        self.stdout.write(
-            f"User bitmap plan max length: \033[34m{UserBitmap.BITMAP_PLAN_MAX_LENGTH}\033[0m"
-        )
+        user_bitmask = BitMask64(user.bitmap.bitmap)
+
+        # print user_bitmap binary as sequence of 0 and 1
+        self.stdout.write(f"user BitMask64: \033[34m{str(user_bitmask)}\033[0m")
+        # # get the total number of bits
+        # self.stdout.write(f"user bitmap length: \033[34m{user_bitmap_length}\033[0m")
+
+        # self.stdout.write(
+        #     f"User bitmap plan max length: \033[34m{UserBitmap.BITMAP_PLAN_MAX_LENGTH}\033[0m"
+        # )
         # get user subscriptions
         subscriptions = list(
             user.bitmap.subscriptions.values("name", "bitmap_position")
         )
 
-        subscription_names = '\n '.join([s.get('name') for s in subscriptions])
+        subscription_names = "\n ".join([s.get("name") for s in subscriptions])
         # verify that the user subscription positions are correct
-        self.stdout.write(
-            f"User subscriptions: \n \033[34m{subscription_names}\033[0m"
-        )
+        self.stdout.write(f"User subscriptions: \n \033[34m{subscription_names}\033[0m")
         max_subscription_position = (
             max([s["bitmap_position"] for s in subscriptions]) if subscriptions else -1
         )
