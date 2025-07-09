@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 import socket
@@ -30,7 +31,7 @@ def proxy_interceptor(proxy_settings: ImpressoProxySettings | None = None):
                 proxy_ip = socket.gethostbyname(proxy_settings["host"])
 
                 logger.info(
-                    "Establishing MySQL connection to %s through SOCKS proxy (%s:%d with IP :%s).",
+                    "Establishing MySQL connection to %s through SOCKS proxy (%s:%d with IP: %s).",
                     host,
                     proxy_settings["host"],
                     proxy_settings["port"],
@@ -44,16 +45,31 @@ def proxy_interceptor(proxy_settings: ImpressoProxySettings | None = None):
                     *args, **{**kwargs, "defer_connect": True}
                 )
 
+                # Check if the proxy IP is IPv6 or IPv4
+                address_family = (
+                    socket.AF_INET6
+                    if isinstance(ipaddress.ip_address(proxy_ip), ipaddress.IPv6Address)
+                    else socket.AF_INET
+                )
+
                 sockslib.set_default_proxy(
-                    (proxy_ip, proxy_settings["port"]),
+                    (proxy_settings["host"], proxy_settings["port"]),
                     sockslib.Socks.SOCKS5,
-                    socket.AF_INET6,
+                    address_family,
                 )
 
                 s = sockslib.SocksSocket()
                 s.connect((host, port))
 
                 connection.connect(sock=s)
+
+                logger.info(
+                    "MySQL connection established to %s through SOCKS proxy (%s:%d with IP: %s).",
+                    host,
+                    proxy_settings["host"],
+                    proxy_settings["port"],
+                    proxy_ip,
+                )
 
                 return connection
             else:
