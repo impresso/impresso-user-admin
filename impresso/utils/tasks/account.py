@@ -77,7 +77,14 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
 
     txt_content, html_content = getEmailsContents(
         prefix=email_template_prefix,
-        context=({"user": user, "key": key, "plan_label": plan_label}),
+        context=(
+            {
+                "user": user,
+                "key": key,
+                "plan_label": plan_label,
+                "impresso_base_url": settings.IMPRESSO_BASE_URL,
+            }
+        ),
     )
     email_being_sent_without_error = False
     try:
@@ -163,6 +170,7 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
         context=(
             {
                 "user": user,
+                "impresso_base_url": settings.IMPRESSO_BASE_URL,
             }
         ),
     )

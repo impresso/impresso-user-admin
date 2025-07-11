@@ -3,11 +3,11 @@ Dear {{user.first_name}},
 Your account is now active and you can enjoy
 the many resources available on Impresso App!
 
-You can login with your email following this link: https://impresso-project.ch/app/user/login?redirect=%2F
+You can login with your email following this link: {{impresso_base_url}}/app/user/login?redirect=%2F
 Please do not hesitate to let us know in case you encounter any problems.
 
 In order to help you make the most of the interface, we prepared a range of
-materials for students and advanced researchers, available on the project homepage https://impresso-project.ch/the-app/usage/
+materials for students and advanced researchers, available on the project homepage {{impresso_base_url}}/the-app/usage/
 alongside blog posts on the methods we used and additional information about
 the project and its outputs.
 
