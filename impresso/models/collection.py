@@ -1,10 +1,11 @@
 import json
-import requests
 import logging
+import requests
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from . import Bucket
+from ..solr import find_all
 
 default_logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def set_indexed_items(
     solr_auth=settings.IMPRESSO_SOLR_AUTH_WRITE,
     logger=default_logger,
 ):
+
     res = requests.post(
         solr_url,
         auth=solr_auth,
@@ -97,6 +99,11 @@ class Collection(Bucket):
     )
 
     status = models.CharField(max_length=3, choices=STATUS_CHOICES)
+    serialized_search_query = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Initial search query that generated the collection.",
+    )
 
     def add_items_to_index(
         self,
@@ -252,25 +259,10 @@ class Collection(Bucket):
 
     def update_count_items(self, logger=default_logger):
         logger.info(f"Collection(pk:{self.pk}).update_count_items ...")
-        res = requests.post(
-            settings.IMPRESSO_SOLR_URL_SELECT,
-            auth=settings.IMPRESSO_SOLR_AUTH,
-            data={
-                "q": "ucoll_ss:{}".format(self.pk),
-                "fl": "id",
-                "rows": 0,
-                "wt": "json",
-            },
-        )
-        res.raise_for_status()
+        ci_request = find_all(q=f"ucoll_ss:{self.pk}", fl="id", skip=0, limit=0)
 
-        count_items = int(res.json().get("response").get("numFound"))
-        logger.info(
-            "Collection(pk:{}).update_count_items SUCCESS total:{}".format(
-                self.pk,
-                count_items,
-            )
-        )
+        count_items = ci_request["response"]["numFound"]
+        logger.info(f"Collection(pk:{self.pk}).count_items = {count_items}")
 
         self.count_items = count_items
         self.save()

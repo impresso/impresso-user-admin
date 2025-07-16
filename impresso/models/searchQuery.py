@@ -9,7 +9,7 @@ class SearchQuery(models.Model):
     SearchQuery.objects.create(id=SearchQuery.generate_id(creator_id=123, query='*:*'), creator_id=123)
     """
     id = models.CharField(primary_key=True, max_length=50)
-    hash = models.CharField(max_length=200, null=True, blank=True)
+    hash = models.TextField(null=True, blank=True)
     name = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     data = models.TextField(null=True, blank=True)

@@ -385,7 +385,7 @@ def store_collection_progress(
         limit=limit,
         logger=logger,
     )
-    if page < loops:
+    if page <= loops:
         job.status = Job.RUN
         update_job_progress(
             task=self, job=job, progress=progress, extra=extra, logger=logger
@@ -530,6 +530,8 @@ def add_to_collection_from_query(
             "serializedQuery": serialized_query,
         },
     )
+    collection.serialized_search_query = serialized_query
+    collection.save(update_fields=["serialized_search_query"])
     # execute premiminary query
     add_to_collection_from_query_progress.delay(
         query=query,

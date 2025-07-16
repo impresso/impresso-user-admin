@@ -53,37 +53,45 @@ def mapper_doc_redact_contents(doc: dict, user_bitmask: BitMask64) -> dict:
           defined in settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR, the content is redacted.
     """
     try:
-        doc_year = int(doc["year"])
+        doc_year = int(doc[settings.IMPRESSO_SOLR_FL_YEAR_LABEL])
     except KeyError:
         print(doc)
         raise ValueError("Document does not contain a 'year' field.")
 
     is_transcript_available = False
-
-    if doc.get("_bm_get_tr_i", None) is not None:
+    content_bitmask = doc.get(f"_{settings.IMPRESSO_SOLR_FL_TRANSCRIPT_BM}", None)
+    if content_bitmask is not None:
         is_transcript_available = is_access_allowed(
             accessor=user_bitmask,
-            content=BitMask64(doc["_bm_get_tr_i"], reverse=True),
+            content=BitMask64(content_bitmask),
         )
-    elif doc.get("_bm_get_tr_s", None) is not None:
-        is_transcript_available = is_access_allowed(
-            accessor=user_bitmask,
-            # nop need to reverse if this is a string
-            content=BitMask64(doc["_bm_get_tr_s"]),
-        )
-    elif doc.get("access_right", "") == "OpenPublic":
-        is_transcript_available = True
+    # Previous check
+    # if doc.get("_bm_get_tr_i", None) is not None:
+    #     is_transcript_available = is_access_allowed(
+    #         accessor=user_bitmask,
+    #         content=BitMask64(doc["_bm_get_tr_i"], reverse=True),
+    #     )
+    # elif doc.get("_bm_get_tr_s", None) is not None:
+    #     is_transcript_available = is_access_allowed(
+    #         accessor=user_bitmask,
+    #         # nop need to reverse if this is a string
+    #         content=BitMask64(doc["_bm_get_tr_s"]),
+    #     )
+    # elif doc.get("access_right", "") == "OpenPublic":
+    #     is_transcript_available = True
     # edge cases
     elif doc_year < settings.IMPRESSO_CONTENT_DOWNLOAD_MAX_YEAR:
         is_transcript_available = True
-        doc["content"] = "[redacted]"
-        doc["is_content_available"] = "N"
         # doc["is_content_available_notes"] = "year restricted"
     if is_transcript_available:
         doc["is_content_available"] = "Y"
     else:
-        doc["content"] = "[redacted]"
-        doc["excerpt"] = "[redacted]"
+        doc[settings.IMPRESSO_SOLR_FL_CONTENT_LABEL] = (
+            settings.IMPRESSO_CONTENT_REDACTED_LABEL
+        )
+        doc[settings.IMPRESSO_SOLR_FL_EXCERPT_LABEL] = (
+            settings.IMPRESSO_CONTENT_REDACTED_LABEL
+        )
         doc["is_content_available"] = "N"
 
     return doc

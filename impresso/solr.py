@@ -4,10 +4,12 @@ import logging
 from django.conf import settings
 from typing import Dict, Any, Optional, List
 
+from impresso.utils.proxy import get_proxy_for_host_or_url
+
 
 def find_all(
     q: str = "*:*",
-    fl: str = settings.IMPRESSO_SOLR_ID_FIELD,
+    fl: str = settings.IMPRESSO_SOLR_FL_ID,
     skip: int = 0,
     limit: int = settings.IMPRESSO_SOLR_EXEC_LIMIT,
     url: str = settings.IMPRESSO_SOLR_URL_SELECT,
@@ -21,7 +23,7 @@ def find_all(
 
     Args:
         q (str): The query string. Defaults to "*:*".
-        fl (str): The fields to return. Defaults to settings.IMPRESSO_SOLR_ID_FIELD.
+        fl (str): The fields to return. Defaults to settings.IMPRESSO_SOLR_FL_ID.
         skip (int): The number of records to skip. Defaults to 0.
         limit (int): The maximum number of records to return. Defaults to settings.IMPRESSO_SOLR_EXEC_LIMIT.
         url (str): The Solr URL to send the request to. Defaults to settings.IMPRESSO_SOLR_URL_SELECT.
@@ -50,7 +52,21 @@ def find_all(
         "sort": sort,
     }
 
-    res = requests.post(url, auth=auth, params=params, data=data)
+    proxy = get_proxy_for_host_or_url(url)
+
+    if proxy:
+        if logger:
+            logger.info(f"Using proxy: {proxy[0]}:{proxy[1]}")
+
+        proxies = {
+            "http": f"socks4://{proxy[0]}:{proxy[1]}",
+            "https": f"socks4://{proxy[0]}:{proxy[1]}",
+        }
+        res = requests.post(url, auth=auth, params=params, proxies=proxies, data=data)
+    else:
+        if logger:
+            logger.info("No proxy used for Solr query.")
+        res = requests.post(url, auth=auth, params=params, data=data)
     try:
         res.raise_for_status()
     except requests.exceptions.HTTPError as err:
@@ -76,14 +92,29 @@ def find_collections_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
 def update(
     todos: List[Dict[str, Any]],
     url: Optional[str] = None,
-    auth: tuple = settings.IMPRESSO_SOLR_AUTH,
+    auth: tuple = settings.IMPRESSO_SOLR_AUTH_WRITE,
     logger: Optional[logging.Logger] = None,
 ) -> Dict[str, Any]:
     if logger:
         logger.info(f"todos n:{len(todos)} for url:{url}")
+
+    proxies = None
+    proxy = get_proxy_for_host_or_url(url or "")
+
+    if proxy:
+        PROXY_HOST, PROXY_PORT = proxy
+        if logger:
+            logger.info(f"Using proxy: {PROXY_HOST}:{PROXY_PORT}")
+
+        proxies = {
+            "http": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+            "https": f"socks4://{PROXY_HOST}:{PROXY_PORT}",
+        }
+
     res = requests.post(
         url,
-        auth=settings.IMPRESSO_SOLR_AUTH_WRITE,
+        proxies=proxies,
+        auth=auth,
         params={"commit": "true", "versions": "true", "fl": "id"},
         data=json.dumps(todos),
         json=True,

@@ -1,13 +1,13 @@
 Dear {{user.first_name}},
 <p>
-  Un grand merci for the signed NDA, your account is now active and you can
-  enjoy the many resources available on impresso App!
+  Your account is now active and you can enjoy the many resources available on
+  Impresso App!
 </p>
 
 <p>
   You can login with your email following this link:
-  <a href="https://impresso-project.ch/app/user/login?redirect=%2F"
-    >https://impresso-project.ch/app/user/login?redirect=%2F</a
+  <a href="{{impresso_base_url}}/app/user/login?redirect=%2F"
+    >{{impresso_base_url}}/app/user/login?redirect=%2F</a
   >
 </p>
 
@@ -17,8 +17,8 @@ Dear {{user.first_name}},
   In order to help you make the most of the interface, we prepared a range of
   materials for students and advanced researchers, available on the project
   homepage
-  <a href="https://impresso-project.ch/the-app/usage/"
-    >https://impresso-project.ch/the-app/usage/</a
+  <a href="{{impresso_base_url}}/the-app/usage/"
+    >{{impresso_base_url}}/the-app/usage/</a
   >
   alongside blog posts on the methods we used and additional information about
   the project and its outputs.
@@ -27,7 +27,9 @@ Dear {{user.first_name}},
 <p>
   If you encounter any difficulty, do not hesitate to visit the FAQ page or to
   get in touch with us, either via email or via the Impresso community Discord
-  group (<a href="https://discord.gg/qBnxe2aj">https://discord.gg/qBnxe2aj</a>)
+  group (<a href="https://discord.gg/tYvuD8Nfur"
+    >https://discord.gg/tYvuD8Nfur</a
+  >)
 </p>
 
 <p>We wish you a pleasant exploration! Stay in touch!</p>

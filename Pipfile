@@ -1,19 +1,22 @@
 [[source]]
-url = "https://pypi.org/simple"
 name = "pypi"
+url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-pytz = "==2018.7"
-pip = "*"
 celery = "*"
-requests = "*"
-redis = "*"
-django = "==5.1.4"
-pymysql = "*"
+django = "==5.2"
 django-registration = "*"
+django-unfold = "*"
 gunicorn = "*"
+mypy = "*"
+pip = "*"
+pymysql = "*"
 python-dotenv = "*"
+pytz = "==2018.7"
+redis = "*"
+requests = {extras = ["socks"], version = "*"}
+sockslib = "*"
 
 [dev-packages]
 "flake8" = "*"

@@ -94,7 +94,7 @@ class UserBitmap(models.Model):
         if plan == UserBitmap.USER_PLAN_GUEST:
             return "guest"
         if plan == UserBitmap.USER_PLAN_AUTH_USER:
-            return "basic"
+            return settings.IMPRESSO_GROUP_USER_PLAN_BASIC
         if plan == UserBitmap.USER_PLAN_EDUCATIONAL:
             return settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         if plan == UserBitmap.USER_PLAN_RESEARCHER:

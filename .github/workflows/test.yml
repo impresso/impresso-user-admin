@@ -1,9 +1,9 @@
 name: Tests
 on:
   push:
-    branches: ['develop']
+    branches: ["develop"]
   pull_request:
-    branches: ['develop']
+    branches: ["develop"]
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12.4'
+          python-version: "3.12.4"
 
       - name: Install pipenv
         run: pip install pipenv
@@ -41,6 +41,7 @@ jobs:
           echo "IMPRESSO_SOLR_USER_WRITE=ssssssssss" >> .env
           echo "IMPRESSO_SOLR_PASSWORD=ssssssssssss" >> .env
           echo "IMPRESSO_SOLR_PASSWORD_WRITE=ssssss" >> .env
+          echo "IMPRESSO_SOCKS_PROXY_CONFIG='{ \"host\": \"localhost\", \"port\": 1080, \"domains\": [] }'" >> .env
 
       - name: Set up debug logging, this requires a secific debug folder
         run: |
@@ -48,7 +49,7 @@ jobs:
           touch logs/debug.log
 
       - name: Run mypy
-        run: pipenv run mypy --config-file ./.mypy.ini impresso  
+        run: pipenv run mypy --config-file ./.mypy.ini impresso
 
       - name: Run Django tests
         run: pipenv run ./manage.py test
