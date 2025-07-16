@@ -9,7 +9,7 @@ import MySQLdb as Database
 
 Database.connect = with_optional_proxy(Database.connect)
 
-VERSION = (2, 2, 0)
+VERSION = (3, 2, 0)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
