@@ -1,10 +1,14 @@
 from django.contrib import admin, messages
+from django.urls import reverse
 from django.utils.translation import ngettext
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin  # type: ignore
 from impresso.models import UserChangePlanRequest
-from impresso.utils.models.user import get_plan_from_group_name
+from impresso.utils.models.user import (
+    get_plan_from_group_name,
+    get_plan_from_user_groups,
+)
 
 
 @admin.register(UserChangePlanRequest)
@@ -14,7 +18,9 @@ class UserChangePlanRequestAdmin(ModelAdmin):
     search_help_text = "Search by requester user id (numeric) or username"
     list_display = (
         "user",
-        "plan_as_html",
+        "affiliation_with_link",
+        "current_plan_as_html",
+        "requested_plan_as_html",
         "status_as_html",
         "date_created",
         "date_last_modified",
@@ -23,16 +29,39 @@ class UserChangePlanRequestAdmin(ModelAdmin):
     autocomplete_fields = ["user", "plan"]
     actions = ["approve_requests", "reject_requests"]
 
-    def plan_as_html(self, obj: UserChangePlanRequest) -> str:
+    def requested_plan_as_html(self, obj: UserChangePlanRequest) -> str:
         try:
-            return get_plan_from_group_name(obj.plan)[0]
+            return get_plan_from_group_name(obj.plan.name)[0]
         except AttributeError:
             return "Plan not found"
+
+    requested_plan_as_html.short_description = "Requested Plan"  # type: ignore[attr-defined]
+
+    def current_plan_as_html(self, obj: UserChangePlanRequest) -> str:
+        try:
+            (label, f) = get_plan_from_user_groups(obj.user)
+            return label
+        except AttributeError:
+            return "Plan not found"
+
+    current_plan_as_html.short_description = "Current Plan"  # type: ignore[attr-defined]
+
+    def affiliation_with_link(self, obj: UserChangePlanRequest) -> str:
+        affiliation = " - "
+        url = ""
+        if hasattr(obj.user, "profile") and obj.user.profile.affiliation:
+            affiliation = obj.user.profile.affiliation
+        if hasattr(obj.user, "profile") and obj.user.profile.institutional_url:
+            url = f'<div><a href="{obj.user.profile.institutional_url}" target="_blank" style="word-break: break-all;text-decoration: underline">{obj.user.profile.institutional_url}</a><div>'
+        return format_html(affiliation + url)
 
     def status_as_html(self, obj: UserChangePlanRequest) -> str:
         """
         Returns an HTML string representing the status of a UserChangePlanRequest with appropriate styling based on its status.
         """
+        url_to_change = reverse(
+            "admin:impresso_userchangeplanrequest_change", args=[obj.pk]
+        )
         # When Rejected bg-red-500 outline-red-200 dark:outline-red-500/20
         # When Approved bg-green-500 outline-green-200 dark:outline-green-500/20
         # When Pending bg-primary-500 outline-primary-200 dark:outline-yellow-500/20
@@ -49,7 +78,9 @@ class UserChangePlanRequestAdmin(ModelAdmin):
                 <span>
                   {obj.get_status_display()}
                 </span>
+                
               </div>
+                <a class="block ml-4" href="{url_to_change}" style="text-decoration: underline" >change</a>
               """,
             coloured_class,
         )
@@ -81,7 +112,7 @@ class UserChangePlanRequestAdmin(ModelAdmin):
         except (TypeError, ValueError):
             return "Invalid JSON"
 
-    changelog_parsed.short_description = "Changes"  # type: ignore[attr-defined]
+    changelog_parsed.short_description = "Change Log"  # type: ignore[attr-defined]
 
     @admin.action(description="APPROVE selected requests")
     def approve_requests(self, request, queryset):
