@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from impresso.models import UserBitmap
-from impresso.models import DatasetBitmapPosition
+from impresso.models import SpecialMembershipDataset
 from ...utils.bitmask import BitMask64
 
 
@@ -34,10 +34,10 @@ class Command(BaseCommand):
         # )
         # get user subscriptions
         subscriptions = list(
-            user.bitmap.subscriptions.values("name", "bitmap_position")
+            user.bitmap.subscriptions.values("title", "bitmap_position")
         )
 
-        subscription_names = "\n ".join([s.get("name") for s in subscriptions])
+        subscription_names = "\n ".join([s.get("title") for s in subscriptions])
         # verify that the user subscription positions are correct
         self.stdout.write(f"User subscriptions: \n \033[34m{subscription_names}\033[0m")
         max_subscription_position = (
@@ -54,7 +54,7 @@ class Command(BaseCommand):
             "Verify other subscriptions til max user bitmap position (the rest should be 0)"
         )
         # get all possible subscriptions
-        all_subscriptions = DatasetBitmapPosition.objects.filter(
+        all_subscriptions = SpecialMembershipDataset.objects.filter(
             bitmap_position__lte=max_subscription_position
         ).order_by("bitmap_position")
 
@@ -64,13 +64,13 @@ class Command(BaseCommand):
             # Calculate the bit position from the end
             bit_position = max_subscription_position + 5 - position
             # Check if the bit at the specified position is 1
-            is_set = (user_bitmap & (1 << bit_position)) != 0
+            is_set = (int(user_bitmask) & (1 << bit_position)) != 0
             if is_set:
                 self.stdout.write(
-                    f"\033[34m {subscription.name} at position: {position} is set: {is_set}\033[0m"
+                    f"\033[34m {subscription.title} at position: {position} is set: {is_set}\033[0m"
                 )
             else:
                 self.stdout.write(
-                    f" {subscription.name} at position: {position} is set: {is_set}"
+                    f" {subscription.title} at position: {position} is set: {is_set}"
                 )
         self.stdout.write("\n---\nDone! \033[31m❤️\033[0m \n---\n")
