@@ -52,3 +52,10 @@ def post_save_user_change_plan_request(sender, instance, created, **kwargs):
     )
     if not "test" in sys.argv:
         after_change_plan_request_updated.delay(user_id=instance.user.pk)
+
+
+def post_save_user_special_membership_request(sender, instance, created, **kwargs):
+    logger.info(
+        f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
+    )
+    # Additional actions can be added here if needed when a UserSpecialMembershipRequest is saved.
