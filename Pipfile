@@ -15,8 +15,8 @@ pymysql = "*"
 python-dotenv = "*"
 pytz = "==2018.7"
 redis = "*"
-requests = {extras = ["socks"], version = "*"}
 sockslib = "*"
+requests = {extras = ["security"], version = "*"}
 
 [dev-packages]
 "flake8" = "*"
