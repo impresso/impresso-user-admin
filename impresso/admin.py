@@ -8,7 +8,7 @@ from .models import Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
-from .models import UserBitmap, DatasetBitmapPosition, UserRequest
+from .models import UserBitmap, SpecialMembershipDataset, UserSpecialMembershipRequest
 
 
 from django.utils.html import format_html
@@ -16,8 +16,8 @@ from .views.admin.user_admin import UserAdmin
 from .views.admin.user_change_plan_request_admin import UserChangePlanRequestAdmin
 
 
-@admin.register(UserRequest)
-class UserRequestAdmin(ModelAdmin):
+@admin.register(UserSpecialMembershipRequest)
+class UserSpecialMembershipRequestAdmin(ModelAdmin):
     list_display = (
         "user",
         "reviewer",
@@ -25,7 +25,7 @@ class UserRequestAdmin(ModelAdmin):
         "status",
         "date_created",
     )
-    search_fields = ["user__username", "subscription__name"]
+    search_fields = ["user__username", "subscription__title"]
     list_filter = ["status"]
     autocomplete_fields = ["user", "reviewer", "subscription"]
 
@@ -74,10 +74,10 @@ class UserBitmapAdmin(ModelAdmin):
     user_plan_display.short_description = "User Plan"  # type: ignore[attr-defined]
 
 
-@admin.register(DatasetBitmapPosition)
-class DatasetBitmapPositionAdmin(ModelAdmin):
-    list_display = ("name", "bitmap_position", "reviewer")
-    search_fields = ["name", "reviewer__username", "reviewer__email"]
+@admin.register(SpecialMembershipDataset)
+class SpecialMembershipDatasetAdmin(ModelAdmin):
+    list_display = ("title", "bitmap_position", "reviewer")
+    search_fields = ["title", "reviewer__username", "reviewer__email"]
     readonly_fields = ("bitmap_position",)
     autocomplete_fields = ["reviewer"]
 
