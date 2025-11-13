@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
-from ....models import Profile, UserBitmap, DatasetBitmapPosition
+from ....models import Profile, UserBitmap, SpecialMembershipDataset
 from ....utils.tasks.userBitmap import helper_update_user_bitmap
 import base64
 from django.utils import timezone
@@ -25,17 +25,17 @@ class TestUserBitmap(TestCase):
         self.groupPlanEducational = Group.objects.create(
             name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         )
-        self.test_subscription_domain_A = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST A archives",
+        self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(
+            title="Domain of TEST A archives",
         )
-        self.test_subscription_domain_B = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST B archives",
+        self.test_subscription_domain_B = SpecialMembershipDataset.objects.create(
+            title="Domain of TEST B archives",
         )
-        self.test_subscription_domain_C = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST C archives",
+        self.test_subscription_domain_C = SpecialMembershipDataset.objects.create(
+            title="Domain of TEST C archives",
         )
-        self.test_subscription_domain_D = DatasetBitmapPosition.objects.create(
-            name="Domain of TEST D archives",
+        self.test_subscription_domain_D = SpecialMembershipDataset.objects.create(
+            title="Domain of TEST D archives",
         )
 
     # helper_update_user_bitmap

@@ -15,7 +15,7 @@ from .job import Job
 from .attachment import Attachment
 from .uploadedImage import UploadedImage
 
-from .datasetBitmapPosition import DatasetBitmapPosition
+from .specialMembershipDataset import SpecialMembershipDataset
 from .userBitmap import UserBitmap
-from .userRequest import UserRequest
+from .userSpecialMembershipRequest import UserSpecialMembershipRequest
 from .userChangePlanRequest import UserChangePlanRequest

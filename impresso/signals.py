@@ -2,6 +2,8 @@ import logging
 import sys
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from impresso.models.userBitmap import UserBitmap
+from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from impresso.tasks import after_change_plan_request_updated
 
 logger = logging.getLogger(__name__)
@@ -52,3 +54,34 @@ def post_save_user_change_plan_request(sender, instance, created, **kwargs):
     )
     if not "test" in sys.argv:
         after_change_plan_request_updated.delay(user_id=instance.user.pk)
+
+
+def post_save_user_special_membership_request(
+    sender, instance: UserSpecialMembershipRequest, created, **kwargs
+):
+    logger.info(
+        f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
+    )
+    # Additional actions can be added here if needed when a UserSpecialMembershipRequest is saved.
+    # get user bitmap of instance.user
+    user_bitmap, created = UserBitmap.objects.get_or_create(user=instance.user)
+    logger.info(
+        f"User {instance.user.pk} has bitmap {bin(user_bitmap.get_bitmap_as_int())}, {'(just created)' if created else '(already existing)'}"
+    )
+
+    if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
+        user_bitmap.subscriptions.add(instance.subscription)
+
+    elif instance.status in [
+        UserSpecialMembershipRequest.STATUS_REJECTED,
+        UserSpecialMembershipRequest.STATUS_PENDING,
+    ]:
+        user_bitmap.subscriptions.remove(instance.subscription)
+        # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
+
+    if not "test" in sys.argv:
+        from impresso.tasks.userSpecialMembershipRequest_tasks import (
+            after_special_membership_request_updated,
+        )
+
+        after_special_membership_request_updated.delay(instance_id=instance.pk)

@@ -18,6 +18,7 @@ class UserChangePlanRequestAdmin(ModelAdmin):
     search_help_text = "Search by requester user id (numeric) or username"
     list_display = (
         "user",
+        "user__email",
         "affiliation_with_link",
         "current_plan_as_html",
         "requested_plan_as_html",

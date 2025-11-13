@@ -2,7 +2,7 @@ import logging
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
-from .datasetBitmapPosition import DatasetBitmapPosition
+from .specialMembershipDataset import SpecialMembershipDataset
 from django.db.models.signals import m2m_changed
 from ..utils.bitmask import int_to_bytes
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class UserBitmap(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bitmap")
     bitmap = models.BinaryField(editable=False, null=True, blank=True)
-    subscriptions = models.ManyToManyField(DatasetBitmapPosition, blank=True)
+    subscriptions = models.ManyToManyField(SpecialMembershipDataset, blank=True)
     # date of acceptance of the term of use
     date_accepted_terms = models.DateTimeField(null=True, blank=True)
     # Guest - Unregisted User	public	NA (True by default) used only for test purposes
@@ -29,11 +29,11 @@ class UserBitmap(models.Model):
     def get_up_to_date_bitmap(self) -> bytes:
         """
         Get the bitmap using the groups the user is affiliated to and the affiliations
-        to the DatasetBitmapPosition.
+        to the SpecialMembershipDataset.
         All users are 0b1 by default, and the bitmap is updated to 0b11 if the user has accepted the terms of use.
         The bitmap is updated to 0b111 if the user is affiliated to the educational group, or to
         0b1101 if the user is affiliated to the researcher group.
-        The remaining bits are defined by the user's affiliations to the DatasetBitmapPosition.
+        The remaining bits are defined by the user's affiliations to the SpecialMembershipDataset.
 
         Args:
             None
@@ -56,7 +56,7 @@ class UserBitmap(models.Model):
         # print current bitmap
         # print(f"current bitmap: {bitmap:05b}")
         # get all user subscriptions
-        subscriptions = list(self.subscriptions.values("name", "bitmap_position"))
+        subscriptions = list(self.subscriptions.values("title", "bitmap_position"))
         if not subscriptions:
             return int_to_bytes(value)
         # Set the bits for each subscription
@@ -132,7 +132,9 @@ class UserBitmap(models.Model):
 
 def update_user_bitmap_on_subscriptions_changed(sender, instance, action, **kwargs):
     if action == "post_add" or action == "post_remove" or action == "post_clear":
-        logger.info(f"User {instance.user} subscription changed, updating")
+        logger.info(
+            f"User {instance.user} subscription changed, updating. Action: {action}"
+        )
         instance.save()
 
 
