@@ -1,6 +1,21 @@
+from typing import Any, List, Optional, TypedDict
 from django.db import models
 from django.contrib.auth.models import User
 from .specialMembershipDataset import SpecialMembershipDataset
+from django.utils import timezone
+
+
+# --- Typing Definition for Changelog Entry ---
+class ChangelogEntry(TypedDict):
+    """
+    Defines the strict type structure for a special membership request changelog entry.
+    """
+
+    status: str  # e.g., "pending", "approved", "rejected"
+    subscription: Optional[str]  # The title of the subscription
+    date: str  # ISO formatted date string
+    reviewer: Optional[str]  # Username of the reviewer
+    notes: str  # Additional notes (guaranteed to be a string, not None)
 
 
 class UserSpecialMembershipRequest(models.Model):
@@ -70,18 +85,19 @@ class UserSpecialMembershipRequest(models.Model):
         verbose_name = "User Special Membership Request"
         verbose_name_plural = "User Special Membership Requests"
 
-    def save(self, *args, **kwargs):
-        if self.pk:
-            # Prepare the new changelog entry
-            changelog_entry = {
-                "status": self.status,
-                "subscription": self.subscription.title if self.subscription else None,
-                "date": self.date_last_modified.isoformat(),
-                "reviewer": self.reviewer.username if self.reviewer else None,
-                "notes": self.notes if self.notes else "",
-            }
-
-            # Append the new entry to the changelog list
-            self.changelog.append(changelog_entry)
-
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        changelog_entry: ChangelogEntry = {
+            "status": self.status,
+            "subscription": self.subscription.title if self.subscription else None,
+            "date": (
+                timezone.now().isoformat()
+                if not self.pk
+                else self.date_last_modified.isoformat()
+            ),
+            "reviewer": self.reviewer.username if self.reviewer else None,
+            "notes": self.notes if self.notes else "",
+        }
+        current_changelog: List[ChangelogEntry] = self.changelog or []
+        current_changelog.append(changelog_entry)
+        self.changelog = current_changelog  # Assign the updated list back
         super().save(*args, **kwargs)
