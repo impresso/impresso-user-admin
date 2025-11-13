@@ -3,26 +3,26 @@ from __future__ import absolute_import
 import time
 from celery.utils.log import get_task_logger
 from django.contrib.auth.models import User, Group
-from .celery import app
+from ..celery import app
 from celery import shared_task, chain
-from .models import Job, Collection, CollectableItem, SearchQuery, Attachment
-from .models import UserBitmap
-from .models import UserChangePlanRequest
-from .utils.tasks import (
+from ..models import Job, Collection, CollectableItem, SearchQuery, Attachment
+from ..models import UserBitmap
+from ..models import UserChangePlanRequest
+from ..utils.tasks import (
     TASKSTATE_INIT,
     update_job_progress,
     update_job_completed,
     is_task_stopped,
 )
-from .utils.tasks.collection import helper_update_collections_in_tr_passages_progress
-from .utils.tasks.textreuse import remove_collection_from_tr_passages
-from .utils.tasks.textreuse import add_tr_passages_query_results_to_collection
-from .utils.tasks.collection import (
+from ..utils.tasks.collection import helper_update_collections_in_tr_passages_progress
+from ..utils.tasks.textreuse import remove_collection_from_tr_passages
+from ..utils.tasks.textreuse import add_tr_passages_query_results_to_collection
+from ..utils.tasks.collection import (
     helper_remove_collection_progress,
     helper_store_collection_progress,
 )
-from .utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
-from .utils.tasks.account import (
+from ..utils.tasks.collection import METHOD_ADD_TO_INDEX, METHOD_DEL_FROM_INDEX
+from ..utils.tasks.account import (
     send_emails_after_user_registration,
     send_emails_after_user_activation,
     send_email_password_reset,
@@ -30,8 +30,10 @@ from .utils.tasks.account import (
     send_email_plan_change_accepted,
     send_email_plan_change_rejected,
 )
-from .utils.tasks.userBitmap import helper_update_user_bitmap
-from .utils.tasks.export import helper_export_query_as_csv_progress
+from ..utils.tasks.userBitmap import helper_update_user_bitmap
+from ..utils.tasks.export import helper_export_query_as_csv_progress
+
+from .userSpecialMembershipRequest_tasks import *
 
 logger = get_task_logger(__name__)
 
