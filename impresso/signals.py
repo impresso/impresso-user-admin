@@ -5,6 +5,9 @@ from django.contrib.auth.models import Group, User
 from impresso.models.userBitmap import UserBitmap
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from impresso.tasks import after_change_plan_request_updated
+from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    after_special_membership_request_updated,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +81,7 @@ def post_save_user_special_membership_request(
     ]:
         user_bitmap.subscriptions.remove(instance.subscription)
         # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
-
-    if not "test" in sys.argv:
-        from impresso.tasks.userSpecialMembershipRequest_tasks import (
-            after_special_membership_request_updated,
-        )
-
-        after_special_membership_request_updated.delay(instance_id=instance.pk)
+    if created:
+        task = after_special_membership_request_updated
+        execute = task if "test" in sys.argv else task.delay
+        execute(instance_id=instance.pk)
