@@ -26,7 +26,9 @@ class UserSpecialMembershipRequestTestCase(TestCase):
     """
 
     def setUp(self) -> None:
-        self.user = User.objects.create_user(username="testuser-sm", password="12345")
+        self.user = User.objects.create_user(
+            username="testuser-sm", password="12345", email="john@does.it"
+        )
         self.profile = Profile.objects.create(user=self.user, uid="local-testuser-sm")
 
         self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(

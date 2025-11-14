@@ -6,6 +6,9 @@ from impresso.models.specialMembershipDataset import SpecialMembershipDataset
 from celery import shared_task
 from ..celery import app
 from ..models.userSpecialMembershipRequest import UserSpecialMembershipRequest
+from impresso.utils.tasks.userSpecialMembershipRequest import (
+    send_email_after_user_special_membership_request_created,
+)
 
 logger = get_task_logger(__name__)
 
@@ -86,3 +89,7 @@ def after_special_membership_request_updated(self, instance_id: int) -> None:
     )
     # here we can add additional actions, e.g., notify the institution via email if there's a reviewer assigned
     # TODO: implement email notification to institution reviewer if needed
+    # notify the user
+    send_email_after_user_special_membership_request_created(
+        user_id=req.user.pk, user_special_membership_request_id=req.pk
+    )
