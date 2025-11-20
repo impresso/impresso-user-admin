@@ -5,6 +5,7 @@ from django.db.utils import IntegrityError
 from django.contrib.auth.models import Group
 
 from impresso.utils.tasks.account import (
+    send_email_plan_change,
     send_email_plan_change_accepted,
     send_email_plan_change_rejected,
 )
@@ -26,32 +27,7 @@ def create_change_plan_request(self, user_id: int, plan: str) -> Dict:
     """
     Create a change plan request for the user.
     """
-    try:
-        plan_as_group = Group.objects.get(name=plan)
-        # Django's .create() method handles looking up ForeignKey objects
-        # when provided with object IDs (user_id and subscription_id).
-        UserChangePlanRequest.objects.get_or_create(user_id=user_id, plan=plan_as_group)
-        logger.info(
-            f"Created UserChangePlanRequest for user_id={user_id} plan={plan_as_group.name}"
-        )
-        return {
-            "status": "created",
-            "message": "Request created successfully",
-            "user_id": user_id,
-            "plan": plan_as_group.name,
-        }
-    except IntegrityError:
-        # This catches the unique_together constraint violation (user, subscription)
-        # This is a common and important check to keep.
-        logger.error(
-            f"IntegrityError: Could not create UserChangePlanRequest for user_id={user_id} plan={plan_as_group.name} - request already exists. We just ignore."
-        )
-        return {
-            "status": "skipped_duplicate",
-            "message": "Request already exists",
-            "user_id": user_id,
-            "plan": plan_as_group.name,
-        }
+    send_email_plan_change(user_id=user_id, plan=plan, logger=logger)
 
 
 @app.task(
