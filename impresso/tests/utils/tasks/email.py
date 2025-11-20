@@ -42,6 +42,7 @@ class EmailUtilsTestCase(TestCase):
         # Common email parameters
         self.from_email = "noreply@example.com"
         self.to_emails = ["recipient@example.com"]
+        self.to_wrong_emails = ["invalid-email"]
         self.subject = "Test Email Subject"
 
         # Email context
@@ -163,8 +164,8 @@ class EmailUtilsTestCase(TestCase):
             send_templated_email_with_context(
                 template="test",
                 subject=self.subject,
-                from_email="invalid-email",  # Invalid format
-                to=self.to_emails,
+                from_email=self.from_email,  # Invalid format
+                to=self.to_wrong_emails,
                 context=self.context,
             )
 

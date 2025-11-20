@@ -17,6 +17,7 @@ pytz = "==2018.7"
 redis = "*"
 sockslib = "*"
 requests = {extras = ["security"], version = "*"}
+fakeredis = "*"
 
 [dev-packages]
 "flake8" = "*"

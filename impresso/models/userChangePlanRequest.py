@@ -1,5 +1,19 @@
+from typing import List, Optional, TypedDict
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.utils import timezone
+
+
+# --- Typing Definition for Changelog Entry ---
+class ChangelogEntry(TypedDict):
+    """
+    Defines the strict type structure for a change plan request changelog entry.
+    """
+
+    status: str  # e.g., "pending", "approved", "rejected"
+    plan: Optional[str]  # The title of the subscription
+    date: str  # ISO formatted date string
+    notes: str  # Additional notes (guaranteed to be a string, not None)
 
 
 class UserChangePlanRequest(models.Model):
@@ -7,6 +21,7 @@ class UserChangePlanRequest(models.Model):
     UserChangePlanRequest model
     This model represents a request made by a user to change their subscription plan.
     As soon as this model is saved and the status is STATUS_APPROVED or STATUS_REJECTED,
+    `impresso.signals.post_save_user_change_plan_request` signal is triggered, and
     the user groups are updated by the celery task `after_change_plan_request_updated`
 
     Note:
@@ -64,16 +79,18 @@ class UserChangePlanRequest(models.Model):
         verbose_name = "User Change Plan Request"
         verbose_name_plural = "User Change Plan Requests"
 
-    def save(self, *args, **kwargs):
-        if self.pk:
-            # Prepare the new changelog entry
-            changelog_entry = {
-                "status": self.status,
-                "plan": self.plan.name if self.plan else None,
-                "date": self.date_last_modified.isoformat(),
-                "notes": self.notes if self.notes else "",
-            }
-
-            # Append the new entry to the changelog list
-            self.changelog.append(changelog_entry)
+    def save(self, *args, **kwargs) -> None:
+        changelog_entry: ChangelogEntry = {
+            "status": self.status,
+            "plan": self.plan.name if self.plan else None,
+            "date": (
+                timezone.now().isoformat()
+                if not self.pk
+                else self.date_last_modified.isoformat()
+            ),
+            "notes": self.notes if self.notes else "",
+        }
+        current_changelog: List[ChangelogEntry] = self.changelog or []
+        current_changelog.append(changelog_entry)
+        self.changelog = current_changelog  # Assign the updated list back
         super().save(*args, **kwargs)

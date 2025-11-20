@@ -101,6 +101,10 @@ DATABASES = {
 }
 import sys
 
+TEST_RUNNER = "impresso.tests.test_runner.TestRunner"
+# Note: albeit this is not elegant,
+# the check for if "test" in sys.argv: works because sys.argv is available and the check runs immediately as the settings file is loaded,
+# which is before the database connections are established.
 if "test" in sys.argv:
     DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
     DATABASES["default"]["TEST"]["NAME"] = ":memory:"

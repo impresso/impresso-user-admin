@@ -23,6 +23,7 @@ class UserSpecialMembershipRequest(models.Model):
     UserRequest model represents a request made by a user for a subscription.
     Note: The unique_together constraint ensures that each user can only have one request per subscription,
         regardless of the reviewer. This is to prevent duplicate requests for the same subscription by the same user.
+    Check post_save_user_special_membership_request signal to handle the approval process.
 
     Attributes:
         STATUS_PENDING (str): Status indicating the request is pending.

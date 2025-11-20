@@ -3,8 +3,9 @@ import sys
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from impresso.models.userBitmap import UserBitmap
+from impresso.models.userChangePlanRequest import UserChangePlanRequest
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
-from impresso.tasks import after_change_plan_request_updated
+from impresso.tasks.userChangePlanRequest_task import after_change_plan_request_updated
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
     after_special_membership_request_updated,
 )
@@ -55,8 +56,14 @@ def post_save_user_change_plan_request(sender, instance, created, **kwargs):
     logger.info(
         f"@post_save UserChangePlanRequest for user={instance.user.pk} plan={instance.plan.name} status=instance.status"
     )
-    if not "test" in sys.argv:
-        after_change_plan_request_updated.delay(user_id=instance.user.pk)
+    if instance.status == UserChangePlanRequest.STATUS_APPROVED:
+        instance.user.groups.add(instance.plan)
+    elif instance.status in [
+        UserChangePlanRequest.STATUS_REJECTED,
+        UserChangePlanRequest.STATUS_PENDING,
+    ]:
+        instance.user.groups.remove(instance.plan)
+    after_change_plan_request_updated.delay(user_id=instance.user.pk)
 
 
 def post_save_user_special_membership_request(
@@ -81,7 +88,4 @@ def post_save_user_special_membership_request(
     ]:
         user_bitmap.subscriptions.remove(instance.subscription)
         # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
-    if created:
-        task = after_special_membership_request_updated
-        execute = task if "test" in sys.argv else task.delay
-        execute(instance_id=instance.pk)
+    after_special_membership_request_updated.delay(instance_id=instance.pk)

@@ -1,5 +1,5 @@
 from django.test import TransactionTestCase
-
+from django.conf import settings
 from impresso.models.profile import Profile
 from impresso.models.specialMembershipDataset import SpecialMembershipDataset
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
@@ -11,13 +11,15 @@ from django.contrib.auth.models import User
 
 class CreateSpecialMembershipRequestTaskTest(TransactionTestCase):
     """
-    THis test case verifies the behavior of the create_special_membership_request
+    This test case verifies the behavior of the create_special_membership_request
     Celery task, ensuring that it correctly handles the creation of special
     membership requests and appropriately deals with duplicate requests.
     """
 
     def setUp(self) -> None:
-        self.user = User.objects.create_user(username="testuser-sm", password="12345")
+        self.user = User.objects.create_user(
+            username="testuser-sm", password="12345", email="validemail@example.com"
+        )
         self.profile = Profile.objects.create(user=self.user, uid="local-testuser-sm")
 
         self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(
@@ -25,7 +27,7 @@ class CreateSpecialMembershipRequestTaskTest(TransactionTestCase):
         )
 
     def test_celery_task_fail_create_special_membership_request(self) -> None:
-        # first cretion should be just fine
+        # first creation should be just fine
         result_first = create_special_membership_request(
             user_id=self.user.id,
             subscription_id=self.test_subscription_domain_A.id,

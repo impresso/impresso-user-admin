@@ -4,8 +4,7 @@ import time
 from celery.utils.log import get_task_logger
 from django.contrib.auth.models import User, Group
 from ..celery import app
-from celery import shared_task, chain
-from ..models import Job, Collection, CollectableItem, SearchQuery, Attachment
+from ..models import Job, Collection, CollectableItem, , Attachment
 from ..models import UserBitmap
 from ..models import UserChangePlanRequest
 from ..utils.tasks import (
@@ -27,13 +26,13 @@ from ..utils.tasks.account import (
     send_emails_after_user_activation,
     send_email_password_reset,
     send_email_plan_change,
-    send_email_plan_change_accepted,
     send_email_plan_change_rejected,
 )
 from ..utils.tasks.userBitmap import helper_update_user_bitmap
 from ..utils.tasks.export import helper_export_query_as_csv_progress
 
 from .userSpecialMembershipRequest_tasks import *
+from .userChangePlanRequest_task import *
 
 logger = get_task_logger(__name__)
 
@@ -1001,67 +1000,6 @@ def remove_user_from_group_task(self, user_id: int, group_name: str) -> None:
     user.groups.remove(group)
 
 
-@app.task(
-    bind=True,
-    autoretry_for=(Exception,),
-    exponential_backoff=2,
-    retry_kwargs={"max_retries": 5},
-    retry_jitter=True,
-)
-def email_change_plan_request_accepted(self, user_id: int, plan: str) -> None:
-    logger.info(f"[user:{user_id}] sending email after plan change ACCEPTED")
-    send_email_plan_change_accepted(user_id=user_id, plan=plan, logger=logger)
-
-
-@app.task(
-    bind=True,
-    autoretry_for=(Exception,),
-    exponential_backoff=2,
-    retry_kwargs={"max_retries": 5},
-    retry_jitter=True,
-)
-def email_change_plan_request_rejected(self, user_id: int, plan: str) -> None:
-    logger.info(f"[user:{user_id}] sending email after plan change REJECTED")
-    send_email_plan_change_rejected(user_id=user_id, plan=plan, logger=logger)
-
-
-@app.task(
-    bind=True,
-    autoretry_for=(Exception,),
-    exponential_backoff=2,
-    retry_kwargs={"max_retries": 5},
-    retry_jitter=True,
-)
-def after_change_plan_request_updated(self, user_id: int) -> None:
-    """
-    Accepts user request (if it is not rejected!) then
-    sends an email notification for an accepted plan change request.
-
-    Args:
-        self: The task instance.
-        user_id (int): The ID of the user requesting the plan change.
-
-    Returns:
-        None
-    """
-    # get request
-    try:
-        req = UserChangePlanRequest.objects.get(user_id=user_id)
-    except UserChangePlanRequest.DoesNotExist:
-        logger.error(f"[user:{user_id}] UserChangePlanRequest.DoesNotExist")
-        return
-    logger.info(f"[user:{user_id}] plan change to {req.plan.name} status {req.status}")
-
-    if req.status == UserChangePlanRequest.STATUS_APPROVED:
-        chain(
-            add_user_to_group_task.si(user_id, req.plan.name),
-            email_change_plan_request_accepted.si(user_id, req.plan.name),
-        )()
-    elif req.status == UserChangePlanRequest.STATUS_REJECTED:
-        chain(
-            remove_user_from_group_task.si(user_id, req.plan.name),
-            email_change_plan_request_rejected.si(user_id, req.plan.name),
-        )()
 
 
 @app.task(

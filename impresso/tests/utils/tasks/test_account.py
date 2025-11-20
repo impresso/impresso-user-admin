@@ -203,7 +203,9 @@ class TestAccountPlanChange(TestCase):
         send_email_plan_change_accepted(
             user_id=self.user.id, plan=req.plan.name, logger=logger
         )
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            len(mail.outbox), 1, f"one email should be sent, received:{mail.outbox}"
+        )
         # Check that the body starts with Dear Jane, and contains the settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
         self.assertTrue(

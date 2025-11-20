@@ -42,8 +42,8 @@ class SpecialMembershipDataset(models.Model):
         return self.title
 
     class Meta:
-        verbose_name = "Special Membership Dataset"
-        verbose_name_plural = "Special Membership Datasets"
+        verbose_name = "Special Membership Access"
+        verbose_name_plural = "Special Membership Accesses"
 
     def save(self, *args, **kwargs):
         if self.bitmap_position is None:

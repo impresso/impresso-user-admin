@@ -90,7 +90,6 @@ def validate_email_addresses(emails: list[str]) -> None:
         ValidationError: If any email address is invalid.
     """
     for email in emails:
-        print(f"Validating email address: {email}")
         validate_email(email)
 
 
