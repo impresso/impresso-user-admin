@@ -11,6 +11,7 @@ from impresso.utils.tasks.userSpecialMembershipRequest import (
 )
 
 logger = get_task_logger(__name__)
+from ..signals import post_save_user_special_membership_request
 
 
 @shared_task(
@@ -28,7 +29,7 @@ def create_special_membership_request(self, user_id: int, subscription_id: int) 
     try:
         # Django's .create() method handles looking up ForeignKey objects
         # when provided with object IDs (user_id and subscription_id).
-        UserSpecialMembershipRequest.objects.create(
+        UserSpecialMembershipRequest.objects.get_or_create(
             user_id=user_id, subscription_id=subscription_id
         )
         logger.info(
@@ -52,6 +53,34 @@ def create_special_membership_request(self, user_id: int, subscription_id: int) 
             "user_id": user_id,
             "subscription_id": subscription_id,
         }
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def after_special_membership_request_created(self, instance_id: int) -> None:
+    """
+    THe request has been created outside of the flow in the admin panel.
+    In this case we should manually apply the post-create actions.
+
+    Args:
+        self: The task instance.
+        instance_id (int): The ID of the UserSpecialMembershipRequest instance that was created.
+    """
+    # get request
+    try:
+        req = UserSpecialMembershipRequest.objects.get(pk=instance_id)
+    except UserSpecialMembershipRequest.DoesNotExist:
+        logger.error(f"[UserSpecialMembershipRequest:{instance_id}] DoesNotExist :(")
+        return
+    logger.info(
+        f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
+    )
+    post_save_user_special_membership_request(instance=req, created=True)
 
 
 @app.task(
