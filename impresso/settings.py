@@ -162,7 +162,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # 'django.core.mail.backends.locmem.EmailBackend'
 EMAIL_HOST = get_env_variable("EMAIL_HOST", "smtp.")
 EMAIL_PORT = get_env_variable("EMAIL_PORT", 0)
-DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "info@")
+DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "donotexist@onlyfortest.it")
 # Celery
 REDIS_HOST = get_env_variable("REDIS_HOST", "localhost:6379")
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}/4"
