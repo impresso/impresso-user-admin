@@ -7,7 +7,7 @@ verify_ssl = true
 celery = "*"
 django = "==5.2.8"
 django-registration = "*"
-django-unfold = "*"
+django-unfold = "==0.72.0"
 gunicorn = "*"
 mypy = "*"
 pip = "*"
