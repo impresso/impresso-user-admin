@@ -6,7 +6,7 @@ from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRe
 from ...models import Profile, SpecialMembershipDataset
 
 
-class UserSpecialMembershipRequestTestCase(TestCase):
+class UserSpecialMembershipRequestTestCase(TransactionTestCase):
     """
     This test simulates the full lifecycle of a user's special membership request
     within the Impresso system, which grants access to specific archive datasets.
