@@ -20,6 +20,9 @@ class UserSpecialMembershipRequestTestCase(TransactionTestCase):
     request is REJECTED. Finally, the test validates a new request for Domain B,
     confirming no access is granted while the request is PENDING, and verifying
     correct subscription activation and bitmap update upon APPROVAL.
+
+    ENV=test pipenv run ./manage.py test impresso.tests.models.test_userSpecialMembershipRequest.UserSpecialMembershipRequestTestCase
+
     """
 
     def setUp(self) -> None:

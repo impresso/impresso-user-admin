@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 class UserBitmap(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bitmap")
     bitmap = models.BinaryField(editable=False, null=True, blank=True)
-    subscriptions = models.ManyToManyField(SpecialMembershipDataset, blank=True)
+    subscriptions = models.ManyToManyField(
+        SpecialMembershipDataset,
+        through="impresso.UserBitmapSubscription",
+        blank=True,
+    )
     # date of acceptance of the term of use
     date_accepted_terms = models.DateTimeField(null=True, blank=True)
     # Guest - Unregisted User	public	NA (True by default) used only for test purposes
