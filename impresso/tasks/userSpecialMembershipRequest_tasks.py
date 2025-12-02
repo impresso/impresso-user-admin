@@ -6,49 +6,44 @@ from impresso.models.specialMembershipDataset import SpecialMembershipDataset
 from celery import shared_task
 from ..celery import app
 from ..models.userSpecialMembershipRequest import UserSpecialMembershipRequest
+from impresso.utils.tasks.userSpecialMembershipRequest import (
+    apply_special_membership_to_bitmap,
+    send_email_after_user_special_membership_request_created,
+    send_email_after_user_special_membership_request_updated,
+)
 
 logger = get_task_logger(__name__)
 
 
-@shared_task(
+@app.task(
     bind=True,
     autoretry_for=(Exception,),
     exponential_backoff=2,
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def create_special_membership_request(self, user_id: int, subscription_id: int) -> Dict:
+def after_special_membership_request_created(self, instance_id: int) -> None:
     """
-    Celery task to create a new UserSpecialMembershipRequest. This is required because
-    the creation process involves custom save() logic and email handling after saving.
+    THe request has been created outside of the flow in the admin panel.
+    In this case we should manually apply the post-create actions.
+
+    Args:
+        self: The task instance.
+        instance_id (int): The ID of the UserSpecialMembershipRequest instance that was created.
     """
+    # get request
     try:
-        # Django's .create() method handles looking up ForeignKey objects
-        # when provided with object IDs (user_id and subscription_id).
-        UserSpecialMembershipRequest.objects.create(
-            user_id=user_id, subscription_id=subscription_id
-        )
-        logger.info(
-            f"Created UserSpecialMembershipRequest for user_id={user_id} subscription_id={subscription_id}"
-        )
-        return {
-            "status": "created",
-            "message": "Request created successfully",
-            "user_id": user_id,
-            "subscription_id": subscription_id,
-        }
-    except IntegrityError:
-        # This catches the unique_together constraint violation (user, subscription)
-        # This is a common and important check to keep.
-        logger.error(
-            f"IntegrityError: Could not create UserSpecialMembershipRequest for user_id={user_id} subscription_id={subscription_id} - request already exists. Skipping."
-        )
-        return {
-            "status": "skipped_duplicate",
-            "message": "Request already exists",
-            "user_id": user_id,
-            "subscription_id": subscription_id,
-        }
+        req = UserSpecialMembershipRequest.objects.get(pk=instance_id)
+    except UserSpecialMembershipRequest.DoesNotExist:
+        logger.error(f"[UserSpecialMembershipRequest:{instance_id}] DoesNotExist :(")
+        return
+    logger.info(
+        f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
+    )
+    apply_special_membership_to_bitmap(instance=req, created=True, logger=logger)
+    send_email_after_user_special_membership_request_created(
+        instance=req, logger=logger
+    )
 
 
 @app.task(
@@ -84,5 +79,7 @@ def after_special_membership_request_updated(self, instance_id: int) -> None:
     logger.info(
         f"[instance:{instance_id}] after_special_membership_request_updated for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
     )
-    # here we can add additional actions, e.g., notify the institution via email if there's a reviewer assigned
-    # TODO: implement email notification to institution reviewer if needed
+    apply_special_membership_to_bitmap(instance=req, created=False, logger=logger)
+    send_email_after_user_special_membership_request_updated(
+        instance=req, logger=logger
+    )

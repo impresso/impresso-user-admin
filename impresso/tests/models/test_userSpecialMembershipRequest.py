@@ -4,12 +4,9 @@ from django.utils import timezone
 
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from ...models import Profile, SpecialMembershipDataset
-from impresso.tasks.userSpecialMembershipRequest_tasks import (
-    create_special_membership_request,
-)
 
 
-class UserSpecialMembershipRequestTestCase(TestCase):
+class UserSpecialMembershipRequestTestCase(TransactionTestCase):
     """
     This test simulates the full lifecycle of a user's special membership request
     within the Impresso system, which grants access to specific archive datasets.
@@ -26,7 +23,9 @@ class UserSpecialMembershipRequestTestCase(TestCase):
     """
 
     def setUp(self) -> None:
-        self.user = User.objects.create_user(username="testuser-sm", password="12345")
+        self.user = User.objects.create_user(
+            username="testuser-sm", password="12345", email="john@does.it"
+        )
         self.profile = Profile.objects.create(user=self.user, uid="local-testuser-sm")
 
         self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(

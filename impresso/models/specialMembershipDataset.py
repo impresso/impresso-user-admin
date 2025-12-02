@@ -23,7 +23,7 @@ class SpecialMembershipDataset(models.Model):
 
     """
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, db_column="name")
     bitmap_position = models.PositiveIntegerField(
         unique=True,
         null=True,
@@ -42,8 +42,9 @@ class SpecialMembershipDataset(models.Model):
         return self.title
 
     class Meta:
-        verbose_name = "Special Membership Dataset"
-        verbose_name_plural = "Special Membership Datasets"
+        verbose_name = "Special Membership Access"
+        verbose_name_plural = "Special Membership Accesses"
+        db_table = "impresso_datasetbitmapposition"
 
     def save(self, *args, **kwargs):
         if self.bitmap_position is None:

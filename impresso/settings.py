@@ -101,6 +101,10 @@ DATABASES = {
 }
 import sys
 
+TEST_RUNNER = "impresso.tests.test_runner.TestRunner"
+# Note: albeit this is not elegant,
+# the check for if "test" in sys.argv: works because sys.argv is available and the check runs immediately as the settings file is loaded,
+# which is before the database connections are established.
 if "test" in sys.argv:
     DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
     DATABASES["default"]["TEST"]["NAME"] = ":memory:"
@@ -158,7 +162,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # 'django.core.mail.backends.locmem.EmailBackend'
 EMAIL_HOST = get_env_variable("EMAIL_HOST", "smtp.")
 EMAIL_PORT = get_env_variable("EMAIL_PORT", 0)
-DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "info@")
+DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "donotexist@onlyfortest.it")
 # Celery
 REDIS_HOST = get_env_variable("REDIS_HOST", "localhost:6379")
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}/4"
@@ -377,7 +381,7 @@ IMPRESSO_DEFAULT_GROUP_USERS = (
     (IMPRESSO_GROUP_USER_PLAN_RESEARCHER, IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL),
 )
 
-
+IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL = f"Impresso Team <{DEFAULT_FROM_EMAIL}>"
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC = "Access to Impresso"
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL = (
     "Access to Impresso - Student User Plan"
@@ -387,6 +391,21 @@ IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER = (
 )
 IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET = (
     "Password reset request for your Impresso account"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER = (
+    "Your Special Membership Request has been received"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER = (
+    "Your Special Membership Request is still pending review"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TO_USER = (
+    "Your Special Membership Request has been approved"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REJECTED_TO_USER = (
+    "Your Special Membership Request has been rejected"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_INSTITUTION = (
+    "A Special Membership Request has been submitted"
 )
 
 # Logging
