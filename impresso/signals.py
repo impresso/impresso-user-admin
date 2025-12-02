@@ -7,6 +7,7 @@ from impresso.models.userChangePlanRequest import UserChangePlanRequest
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from impresso.tasks.userChangePlanRequest_task import after_change_plan_request_updated
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    after_special_membership_request_created,
     after_special_membership_request_updated,
 )
 
@@ -67,25 +68,16 @@ def post_save_user_change_plan_request(sender, instance, created, **kwargs):
 
 
 def post_save_user_special_membership_request(
-    sender, instance: UserSpecialMembershipRequest, created, **kwargs
-):
+    sender, instance: UserSpecialMembershipRequest, created: bool, **kwargs
+) -> None:
+    """
+    Signal handler for post-save event of UserSpecialMembershipRequest model.
+    Triggers asynchronous tasks based on whether the instance was created or updated.
+    """
     logger.info(
         f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
     )
-    # Additional actions can be added here if needed when a UserSpecialMembershipRequest is saved.
-    # get user bitmap of instance.user
-    user_bitmap, created = UserBitmap.objects.get_or_create(user=instance.user)
-    logger.info(
-        f"User {instance.user.pk} has bitmap {bin(user_bitmap.get_bitmap_as_int())}, {'(just created)' if created else '(already existing)'}"
-    )
-
-    if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
-        user_bitmap.subscriptions.add(instance.subscription)
-
-    elif instance.status in [
-        UserSpecialMembershipRequest.STATUS_REJECTED,
-        UserSpecialMembershipRequest.STATUS_PENDING,
-    ]:
-        user_bitmap.subscriptions.remove(instance.subscription)
-        # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
-    after_special_membership_request_updated.delay(instance_id=instance.pk)
+    if created:
+        after_special_membership_request_created.delay(instance_id=instance.pk)
+    else:
+        after_special_membership_request_updated.delay(instance_id=instance.pk)

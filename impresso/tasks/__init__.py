@@ -4,7 +4,7 @@ import time
 from celery.utils.log import get_task_logger
 from django.contrib.auth.models import User, Group
 from ..celery import app
-from ..models import Job, Collection, CollectableItem, , Attachment
+from ..models import Job, Collection, CollectableItem, Attachment
 from ..models import UserBitmap
 from ..models import UserChangePlanRequest
 from ..utils.tasks import (
@@ -998,8 +998,6 @@ def remove_user_from_group_task(self, user_id: int, group_name: str) -> None:
     user = User.objects.get(id=user_id)
     group = Group.objects.get(name=group_name)
     user.groups.remove(group)
-
-
 
 
 @app.task(

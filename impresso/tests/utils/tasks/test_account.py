@@ -1,6 +1,6 @@
 import logging
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth.models import User, Group
 from impresso.models import UserChangePlanRequest
 from impresso.models import UserBitmap
@@ -17,7 +17,7 @@ from django.core import mail
 logger = logging.getLogger("console")
 
 
-class TestAccountPlanChangeToBasicUser(TestCase):
+class TestAccountPlanChangeToBasicUser(TransactionTestCase):
     """
     Test account plan change request
     ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestAccountPlanChangeToBasicUser
@@ -45,9 +45,9 @@ class TestAccountPlanChangeToBasicUser(TestCase):
         self.user.active = True
         self.user.save()
         send_emails_after_user_registration(self.user.id)
-        self.assertEqual(len(mail.outbox), 2)
-        print(mail.outbox[0].body)
-        print(mail.outbox[1].body)
+        self.assertEqual(
+            len(mail.outbox), 2, "two emails should be sent, one to user, one to staff"
+        )
         # clean outbox
         mail.outbox = []
         send_email_plan_change(
@@ -89,6 +89,7 @@ class TestAccountCreation(TestCase):
         create_default_groups(sender="impresso")
 
     def test_send_emails_after_user_registration(self):
+        mail.outbox = []
         send_emails_after_user_registration(self.user.id)
         self.assertEqual(len(mail.outbox), 2)
         # check the subject
@@ -102,6 +103,7 @@ class TestAccountCreation(TestCase):
         )
 
     def test_send_emails_after_educational_registration(self):
+        mail.outbox = []
         group_plan_educational = Group.objects.get(
             name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         )
@@ -116,6 +118,7 @@ class TestAccountCreation(TestCase):
         )
 
     def test_send_emails_after_researcher_registration(self):
+        mail.outbox = []
         group_plan_researcher = Group.objects.get(
             name=settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER
         )
@@ -132,7 +135,7 @@ class TestAccountCreation(TestCase):
         )
 
 
-class TestAccountPlanChange(TestCase):
+class TestAccountPlanChange(TransactionTestCase):
     """
     Test account plan change request
     ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestAccountPlanChange
@@ -199,13 +202,11 @@ class TestAccountPlanChange(TestCase):
         req.save()
         # add user to the group. Done using celery task
         self.user.groups.add(req.plan)
-        # manually send the email
-        send_email_plan_change_accepted(
-            user_id=self.user.id, plan=req.plan.name, logger=logger
-        )
+
         self.assertEqual(
             len(mail.outbox), 1, f"one email should be sent, received:{mail.outbox}"
         )
+        print(mail.outbox[0].body)
         # Check that the body starts with Dear Jane, and contains the settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
         self.assertTrue(

@@ -4,9 +4,6 @@ from django.utils import timezone
 
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from ...models import Profile, SpecialMembershipDataset
-from impresso.tasks.userSpecialMembershipRequest_tasks import (
-    create_special_membership_request,
-)
 
 
 class UserSpecialMembershipRequestTestCase(TestCase):

@@ -23,7 +23,7 @@ logger = get_task_logger(__name__)
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def create_change_plan_request(self, user_id: int, plan: str) -> Dict:
+def create_change_plan_request(self, user_id: int, plan: str) -> None:
     """
     Create a change plan request for the user.
     """

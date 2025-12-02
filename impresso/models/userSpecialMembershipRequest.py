@@ -85,6 +85,7 @@ class UserSpecialMembershipRequest(models.Model):
         unique_together = ("user", "subscription")
         verbose_name = "User Special Membership Request"
         verbose_name_plural = "User Special Membership Requests"
+        db_table = "impresso_userrequest"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         changelog_entry: ChangelogEntry = {
