@@ -4,14 +4,14 @@ from unfold.admin import ModelAdmin  # type: ignore
 from django.contrib.auth.models import User
 from django.utils.translation import ngettext
 from django.utils import timezone
+
+from impresso.models.userBitmapSubscription import UserBitmapSubscription
 from .models import Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
 from .models import UserBitmap, SpecialMembershipDataset, UserSpecialMembershipRequest
 
-
-from django.utils.html import format_html
 from .views.admin.user_admin import UserAdmin
 from .views.admin.user_change_plan_request_admin import UserChangePlanRequestAdmin
 
@@ -28,6 +28,15 @@ class UserSpecialMembershipRequestAdmin(ModelAdmin):
     search_fields = ["user__username", "subscription__title"]
     list_filter = ["status"]
     autocomplete_fields = ["user", "reviewer", "subscription"]
+
+
+@admin.register(UserBitmapSubscription)
+class UserBitmapSubscriptionAdmin(ModelAdmin):
+    list_display = (
+        "userbitmap__user__username",
+        "specialmembershipdataset",
+    )
+    autocomplete_fields = ["userbitmap"]
 
 
 @admin.register(UserBitmap)

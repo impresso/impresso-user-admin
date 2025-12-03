@@ -54,12 +54,18 @@ pipenv run ./manage.py runserver
 pipenv run celery -A impresso worker -l info
 ```
 
+Finally, use mypy to check for type errors:
+
+```sh
+pipenv run mypy --config-file ./.mypy.ini impresso
+```
+
 ### setup with pyenv + pipenv
 
 Follow the instruction to install [pyenv](https://github.com/pyenv/pyenv), motivation on this choice can be found on [hackernoon "Why you should use pyenv + Pipenv for your Python projects"](https://hackernoon.com/reaching-python-development-nirvana-bb5692adf30c)
 and more details on pyenv on [Managing Multiple Python Versions with pyenv](http://akbaribrahim.com/managing-multiple-python-versions-with-pyenv/)
 
-```
+```sh
 eval "$(pyenv init -)"
 cd /path/to/impresso-user-admin/
 pyenv version
@@ -68,19 +74,19 @@ pyenv version
 The last command gives you the version of the local python. If it doesn't meet the version number specified in Pipfile,
 use pyenv install command:
 
-```
+```sh
 pyenv install 3.12.4
 ```
 
 Use pip to install Pipenv:
 
-```
+```sh
 python -m pip install pipenv
 ```
 
 Then run
 
-```
+```sh
 pipenv --python 3.6.9 install
 ```
 
@@ -172,7 +178,7 @@ Test image locally:
 make run
 ```
 
-### Note on collection syncronisation between indices.
+### Note on collection syncronisation between indices. (now deprecated, see impresso-middle-layer for more details)
 
 Collections are simple identifiers assigned to a set of newspaper articles and stored in the `search` index. However, other indices (e.g. `tr_passages`) can be linked to a collection to allow cross-indices search.
 The task of creating a collection is a long running one because it uses a solr search query to filter the `content items` and a solr update request to add the collection tag to the various indices. Every search request is limited to `settings.IMPRESSO_SOLR_EXEC_LIMIT` rows (100 by default) and the number of loops is limited to the user `max_allowed_loops` parameter in the database and in general cannot be higher of `settings.IMPRESSO_SOLR_MAX_LOOPS` (100 recommended for a total of 100\*100 rows default max). Set both parameters in the `.env` file accordingly.

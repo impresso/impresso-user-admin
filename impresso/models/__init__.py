@@ -19,3 +19,5 @@ from .specialMembershipDataset import SpecialMembershipDataset
 from .userBitmap import UserBitmap
 from .userSpecialMembershipRequest import UserSpecialMembershipRequest
 from .userChangePlanRequest import UserChangePlanRequest
+
+from .userBitmapSubscription import UserBitmapSubscription
