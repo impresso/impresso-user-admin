@@ -36,6 +36,7 @@ class UserBitmapSubscriptionAdmin(ModelAdmin):
         "userbitmap__user__username",
         "specialmembershipdataset",
     )
+    autocomplete_fields = ["userbitmap"]
 
 
 @admin.register(UserBitmap)

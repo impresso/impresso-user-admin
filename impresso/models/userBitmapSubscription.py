@@ -16,3 +16,5 @@ class UserBitmapSubscription(models.Model):
     class Meta:
         db_table = "impresso_userbitmap_subscriptions"  # Your existing table name
         unique_together = [["userbitmap", "specialmembershipdataset"]]
+        verbose_name = "User Special Membership Access"
+        verbose_name_plural = "User Special Membership Accesses"
