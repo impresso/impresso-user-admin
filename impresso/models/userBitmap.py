@@ -30,7 +30,7 @@ class UserBitmap(models.Model):
 
     BITMAP_PLAN_MAX_LENGTH = 5
 
-    def get_up_to_date_bitmap(self) -> bytes:
+    def get_up_to_date_bitmap(self, ignore_accepted_terms=False) -> bytes:
         """
         Get the bitmap using the groups the user is affiliated to and the affiliations
         to the SpecialMembershipDataset.
@@ -46,7 +46,7 @@ class UserBitmap(models.Model):
             bytes: The user's bitmap as a byte array.
         """
         # if the user hasn't accepted terms of use, return the default bitmap
-        if not self.date_accepted_terms:
+        if not self.date_accepted_terms and not ignore_accepted_terms:
             return int_to_bytes(UserBitmap.USER_PLAN_GUEST)
 
         # get all groups the user is affiliated to as flat array, ordered by a-z
