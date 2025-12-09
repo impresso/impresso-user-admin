@@ -13,6 +13,7 @@ class ImpressoConfig(AppConfig):
         from .signals import (
             create_default_groups,
             post_save_user_change_plan_request,
+            post_save_user_special_membership_request,
         )
 
         post_migrate.connect(create_default_groups, sender="impresso")
@@ -20,4 +21,8 @@ class ImpressoConfig(AppConfig):
         post_save.connect(
             post_save_user_change_plan_request,
             sender="impresso.UserChangePlanRequest",
+        )
+        post_save.connect(
+            post_save_user_special_membership_request,
+            sender="impresso.UserSpecialMembershipRequest",
         )

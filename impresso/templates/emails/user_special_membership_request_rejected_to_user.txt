@@ -1,0 +1,11 @@
+Dear {{ user.first_name }},
+
+Thank you again for your interest in special membership access on Impresso.
+
+After a thorough review by our team, we regret to inform you that your request for the {{ user_special_membership_request.subscription.title }} option has been denied at this time.
+
+If you believe this decision was made in error or if you would like to submit additional information for reconsideration, please don't hesitate to reach out by replying to this email.
+
+We appreciate your understanding and hope you continue to enjoy the standard features of Impresso.
+
+The Impresso Team

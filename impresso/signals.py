@@ -2,7 +2,14 @@ import logging
 import sys
 from django.conf import settings
 from django.contrib.auth.models import Group, User
-from impresso.tasks import after_change_plan_request_updated
+from impresso.models.userBitmap import UserBitmap
+from impresso.models.userChangePlanRequest import UserChangePlanRequest
+from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
+from impresso.tasks.userChangePlanRequest_task import after_change_plan_request_updated
+from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    after_special_membership_request_created,
+    after_special_membership_request_updated,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,5 +57,27 @@ def post_save_user_change_plan_request(sender, instance, created, **kwargs):
     logger.info(
         f"@post_save UserChangePlanRequest for user={instance.user.pk} plan={instance.plan.name} status=instance.status"
     )
-    if not "test" in sys.argv:
-        after_change_plan_request_updated.delay(user_id=instance.user.pk)
+    if instance.status == UserChangePlanRequest.STATUS_APPROVED:
+        instance.user.groups.add(instance.plan)
+    elif instance.status in [
+        UserChangePlanRequest.STATUS_REJECTED,
+        UserChangePlanRequest.STATUS_PENDING,
+    ]:
+        instance.user.groups.remove(instance.plan)
+    after_change_plan_request_updated.delay(user_id=instance.user.pk)
+
+
+def post_save_user_special_membership_request(
+    sender, instance: UserSpecialMembershipRequest, created: bool, **kwargs
+) -> None:
+    """
+    Signal handler for post-save event of UserSpecialMembershipRequest model.
+    Triggers asynchronous tasks based on whether the instance was created or updated.
+    """
+    logger.info(
+        f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
+    )
+    if created:
+        after_special_membership_request_created.delay(instance_id=instance.pk)
+    else:
+        after_special_membership_request_updated.delay(instance_id=instance.pk)

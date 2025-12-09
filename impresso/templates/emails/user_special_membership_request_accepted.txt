@@ -1,0 +1,12 @@
+Dear {{ user.first_name }},
+
+We have fantastic news! Your request for special membership access has been approved!
+
+You now have full access to: {{ user_special_membership_request.subscription.title }}.
+
+You can begin using your new features and data immediately.
+
+If you have any questions about your new access, please don't hesitate to reach out.
+
+With best regards,
+The Impresso Team
