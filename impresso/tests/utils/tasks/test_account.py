@@ -48,7 +48,7 @@ class TestAccountActivationPlanRejected(TransactionTestCase):
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
         self.assertTrue(
             settings.IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL in mail.outbox[0].body,
-            f"should receive corrrect email:f{mail.outbox[0].body}",
+            f"should receive correct email:f{mail.outbox[0].body}",
         )
 
 
