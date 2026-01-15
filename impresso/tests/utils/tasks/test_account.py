@@ -9,12 +9,47 @@ from impresso.utils.tasks.account import (
     send_email_plan_change,
     send_email_plan_change_accepted,
     send_email_plan_change_rejected,
+    send_emails_after_user_activation_plan_rejected,
     send_emails_after_user_registration,
 )
 from django.utils import timezone
 from django.core import mail
 
 logger = logging.getLogger("console")
+
+
+class TestAccountActivationPlanRejected(TransactionTestCase):
+    """
+    Test account activation with plan rejected
+    ENV=test pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestAccountActivationPlanRejected
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            first_name="Jane",
+            last_name="Doe",
+            password="12345",
+            email="test@test.com",
+        )
+
+    def test_send_emails_after_user_activation_plan_rejected(self):
+        send_emails_after_user_activation_plan_rejected(
+            user_id=self.user.id,
+            logger=logger,
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        # check the subject
+        self.assertEqual(
+            mail.outbox[0].subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_ACTIVATION_PLAN_REJECTED_TO_USER,
+        )
+        # check content
+        self.assertTrue("Dear Jane," in mail.outbox[0].body)
+        self.assertTrue(
+            settings.IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL in mail.outbox[0].body,
+            f"should receive corrrect email:f{mail.outbox[0].body}",
+        )
 
 
 class TestAccountPlanChangeToBasicUser(TransactionTestCase):

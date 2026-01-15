@@ -3,6 +3,8 @@ import smtplib
 from logging import Logger
 from django.core import mail
 from django.contrib.auth.models import User, Group
+
+from impresso.utils.tasks.email import send_templated_email_with_context
 from ...models import UserChangePlanRequest
 from django_registration.backends.activation.views import RegistrationView
 from django.core.mail import EmailMultiAlternatives
@@ -155,7 +157,9 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
         logger.exception(f"user={user_id} Error sending email: {e} to staff")
 
 
-def send_emails_after_user_activation(user_id, logger=default_logger):
+def send_emails_after_user_activation(
+    user_id: int, logger: Logger = default_logger
+) -> None:
     logger.info(f"looking for user={user_id}...")
     try:
         user = User.objects.get(pk=user_id)
@@ -176,7 +180,7 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
     )
     try:
         emailMessage = EmailMultiAlternatives(
-            subject="Access granted to the impresso interface",
+            subject="Access granted to the Impresso interface",
             body=txt_content,
             from_email=f"Impresso Team <{settings.DEFAULT_FROM_EMAIL}>",
             to=[
@@ -193,6 +197,46 @@ def send_emails_after_user_activation(user_id, logger=default_logger):
     except Exception as e:
         logger.exception(f"Error sending email: {e}")
     logger.info(f"Password reset email sent to user={user_id}")
+
+
+def send_emails_after_user_activation_plan_rejected(
+    user_id: int, logger: Logger = default_logger
+) -> None:
+    """
+    Sends a notification email to the user informing them that their activation
+    has been processed, but they have been activated only on the BASIC plan.
+
+    Args:
+        user_id (int): The ID of the user to send the email to.
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+    Raises:
+        User.DoesNotExist: If no user with the given user_id is found.
+        Exception: If there is an error sending the email.
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        logger.error(f"user={user_id} NOT FOUND!")
+        return
+    send_templated_email_with_context(
+        template="account_activated_plan_rejected_to_user",
+        subject=settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_ACTIVATION_PLAN_REJECTED_TO_USER,
+        context={
+            "user": user,
+            "impresso_base_url": settings.IMPRESSO_BASE_URL,
+            "plan_label": settings.IMPRESSO_GROUP_USER_PLAN_BASIC_LABEL,
+        },
+        from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+        to=[
+            user.email,
+        ],
+        cc=[],
+        reply_to=[
+            settings.DEFAULT_FROM_EMAIL,
+        ],
+        logger=logger,
+        fail_silently=False,
+    )
 
 
 def send_email_password_reset(
