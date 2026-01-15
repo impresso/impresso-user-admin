@@ -5,6 +5,13 @@ on:
   push:
     branches:
       - develop
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - '**/*.md'
+      - '.github/**'
+      - '.cursorrules'
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
