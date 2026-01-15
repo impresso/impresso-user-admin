@@ -87,7 +87,7 @@ python -m pip install pipenv
 Then run
 
 ```sh
-pipenv --python 3.6.9 install
+pipenv --python 3.12 install
 ```
 
 To create and activate the virtualenv. Once in the shell, you can go back with the `exit` command and reactivate the virtualenv simply `pipenv shell`
@@ -124,36 +124,6 @@ Create multiple users at once, with randomly generated password.
 ENV=dev pipenv run ./manage.py createaccount guestA@uni.lu guestB@uni.lu
 ```
 
-Index a collection stored in the db using its <id>:
-
-```sh
-ENV=dev ./manage.py synccollection test-abcd
-```
-
-Export query as csv using (first argument being `user_id` then the solr query):
-
-```sh
-ENV=dev ./manage.py exportqueryascsv 1 "content_txt_fr:\"premier ministre portugais\""
-```
-
-Create (or get) a collection:
-
-```sh
-ENV=dev pipenv run ./manage.py createcollection "name of the collection" my-username
-```
-
-Then once you get the collection id, usually a concatenation of the creator profile uid and of the slugified version of the desired name, you can add query results to the collection:
-
-```sh
-ENV=dev pipenv run python ./manage.py addtocollectionfromquery local-user_name-of-the-collection "content_txt_fr:\"premier ministre portugais\""
-```
-
-Index a collection from a list of tr-passages ids resulting from a solr query:
-
-```sh
-ENV=dev pipenv run python ./manage.py addtocollectionfromtrpassagesquery local-dg-abcde "cluster_id_s:tr-nobp-all-v01-c8590083914"
-```
-
 Stop a specific job from command line:
 
 ```sh
@@ -165,7 +135,7 @@ ENV=dev pipenv run python ./manage.py stopjob 1234
 Specify the environment variable `ENV=test` to run the tests with the `console` email backend:
 
 ```sh
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend ENV=dev pipenv run ./manage.py test
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend ENV=test pipenv run ./manage.py test
 ```
 
 ## Use in production
@@ -177,13 +147,6 @@ Test image locally:
 ```
 make run
 ```
-
-### Note on collection syncronisation between indices. (now deprecated, see impresso-middle-layer for more details)
-
-Collections are simple identifiers assigned to a set of newspaper articles and stored in the `search` index. However, other indices (e.g. `tr_passages`) can be linked to a collection to allow cross-indices search.
-The task of creating a collection is a long running one because it uses a solr search query to filter the `content items` and a solr update request to add the collection tag to the various indices. Every search request is limited to `settings.IMPRESSO_SOLR_EXEC_LIMIT` rows (100 by default) and the number of loops is limited to the user `max_allowed_loops` parameter in the database and in general cannot be higher of `settings.IMPRESSO_SOLR_MAX_LOOPS` (100 recommended for a total of 100\*100 rows default max). Set both parameters in the `.env` file accordingly.
-
-The task of creating a collection is delegated to the _Celery_ task manager and a `Job` instance stored in the database is assigned to the task to allow the follow-up of the task progress. The task is executed asynchronously. In the future releases, the user will be notified via email when the task is completed (still todo).
 
 ### Using a proxy
 
