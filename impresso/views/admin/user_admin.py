@@ -14,7 +14,7 @@ from unfold.admin import ModelAdmin  # type: ignore
 from unfold.decorators import action  # type: ignore
 from unfold.views import UnfoldModelAdminViewMixin  # type: ignore
 
-from impresso.tasks import after_user_activation
+from impresso.tasks import after_user_activation, after_user_activation_plan_rejected
 from impresso.utils.models.user import (
     get_plan_from_user_groups,
     get_plan_from_group_name,
@@ -89,6 +89,18 @@ class ToggleStatus(UnfoldModelAdminViewMixin, TemplateView):
         elif user.is_active and request.POST.get("activation_mode") == "silently":
             # DO NOT SEND EMAIL
             messages.success(request, "User status toggled to active, no email sent.")
+        elif user.is_active and request.POST.get("activation_mode") == "plan_rejected":
+            basic_plan_group = Group.objects.get(
+                name=settings.IMPRESSO_GROUP_USER_PLAN_BASIC
+            )
+            user.groups.clear()
+            user.groups.add(basic_plan_group)
+
+            after_user_activation_plan_rejected.delay(user_id=user.pk)
+            messages.success(
+                request,
+                "User status toggled to active on BASIC PLAN, email sent.",
+            )
         else:
             messages.success(
                 request,
