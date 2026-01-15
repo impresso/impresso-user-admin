@@ -2,14 +2,13 @@
 
 ## Repository Overview
 
-This is a Django application that manages user-related information for the Impresso project's Master DB. The application uses **Celery** as the background task processing system for handling asynchronous operations like email sending, data exports, and collection management.
+This is a Django application that manages user-related information for the Impresso project's Master DB. The application uses **Celery** as the background task processing system for handling asynchronous operations like email sending and user account management.
 
 ## Technology Stack
 
 - **Framework**: Django (Python 3.12+)
 - **Task Queue**: Celery with Redis as the broker
 - **Database**: MySQL (managed via pymysql)
-- **Search**: Apache Solr
 - **Dependency Management**: pipenv
 - **Type Checking**: mypy
 - **Containerization**: Docker & docker-compose
@@ -25,8 +24,7 @@ impresso-user-admin/
 │   ├── tasks/                 # Celery task definitions
 │   ├── utils/
 │   │   └── tasks/            # Task helper functions and utilities
-│   ├── tests/                # Test suite
-│   └── solr/                 # Solr integration utilities
+│   └── tests/                # Test suite
 ├── .github/
 │   ├── agents/               # Agent-specific instructions
 │   └── copilot-instructions.md
@@ -44,11 +42,8 @@ The application organizes Celery tasks into two main directories:
    - `userSpecialMembershipRequest_tasks.py` - Special membership tasks
 
 2. **`impresso/utils/tasks/`** - Contains helper functions used by tasks
-   - `__init__.py` - Common utilities (pagination, job progress tracking)
+   - `__init__.py` - Common utilities (job progress tracking)
    - `account.py` - User account and email operations
-   - `collection.py` - Collection management in Solr
-   - `export.py` - Data export to CSV/ZIP
-   - `textreuse.py` - Text reuse passage operations
    - `userBitmap.py` - User permission bitmap updates
    - `email.py` - Email rendering and sending utilities
    - `userSpecialMembershipRequest.py` - Special membership operations
@@ -57,7 +52,6 @@ The application organizes Celery tasks into two main directories:
 
 Common task utilities are provided in `impresso/utils/tasks/__init__.py`:
 
-- `get_pagination()` - Calculate pagination for Solr queries with user limits
 - `update_job_progress()` - Update job status and progress in DB and Redis
 - `update_job_completed()` - Mark a job as completed
 - `is_task_stopped()` - Check if user has stopped a job
@@ -116,7 +110,7 @@ def my_task(self, user_id: int) -> None:
 ### Logging
 
 - Use structured logging with context: `logger.info(f"[job:{job.pk} user:{user.pk}] message")`
-- Include relevant IDs in log messages (job, user, collection, etc.)
+- Include relevant IDs in log messages (job, user, etc.)
 - Use appropriate log levels: DEBUG, INFO, WARNING, ERROR, EXCEPTION
 - Get logger via `get_task_logger(__name__)` in task files
 - Use default_logger pattern: `default_logger = logging.getLogger(__name__)` in utility files
@@ -137,14 +131,7 @@ def my_task(self, user_id: int) -> None:
 - Handle SMTP exceptions gracefully
 - Log email sending status
 
-### Solr Integration
 
-- Use helper functions from `impresso/solr/` module
-- Respect `settings.IMPRESSO_SOLR_EXEC_LIMIT` for query limits
-- Respect `settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS` for maximum iterations
-- Consider user's `max_loops_allowed` profile setting
-- Use `find_all()` for queries and `update()` for updates
-- Handle both main index and passages index (`IMPRESSO_SOLR_PASSAGES_URL_*`)
 
 ### Job Management
 
@@ -152,7 +139,6 @@ def my_task(self, user_id: int) -> None:
 - Update job progress using `update_job_progress()`
 - Check for user-initiated stops with `is_task_stopped()`
 - Store task metadata in job.extra field as JSON
-- Include pagination info in job updates
 
 ## Testing
 
@@ -183,7 +169,7 @@ EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend ENV=dev pipenv run 
 - Name test methods descriptively: `test_send_email_plan_change`
 - Use assertions that provide clear failure messages
 - Test both success and error cases
-- Mock external services (SMTP, Solr) when appropriate
+- Mock external services (SMTP) when appropriate
 - Test with different user plans and permissions
 
 ## Development Workflow
@@ -223,14 +209,11 @@ pipenv run mypy --config-file ./.mypy.ini impresso
 # Create accounts
 ENV=dev pipenv run ./manage.py createaccount user@example.com
 
-# Sync collection
-ENV=dev pipenv run ./manage.py synccollection <collection-id>
-
-# Export query as CSV
-ENV=dev pipenv run ./manage.py exportqueryascsv <user_id> "<solr_query>"
-
 # Stop a job
 ENV=dev pipenv run ./manage.py stopjob <job_id>
+
+# Update user bitmap
+ENV=dev pipenv run ./manage.py updateuserbitmap <user_id>
 ```
 
 ## Security Considerations
@@ -240,8 +223,6 @@ ENV=dev pipenv run ./manage.py stopjob <job_id>
 - Validate and sanitize user inputs
 - Use Django's built-in security features
 - Respect user permissions and bitmap access controls
-- Use `mapper_doc_remove_private_collections()` to filter user content
-- Apply `mapper_doc_redact_contents()` for content protection based on user bitmap
 
 ## Configuration
 

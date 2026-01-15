@@ -40,9 +40,6 @@ Agent-specific instruction files in `.github/agents/` provide detailed guidance 
 
 - **Background Processing**: Celery with Redis for asynchronous tasks
 - **User Management**: Django authentication with custom user plans and permissions
-- **Search Integration**: Apache Solr for content search and indexing
-- **Export Functionality**: CSV/ZIP export of search results with user access controls
-- **Collection Management**: User-created collections of content items
 - **Email Notifications**: Multi-format emails (text + HTML) for user actions
 
 ## Technology Stack
@@ -51,7 +48,6 @@ Agent-specific instruction files in `.github/agents/` provide detailed guidance 
 - Django web framework
 - Celery task queue with Redis
 - MySQL database
-- Apache Solr search
 - Docker for containerization
 - pipenv for dependency management
 - mypy for type checking
@@ -62,13 +58,12 @@ Agent-specific instruction files in `.github/agents/` provide detailed guidance 
 - **`impresso/tasks/`** - Celery task definitions with decorators
 - **`impresso/utils/tasks/`** - Helper functions used by tasks
 - Job progress tracking via database and Redis
-- User-based execution limits and permissions
+- User-based permissions
 
 ### User Permissions
 - User groups for different plans (Basic, Researcher, Educational)
 - UserBitmap for fine-grained access control
-- Content redaction based on user permissions
-- Profile with execution limits (max_loops_allowed)
+- Profile with user-specific settings
 
 ### Development Workflow
 ```bash

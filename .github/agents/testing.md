@@ -6,7 +6,7 @@ This agent specializes in writing and maintaining tests for the impresso-user-ad
 
 - Writing Django unit tests and integration tests
 - Testing Celery tasks and async operations
-- Mocking external services (Solr, SMTP)
+- Mocking external services (SMTP)
 - Testing email functionality
 - Database transaction testing
 - User permission and access control testing
@@ -35,7 +35,6 @@ The project uses Django's built-in testing framework based on unittest.
 impresso/tests/
 ├── __init__.py
 ├── test_runner.py          # Custom test runner
-├── test_solr.py            # Solr integration tests
 ├── models/                 # Model tests
 ├── tasks/                  # Task tests
 │   ├── __init__.py
@@ -363,41 +362,6 @@ def test_validation_error(self):
 
 ## Mocking External Services
 
-### Mocking Solr
-
-```python
-from unittest.mock import patch, MagicMock
-
-@patch('impresso.solr.find_all')
-def test_with_mocked_solr(self, mock_find_all):
-    """Test function with mocked Solr response."""
-    # Setup mock response
-    mock_find_all.return_value = {
-        "response": {
-            "numFound": 10,
-            "docs": [
-                {"id": "doc-1", "title": "Test Document"},
-                {"id": "doc-2", "title": "Another Document"},
-            ]
-        },
-        "responseHeader": {"QTime": 5}
-    }
-    
-    # Call function that uses Solr
-    result = function_using_solr(query="test")
-    
-    # Verify mock was called correctly
-    mock_find_all.assert_called_once_with(
-        q="test",
-        fl="id,title",
-        skip=0,
-        logger=mock.ANY
-    )
-    
-    # Check result
-    self.assertEqual(len(result), 2)
-```
-
 ### Mocking SMTP
 
 ```python
@@ -418,35 +382,23 @@ def test_email_smtp_error(self, mock_smtp):
 ## Testing Database Models
 
 ```python
-from impresso.models import Collection, CollectableItem
+from impresso.models import UserBitmap
 
 def test_model_creation(self):
     """Test model instance creation."""
-    collection = Collection.objects.create(
-        name="Test Collection",
-        creator=self.user,
-        description="Test description"
+    user_bitmap = UserBitmap.objects.create(
+        user=self.user
     )
     
-    self.assertEqual(collection.name, "Test Collection")
-    self.assertEqual(collection.creator, self.user)
-    self.assertIsNotNone(collection.date_created)
+    self.assertEqual(user_bitmap.user, self.user)
+    self.assertIsNotNone(user_bitmap.date_created)
 
 def test_model_relationships(self):
     """Test model relationships."""
-    collection = Collection.objects.create(
-        name="Test Collection",
-        creator=self.user
-    )
-    
-    item = CollectableItem.objects.create(
-        collection=collection,
-        content_id="test-doc-1"
-    )
+    user_bitmap = UserBitmap.objects.get(user=self.user)
     
     # Test relationship
-    self.assertEqual(item.collection, collection)
-    self.assertEqual(collection.collectableitem_set.count(), 1)
+    self.assertEqual(user_bitmap.user, self.user)
 ```
 
 ## Common Assertions
@@ -464,10 +416,10 @@ self.assertFalse(condition)
 self.assertIsNone(value)
 self.assertIsNotNone(value)
 
-# Collections
-self.assertIn(item, collection)
-self.assertNotIn(item, collection)
-self.assertEqual(len(collection), expected_length)
+# Collections (lists, sets, etc.)
+self.assertIn(item, list_or_set)
+self.assertNotIn(item, list_or_set)
+self.assertEqual(len(list_or_set), expected_length)
 
 # Strings
 self.assertIn("substring", text)

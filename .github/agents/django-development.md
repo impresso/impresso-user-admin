@@ -52,11 +52,9 @@ impresso/
 ### Key Models
 
 - **User** - Django's built-in User model (from `django.contrib.auth.models`)
-- **Profile** - User profile with `uid` and `max_loops_allowed`
+- **Profile** - User profile with `uid`
 - **UserBitmap** - User access permissions as bitmap
 - **Job** - Tracks asynchronous background tasks
-- **Collection** - User-created collections of content items
-- **CollectableItem** - Items within collections
 - **UserChangePlanRequest** - Plan upgrade/downgrade requests
 - **UserSpecialMembershipRequest** - Special membership requests
 
@@ -242,12 +240,10 @@ Key management commands in the project:
 
 - `createaccount` - Create user accounts with random passwords
 - `createsuperuser` - Create admin user (built-in Django command)
-- `synccollection` - Sync a collection to Solr index
-- `exportqueryascsv` - Export Solr query results as CSV
 - `createcollection` - Create or get a collection
-- `addtocollectionfromquery` - Add query results to collection
-- `addtocollectionfromtrpassagesquery` - Add TR passages to collection
 - `stopjob` - Stop a running job
+- `updateuserbitmap` - Update user bitmap
+- `updatespecialmembership` - Update special membership status
 
 ## Settings Management
 
@@ -300,15 +296,8 @@ CELERY_BROKER_URL = os.environ.get('REDIS_HOST', 'redis://localhost:6379')
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
-# Solr
-IMPRESSO_SOLR_URL = os.environ.get('IMPRESSO_SOLR_URL')
-IMPRESSO_SOLR_USER = os.environ.get('IMPRESSO_SOLR_USER')
-IMPRESSO_SOLR_PASSWORD = os.environ.get('IMPRESSO_SOLR_PASSWORD')
-
 # Custom settings
 IMPRESSO_BASE_URL = os.environ.get('IMPRESSO_BASE_URL')
-IMPRESSO_SOLR_EXEC_LIMIT = 100
-IMPRESSO_SOLR_EXEC_MAX_LOOPS = 100
 ```
 
 ## Django Signals
@@ -401,13 +390,9 @@ def user_has_no_redaction(user):
 
 ```python
 def get_user_limits(user):
-    """Get user's execution limits."""
+    """Get user's profile information."""
     profile = user.profile
     return {
-        'max_loops': min(
-            profile.max_loops_allowed,
-            settings.IMPRESSO_SOLR_EXEC_MAX_LOOPS
-        ),
         'uid': profile.uid,
     }
 ```
