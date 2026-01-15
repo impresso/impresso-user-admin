@@ -174,25 +174,23 @@ class Job(models.Model):
 ```python
 class Command(BaseCommand):
     """
-    Export Solr query results to CSV file.
+    Create a user account with random password.
     
-    This command executes a Solr query and exports the results to a CSV
-    file, respecting user permissions and access controls. The export
-    is performed as an asynchronous Celery task with progress tracking.
+    This command creates a new user account with a randomly generated
+    password and assigns them to the default user plan (Basic).
     
     Usage:
-        ENV=dev pipenv run ./manage.py exportqueryascsv USER_ID "QUERY"
+        ENV=dev pipenv run ./manage.py createaccount EMAIL [EMAIL ...]
         
     Examples:
-        # Export French content mentioning "ministre"
-        ENV=dev pipenv run ./manage.py exportqueryascsv 1 "content_txt_fr:ministre"
+        # Create a single account
+        ENV=dev pipenv run ./manage.py createaccount user@example.com
         
-        # Export with specific date range
-        ENV=dev pipenv run ./manage.py exportqueryascsv 1 "content_txt_fr:* AND date_i:[1900 TO 1950]"
+        # Create multiple accounts at once
+        ENV=dev pipenv run ./manage.py createaccount user1@example.com user2@example.com
     
     Output:
-        Creates a ZIP file containing the CSV export in the user's
-        upload directory.
+        Prints the generated password for each created account.
     """
 ```
 
@@ -299,8 +297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release with core features
 - User authentication and authorization
 - Celery task processing
-- Collection management
-- Export functionality
+- Email notification system
+- User bitmap permissions
 
 [Unreleased]: https://github.com/impresso/impresso-user-admin/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/impresso/impresso-user-admin/releases/tag/v1.0.0

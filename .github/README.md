@@ -29,7 +29,7 @@ GitHub Copilot automatically reads `.github/copilot-instructions.md` to understa
 
 ### For Specialized Agents
 Agent-specific instruction files in `.github/agents/` provide detailed guidance for:
-- Celery task development with job tracking and Solr integration
+- Celery task development with job tracking
 - Django models, views, admin interface, and management commands
 - Writing comprehensive tests with proper mocking and assertions
 - Creating and maintaining project documentation
