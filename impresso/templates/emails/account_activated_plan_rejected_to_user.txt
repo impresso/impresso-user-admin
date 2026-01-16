@@ -1,0 +1,26 @@
+Dear {{user.first_name}},
+
+Your account has been activated as a {{plan_label}} because the information provided during registration did not include 
+sufficient evidence of student enrolment (for Student User plan) or an academic affiliation (for Academic User plan).
+
+If you would like to upgrade your account to a Student or Academic plan, please log in and click on
+“Request a change of plan” (top-right menu in your profile).
+
+For Student access: You must provide a valid student email address from your university 
+(personal providers such as Gmail or Outlook are not accepted).
+
+For Academic access: Please provide a link in the institution URL field to your researcher profile page 
+on your university’s website. If you do not have such a profile page, you may alternatively email us a 
+proof of your enrolment as a researcher at an academic institution. 
+Please note that if your job title is not academic (researcher, professor, lecturer, etc.) you are 
+unfortunately not eligible for Academic access.
+
+We apply these requirements to comply with copyright restrictions and the conditions set by our content providers 
+while maximising research opportunities.
+
+If you have any questions about our user plan policies, please visit our terms of use page
+at {{ impresso_base_url }}/app/terms-of-use
+You can also reach out to us via email on info@impresso-project.ch.
+
+With best wishes,
+The Impresso team
