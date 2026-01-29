@@ -57,6 +57,7 @@ Common task utilities are provided in `impresso/utils/tasks/__init__.py`:
 - `is_task_stopped()` - Check if user has stopped a job
 
 Task states:
+
 - `TASKSTATE_INIT` - Task initialization
 - `TASKSTATE_PROGRESS` - Task in progress
 - `TASKSTATE_SUCCESS` - Task completed successfully
@@ -89,6 +90,7 @@ Task states:
 - Use structured logging with task context (job_id, user_id)
 
 Example task pattern:
+
 ```python
 from celery import shared_task
 from celery.utils.log import get_task_logger
@@ -130,8 +132,6 @@ def my_task(self, user_id: int) -> None:
 - Always include both text and HTML versions
 - Handle SMTP exceptions gracefully
 - Log email sending status
-
-
 
 ### Job Management
 
@@ -203,7 +203,10 @@ ENV=dev pipenv run celery -A impresso worker -l info
 pipenv run mypy --config-file ./.mypy.ini impresso
 ```
 
-### Common Commands
+### Django custom Commands
+
+- Custom management commands are located in `impresso/management/commands/`
+- Example commands include creating accounts, stopping jobs, and updating user bitmaps.
 
 ```bash
 # Create accounts
@@ -215,6 +218,23 @@ ENV=dev pipenv run ./manage.py stopjob <job_id>
 # Update user bitmap
 ENV=dev pipenv run ./manage.py updateuserbitmap <user_id>
 ```
+
+Example command structure, use help and logging extensively for clarity nd ALWAYS use typings as much as possible:
+
+```python
+from django.core.management.base import BaseCommand
+
+class Command(BaseCommand):
+    help = "Check pending special membership requests for a user"
+
+    def add_arguments(self, parser) -> None:
+        parser.add_argument("username", type=str)
+
+    def handle(self, username:str, *args, **options) -> None:
+        self.stdout.write(f"Get user with username: {username}")
+```
+
+- when creating a new command, be
 
 ## Security Considerations
 
@@ -250,3 +270,13 @@ When adding new Celery tasks:
 - Main repository: https://github.com/impresso/impresso-user-admin
 - Impresso project: https://impresso-project.ch
 - License: GNU Affero General Public License v3.0
+
+## Adding new email templates and sending emails
+
+When adding new email templates:
+
+1. Create both `.txt` and `.html` versions in `impresso/templates/emails/`
+2. Use consistent naming conventions (e.g., `plan_change_request_email.txt` and `plan_change_request_email.html`)
+3. Use context variables for dynamic content
+4. use the method `send_templated_email_with_context()` from `impresso/utils/tasks/email.py` to send emails
+5. Handle SMTP exceptions and log email sending status in STRERR appropriately using logging library
