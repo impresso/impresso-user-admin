@@ -193,6 +193,7 @@ class Command(BaseCommand):
             "reviewer": reviewer,
             "latest_requests": latest_requests,
             "total_count": request_count,
+            "settings": settings,
         }
 
         if dry_run:

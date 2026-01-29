@@ -279,3 +279,4 @@ When adding new email templates:
 2. Use consistent naming conventions (e.g., `plan_change_request_email.txt` and `plan_change_request_email.html`)
 3. Use context variables for dynamic content
 4. use the method `send_templated_email_with_context()` from `impresso/utils/tasks/email.py` to send emails
+5. Handle SMTP exceptions and log email sending status in STRERR appropriately using logging library

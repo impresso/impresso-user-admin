@@ -174,7 +174,10 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
 )
 
 IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
-
+IMPRESSO_INSTITUTIONS_ACCESS_URL = get_env_variable(
+    "IMPRESSO_INSTITUTIONS_ACCESS_URL",
+    "https://impresso-project.ch/app/institutions-access",
+)
 # Solr
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
 IMPRESSO_SOLR_URL_UPDATE = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "update")

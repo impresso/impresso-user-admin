@@ -14,7 +14,9 @@ Here are the 3 most recent requests:
 ...and {{ total_count|add:"-3" }} more request{{ total_count|add:"-3"|pluralize }}.
 {% endif %}
 
-Please review these requests at your earliest convenience. You can manage all pending requests through the admin interface.
+Please review these requests at your earliest convenience. You can manage all pending requests through the admin interface:
+
+{{ settings.IMPRESSO_INSTITUTIONS_ACCESS_URL }}
 
 Best regards,
 The Impresso Team
