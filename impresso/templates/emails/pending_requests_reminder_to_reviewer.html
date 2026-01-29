@@ -1,0 +1,61 @@
+Dear {{ reviewer.first_name }},
+
+<p>
+  We hope this message finds you well. This is a friendly reminder that you have
+  <strong
+    >{{ total_count }} pending special membership request{{
+    total_count|pluralize }}</strong
+  >
+  that {{ total_count|pluralize:"has,have" }} been awaiting review for over a
+  week.
+</p>
+
+<p>Here are the requests that need your attention:</p>
+
+<ul>
+  {% for request in latest_requests %}
+  <li>
+    <strong
+      >Request from {{ request.user.get_full_name|default:request.user.username
+      }}</strong
+    >
+    <ul>
+      <li><strong>Email:</strong> {{ request.user.email }}</li>
+      <li><strong>Subscription:</strong> {{ request.subscription.title }}</li>
+      <li>
+        <strong>Submitted:</strong> {{ request.date_created|date:"F j, Y" }}
+        <em
+          >({{ request.days_waiting }} day{{ request.days_waiting|pluralize }}
+          ago)</em
+        >
+      </li>
+      {% if request.notes %}
+      <li><strong>Notes:</strong> {{ request.notes|truncatewords:20 }}</li>
+      {% endif %}
+    </ul>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if total_count > 3 %}
+<p>
+  ...and
+  <strong
+    >{{ total_count|add:"-3" }} more request{{ total_count|add:"-3"|pluralize
+    }}</strong
+  >.
+</p>
+{% endif %}
+
+<p>
+  We understand you have a busy schedule, and we appreciate your efforts in
+  reviewing these requests. When you have a moment, please take the time to
+  review them through the admin interface.
+</p>
+
+<p>Thank you for your continued support!</p>
+
+<p>
+  Best regards,<br />
+  The Impresso Team
+</p>

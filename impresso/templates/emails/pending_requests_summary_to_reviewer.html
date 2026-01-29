@@ -1,0 +1,53 @@
+Dear {{ reviewer.first_name }},
+
+<p>
+  You currently have
+  <strong
+    >{{ total_count }} pending special membership request{{
+    total_count|pluralize }}</strong
+  >
+  awaiting your review.
+</p>
+
+<p>Here are the 3 most recent requests:</p>
+
+<ul>
+  {% for request in latest_requests %}
+  <li>
+    <strong
+      >Request from {{ request.user.get_full_name|default:request.user.username
+      }}</strong
+    >
+    <ul>
+      <li><strong>Email:</strong> {{ request.user.email }}</li>
+      <li><strong>Subscription:</strong> {{ request.subscription.title }}</li>
+      <li>
+        <strong>Submitted:</strong> {{ request.date_created|date:"F j, Y" }}
+      </li>
+      {% if request.notes %}
+      <li><strong>Notes:</strong> {{ request.notes|truncatewords:20 }}</li>
+      {% endif %}
+    </ul>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if total_count > 3 %}
+<p>
+  ...and
+  <strong
+    >{{ total_count|add:"-3" }} more request{{ total_count|add:"-3"|pluralize
+    }}</strong
+  >.
+</p>
+{% endif %}
+
+<p>
+  Please review these requests at your earliest convenience. You can manage all
+  pending requests through the admin interface.
+</p>
+
+<p>
+  Best regards,<br />
+  The Impresso Team
+</p>
