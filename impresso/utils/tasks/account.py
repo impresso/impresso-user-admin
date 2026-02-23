@@ -539,6 +539,56 @@ def send_email_plan_change_accepted(
         logger.exception(f"Error sending email: {e} to user={user_id}")
 
 
+def send_magic_link_email(
+    user_id: int,
+    token: str,
+    magic_link_callback_url: str = "https://dev.impresso-project.ch/institutions-access/magic-link",
+    logger: Logger = default_logger,
+) -> None:
+    """
+    Sends a magic link email to the user with the given user_id.
+
+    The magic link is constructed by appending the token as a query parameter
+    to the callback URL: {magic_link_callback_url}?token={token}
+
+    Args:
+        user_id (int): The ID of the user to send the magic link email to.
+        token (str): The token to include in the magic link URL.
+        magic_link_callback_url (str, optional): The base URL for the magic link.
+            Defaults to "https://dev.impresso-project.ch/institutions-access/magic-link".
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+
+    Raises:
+        User.DoesNotExist: If no active user with the given user_id is found.
+        Exception: If there is an error sending the email.
+    """
+    try:
+        user = User.objects.get(pk=user_id, is_active=True)
+    except User.DoesNotExist:
+        logger.error(f"user={user_id} NOT FOUND or is not active!")
+        raise
+
+    from urllib.parse import urlencode
+
+    magic_link = f"{magic_link_callback_url}?{urlencode({'token': token})}"
+    logger.info(f"[user:{user_id}] Sending magic link email...")
+    send_templated_email_with_context(
+        template="account_magic_link",
+        subject="Your Impresso access link",
+        context={
+            "user": user,
+            "magic_link": magic_link,
+        },
+        from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        cc=[],
+        reply_to=[settings.DEFAULT_FROM_EMAIL],
+        logger=logger,
+        fail_silently=False,
+    )
+    logger.info(f"[user:{user_id}] Magic link email sent.")
+
+
 def send_email_plan_change_rejected(
     user_id: int,
     plan: str,

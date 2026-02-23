@@ -20,6 +20,7 @@ from ..utils.tasks.account import (
     send_email_password_reset,
     send_email_plan_change,
     send_email_plan_change_rejected,
+    send_magic_link_email,
 )
 from ..utils.tasks.userBitmap import helper_update_user_bitmap
 
@@ -141,6 +142,46 @@ def after_user_activation_plan_rejected(self, user_id: int) -> None:
     logger.info(f"[user:{user_id}] is now active, but on BASIC PLAN")
 
     send_emails_after_user_activation_plan_rejected(user_id=user_id, logger=logger)
+
+
+@default_task_config
+def email_magic_link(
+    self,
+    user_id: int,
+    token: str = "nonce",
+    callback_url: str = "https://impresso-project.ch/app/magic-link",
+):
+    """
+    Send a magic link email to the user containing a login link.
+
+    Args:
+        self: Celery task instance (automatically provided by Celery).
+        user_id (int): The unique identifier of the user requesting the magic link.
+        token (str, optional): The magic link token/nonce to include in the login link.
+            Defaults to "nonce".
+        callback_url (str, optional): The base URL for the magic link callback.
+            Defaults to "https://impresso-project.ch/app/magic-link".
+
+    Returns:
+        None
+
+    Raises:
+        Handled internally by the underlying `send_magic_link_email` function.
+
+    Example:
+        >>> email_magic_link.delay(user_id="12345", token="abc123xyz", callback_url="https://impresso-project.ch/app/magic-link")
+
+    Note:
+        This task is decorated with @default_task_config which applies default
+        Celery configuration settings (retry policy, routing, etc.).
+    """
+    logger.info(f"[user:{user_id}] requested magic link! callback_url: {callback_url}")
+    send_magic_link_email(
+        user_id=user_id,
+        token=token,
+        magic_link_callback_url=callback_url,
+        logger=logger,
+    )
 
 
 @default_task_config
