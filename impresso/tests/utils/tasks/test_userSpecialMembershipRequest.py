@@ -3,6 +3,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core import mail
+from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.utils.tasks.userSpecialMembershipRequest import (
@@ -51,9 +52,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         )
         # Set pk and dates manually to avoid triggering signals
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -96,9 +95,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -119,9 +116,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -147,9 +142,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
         instance.pk = 2
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -170,9 +163,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_APPROVED,
         )
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -193,9 +184,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_REJECTED,
         )
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger
@@ -216,9 +205,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
         instance.pk = 1
-        instance.date_created = instance.date_last_modified = __import__(
-            "django.utils.timezone", fromlist=["now"]
-        ).now()
+        instance.date_created = instance.date_last_modified = timezone.now()
 
         send_email_after_user_special_membership_request_updated(
             instance=instance, logger=logger

@@ -105,7 +105,6 @@ def send_email_after_user_special_membership_request_updated(
                 to=[
                     reviewer.email,
                 ],
-                cc=[],
                 reply_to=[
                     instance.user.email,
                 ],
