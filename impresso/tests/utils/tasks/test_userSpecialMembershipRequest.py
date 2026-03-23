@@ -7,18 +7,18 @@ from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.utils.tasks.userSpecialMembershipRequest import (
-    send_email_after_user_special_membership_request_updated,
+    send_email_after_user_special_membership_request_created,
 )
 
 logger = logging.getLogger("console")
 
 
-class TestSendPendingEmailToUserAndReviewer(TestCase):
+class TestSendCreatedEmailToUserAndReviewer(TestCase):
     """
-    Test that when a special membership request is pending, emails are sent
+    Test that when a special membership request is created, emails are sent
     to both the user and the reviewer simultaneously.
 
-    ENV=test pipenv run ./manage.py test impresso.tests.utils.tasks.test_userSpecialMembershipRequest.TestSendPendingEmailToUserAndReviewer
+    ENV=test pipenv run ./manage.py test impresso.tests.utils.tasks.test_userSpecialMembershipRequest.TestSendCreatedEmailToUserAndReviewer
     """
 
     def setUp(self):
@@ -42,8 +42,8 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         )
         mail.outbox = []
 
-    def test_pending_sends_email_to_user_and_reviewer(self):
-        """When status is pending, two emails should be sent: one to user, one to reviewer."""
+    def test_created_sends_email_to_user_and_reviewer(self):
+        """When request is created, two emails should be sent: one to user, one to reviewer."""
         instance = UserSpecialMembershipRequest(
             user=self.user,
             reviewer=self.reviewer,
@@ -54,7 +54,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
 
-        send_email_after_user_special_membership_request_updated(
+        send_email_after_user_special_membership_request_created(
             instance=instance, logger=logger
         )
         self.assertEqual(
@@ -68,7 +68,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         self.assertEqual(user_email.to, ["alice@example.com"])
         self.assertEqual(
             user_email.subject,
-            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER,
         )
         self.assertIn("Dear Alice,", user_email.body)
         self.assertIn("Under Review", user_email.body)
@@ -86,7 +86,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         self.assertIn("alice@example.com", reviewer_email.body)
         self.assertIn("Test Dataset", reviewer_email.body)
 
-    def test_pending_reviewer_email_reply_to_is_user(self):
+    def test_created_reviewer_email_reply_to_is_user(self):
         """The reviewer email should have reply-to set to the requester's email."""
         instance = UserSpecialMembershipRequest(
             user=self.user,
@@ -97,7 +97,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
 
-        send_email_after_user_special_membership_request_updated(
+        send_email_after_user_special_membership_request_created(
             instance=instance, logger=logger
         )
         reviewer_email = mail.outbox[1]
@@ -107,7 +107,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
             "Reply-to should be set to the requester's email for confidential exchange",
         )
 
-    def test_pending_reviewer_from_dataset_fallback(self):
+    def test_created_reviewer_from_dataset_fallback(self):
         """When no reviewer is set on the request, fall back to the dataset's reviewer."""
         instance = UserSpecialMembershipRequest(
             user=self.user,
@@ -118,7 +118,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
 
-        send_email_after_user_special_membership_request_updated(
+        send_email_after_user_special_membership_request_created(
             instance=instance, logger=logger
         )
         self.assertEqual(
@@ -129,7 +129,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         reviewer_email = mail.outbox[1]
         self.assertEqual(reviewer_email.to, ["reviewer@example.com"])
 
-    def test_pending_no_reviewer_sends_only_user_email(self):
+    def test_created_no_reviewer_sends_only_user_email(self):
         """When no reviewer can be found, only the user email should be sent."""
         dataset_no_reviewer = SpecialMembershipDataset.objects.create(
             title="No Reviewer Dataset",
@@ -144,55 +144,13 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         instance.pk = 2
         instance.date_created = instance.date_last_modified = timezone.now()
 
-        send_email_after_user_special_membership_request_updated(
+        send_email_after_user_special_membership_request_created(
             instance=instance, logger=logger
         )
         self.assertEqual(
             len(mail.outbox),
             1,
             "Only user email should be sent when no reviewer is available",
-        )
-        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
-
-    def test_approved_sends_only_user_email(self):
-        """When status is approved, only the user should get an email."""
-        instance = UserSpecialMembershipRequest(
-            user=self.user,
-            reviewer=self.reviewer,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_APPROVED,
-        )
-        instance.pk = 1
-        instance.date_created = instance.date_last_modified = timezone.now()
-
-        send_email_after_user_special_membership_request_updated(
-            instance=instance, logger=logger
-        )
-        self.assertEqual(
-            len(mail.outbox),
-            1,
-            "Only user email should be sent on approval",
-        )
-        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
-
-    def test_rejected_sends_only_user_email(self):
-        """When status is rejected, only the user should get an email."""
-        instance = UserSpecialMembershipRequest(
-            user=self.user,
-            reviewer=self.reviewer,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_REJECTED,
-        )
-        instance.pk = 1
-        instance.date_created = instance.date_last_modified = timezone.now()
-
-        send_email_after_user_special_membership_request_updated(
-            instance=instance, logger=logger
-        )
-        self.assertEqual(
-            len(mail.outbox),
-            1,
-            "Only user email should be sent on rejection",
         )
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
 
@@ -207,7 +165,7 @@ class TestSendPendingEmailToUserAndReviewer(TestCase):
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
 
-        send_email_after_user_special_membership_request_updated(
+        send_email_after_user_special_membership_request_created(
             instance=instance, logger=logger
         )
         reviewer_email = mail.outbox[1]

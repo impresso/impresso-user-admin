@@ -1,10 +1,10 @@
 Dear {{ user.first_name }},
 
 <p>
-  Your special membership request is currently under review. A reviewer has been assigned and may contact you directly if additional information is needed (e.g., to send a contract for signature).
+  Thank you for requesting special membership access on Impresso. We've successfully received your request and our team is now reviewing it.
 </p>
 <p>
-  Here are the details of your request:
+  Here are the details of the access you requested, for your reference:
   <ul>
     <li><strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}</li>
     <li><strong>Request Submitted:</strong> {{ user_special_membership_request.date_created | date:"F j, Y, g:i a" }}</li>
@@ -12,14 +12,15 @@ Dear {{ user.first_name }},
   </ul>
 </p>
 <p>
-  We aim to complete the review as quickly as possible and will notify you as soon as a decision has been made.
+  We understand you're eager to get started and we aim to complete the review process as quickly as possible.
   <br/>
-  Please check your inbox regularly, as the reviewer may reach out to you via email.
+  We will send a follow-up email immediately once a decision has been made.
+</p>
+<p>
+  In the meantime, you can check the status of your request at any time by visiting [Link to the user's request status page].
 </p>
 <p>
   We appreciate your patience!
-  <br/>
-  Best regards,
   <br/>
   The Impresso Team
 </p>
