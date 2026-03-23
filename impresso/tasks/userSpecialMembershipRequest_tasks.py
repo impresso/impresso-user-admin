@@ -56,9 +56,8 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
 def after_special_membership_request_updated(self, instance_id: int) -> None:
     """
     Send emails after a UserSpecialMembershipRequest is updated.
-    TODO:
     If its status is "STATUS_APPROVED", notify the user with the details of the special membership granted.
-    If its status is "STATUS_PENDING", notify the institution reviewer with the details of the request AND to the user that their request is pending review.
+    If its status is "STATUS_PENDING", notify the institution reviewer with the details of the request AND the user that their request is pending review.
     If its status is "STATUS_REJECTED", notify the user that their request has been rejected.
 
     Args:

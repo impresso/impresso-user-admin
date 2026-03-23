@@ -41,7 +41,9 @@ def send_email_after_user_special_membership_request_updated(
     logger: Logger = default_logger,
 ) -> None:
     """
-    Sends an email to the user after a special membership request has been created.
+    Sends an email to the user after a special membership request has been updated.
+    When the status is pending, also sends an email to the reviewer with
+    reply-to set to the requester's email, enabling direct confidential exchange.
 
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
@@ -84,6 +86,37 @@ def send_email_after_user_special_membership_request_updated(
         logger=logger,
         fail_silently=fail_silently,
     )
+
+    # When status is pending, also send an email to the reviewer
+    if instance.status == UserSpecialMembershipRequest.STATUS_PENDING:
+        reviewer = instance.reviewer or (
+            instance.subscription.reviewer if instance.subscription else None
+        )
+        if reviewer and reviewer.email:
+            send_templated_email_with_context(
+                template="user_special_membership_request_pending_to_reviewer",
+                subject=settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_REVIEWER,
+                context={
+                    "reviewer": reviewer,
+                    "user": instance.user,
+                    "user_special_membership_request": instance,
+                },
+                from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+                to=[
+                    reviewer.email,
+                ],
+                cc=[],
+                reply_to=[
+                    instance.user.email,
+                ],
+                logger=logger,
+                fail_silently=fail_silently,
+            )
+        else:
+            logger.warning(
+                f"No reviewer with email found for special membership request {instance.pk}, "
+                "skipping reviewer notification."
+            )
 
 
 def send_email_after_user_special_membership_request_created(
