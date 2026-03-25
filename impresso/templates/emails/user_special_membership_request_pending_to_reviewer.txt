@@ -5,7 +5,7 @@ A special membership request requires your review. Below are the details:
 - Requester: {{ user.get_full_name|default:user.username }}
 - Requester Email: {{ user.email }}
 - Membership Option: {{ user_special_membership_request.subscription.title }}
-- Request Submitted: {{ user_special_membership_request.date_created | date:"F j, Y, g:i a" }}
+- Request Submitted: {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}
 - Current Status: Pending Review
 {% if user_special_membership_request.notes %}
 - Notes: {{ user_special_membership_request.notes }}

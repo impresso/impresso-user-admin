@@ -5,7 +5,7 @@ Thank you for requesting special membership access on Impresso. We've successful
 Here are the details of the access you requested, for your reference:
 
 - Membership Option: {{ user_special_membership_request.subscription.title }}
-- Request Submitted: {{ user_special_membership_request.date_created | date:"F j, Y, g:i a" }}
+- Request Submitted: {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}
 - Current Status: Under Review
 
 We understand you're eager to get started and we aim to complete the review process as quickly as possible. We will send a follow-up email immediately once a decision has been made.

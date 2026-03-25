@@ -12,7 +12,7 @@ Dear {{ reviewer.first_name }},
   </li>
   <li>
     <strong>Request Submitted:</strong> {{
-    user_special_membership_request.date_created | date:"F j, Y, g:i a" }}
+    user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}
   </li>
   <li><strong>Current Status:</strong> Pending Review</li>
   {% if user_special_membership_request.notes %}
