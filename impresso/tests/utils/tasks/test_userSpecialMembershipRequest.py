@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.models.profile import Profile
+from impresso.models.userBitmap import UserBitmap
 from impresso.utils.tasks.userSpecialMembershipRequest import (
     send_email_after_user_special_membership_request_created,
 )
@@ -37,6 +38,7 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             email="alice@example.com",
             password="testpass123",
         )
+
         self.student_group = Group.objects.create(
             name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         )
@@ -45,6 +47,7 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         self.profile = Profile.objects.create(user=self.user, uid="local-test-alice")
         self.profile.affiliation = "University of Testing"
         self.profile.save()
+
         self.dataset = SpecialMembershipDataset.objects.create(
             title="Test Dataset",
             reviewer=self.reviewer,
@@ -90,8 +93,6 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         )
         self.assertIn("Pending Review", email.body)
         self.assertIn("Test Dataset", email.body)
-        # print("Email body:\n", email.body)
-        # print("Email cc:\n", email.cc)
 
     def test_created_based_on_metadata_modality(self):
         """When request is created with modality in metadata, it should override the function argument."""
@@ -121,11 +122,58 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             "ONLY ONE email should be sent based on metadata modality, to the user with the reviewer in CC.",
         )
         email = mail.outbox[0]
-        print("Email cc:\n", email.cc)
         self.assertIn(
             self.reviewer.email,
             email.cc,
             "Reviewer should be in CC based on metadata modality.",
+        )
+
+    def test_created_with_already_existing_subscriptions(self):
+        """When request is created, the email context should include the correct number of existing special memberships."""
+        # Create an existing subscription for the user to test the count in email context
+        dataset_existing = SpecialMembershipDataset.objects.create(
+            title="Existing Dataset",
+            reviewer=self.reviewer,
+            metadata={
+                "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+            },
+        )
+        # we need to create here to ensure signals are triggered and the subscription is counted in the email context
+        UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=dataset_existing,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED,
+        )
+
+        self.assertEqual(
+            self.user.bitmap.subscriptions.count(),
+            1,
+            "User should have 1 existing special membership subscription as it is already approved.",
+        )
+
+        self.assertIn(
+            "Membership Option: Existing Dataset",
+            mail.outbox[0].body,
+            "Email context should include the correct number of existing special memberships.",
+        )
+
+        UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+
+        self.assertIn(
+            "Membership Option: Test Dataset",
+            mail.outbox[1].body,
+            "New datasets!",
+        )
+        self.assertIn(
+            "Number of Special Membership Accesses granted",
+            mail.outbox[1].body,
+            "Email context should include the correct number of existing special memberships.",
         )
 
 

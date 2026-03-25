@@ -1,4 +1,3 @@
-Dear {{ user.get_full_name|default:user.username }},
 Dear {{ reviewer.get_full_name|default:reviewer.username }},
 
 This is an automatic notification from the Impresso User Management and Data Access system.
@@ -22,11 +21,7 @@ Here are the details of the access request for your reference:
     Notes: 
     {% if user_special_membership_request.notes %}{{ user_special_membership_request.notes }}{% else %}No notes provided.{% endif %}
 
-The request will now be reviewed by {{ reviewer.get_full_name|default:reviewer.username }}.
-We have included both parties in this message to facilitate direct communication. 
-Once {{ reviewer.get_full_name|default:reviewer.username }} approves the request, 
-special membership access will be granted automatically.
-
+Once you approve the request the special membership access will be granted automatically.
 Should you need any further assistance, contact the Impresso Team via info@impresso-project.ch.
 
 Warm regards,

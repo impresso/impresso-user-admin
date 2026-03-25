@@ -85,5 +85,7 @@ def get_number_of_special_memberships(user: User) -> int:
     Returns:
       int: The number of special memberships for the user.
     """
-    user_bitmap, _created = UserBitmap.objects.get_or_create(user=user)
+    user_bitmap = UserBitmap.objects.filter(user=user).first()
+    if user_bitmap is None:
+        return 0
     return user_bitmap.subscriptions.count()

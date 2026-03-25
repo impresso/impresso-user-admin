@@ -36,7 +36,11 @@ def apply_special_membership_to_bitmap(
     logger.info(
         f"User {instance.user.pk} has bitmap {bin(user_bitmap.get_bitmap_as_int())}, {'(just created)' if created else '(already existing)'}"
     )
-
+    if not instance.subscription:
+        logger.warning(
+            f"UserSpecialMembershipRequest {instance.pk} has no subscription? skipping bitmap update."
+        )
+        return
     if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
         user_bitmap.subscriptions.add(instance.subscription)
 
@@ -131,7 +135,7 @@ def send_email_after_user_special_membership_request_created(
     plan_label, plan_group = get_plan_from_user_groups(instance.user)
     number_of_special_memberships = get_number_of_special_memberships(instance.user)
 
-    # get modality form instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
+    # get modality from instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
     modality = (
         instance.subscription.metadata.get("modality", None)
         if instance.subscription
@@ -162,7 +166,7 @@ def send_email_after_user_special_membership_request_created(
         f"send_email_after_user_special_membership_request_created for user={instance.user.pk} "
         f"subscription={instance.subscription.title if instance.subscription else 'None'} "
         f"reviewer={reviewer.pk if reviewer else 'None'} "
-        f"modality={modality if reviewer else 'NO REVIEWER!, modality changed to NOTIFY_REVIEWER'} "
+        f"modality={modality} (if reviewer email is not found, modality will be downgraded to NOTIFY_REVIEWER) "
         f"plan_label={plan_label} plan_group={plan_group}"
     )
     send_templated_email_with_context(
@@ -201,7 +205,7 @@ def send_email_after_user_special_membership_request_created(
         )
 
         send_templated_email_with_context(
-            template="user_special_membership_request_pending_to_reviewer",
+            template=template,
             subject=subject,
             context={
                 "reviewer": reviewer,

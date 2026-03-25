@@ -16,14 +16,11 @@
   <li>
     <strong>Requester:</strong> {{ user.get_full_name|default:user.username }}
   </li>
+  <li><strong>Requester Email:</strong> {{ user.email }}</li>
+  <li><strong>Requester Plan:</strong> {{ plan_label }}</li>
   <li>
-    <strong>Requester Email:</strong> {{ user.email }}
-  </li>
-  <li>
-    <strong>Requester Plan:</strong> {{ plan_label }}
-  </li>
-  <li>
-    <strong>Number of Special Membership Accesses granted:</strong> {{ number_of_special_memberships }}
+    <strong>Number of Special Membership Accesses granted:</strong> {{
+    number_of_special_memberships }}
   </li>
   <li>
     <strong>Affiliation:</strong>
@@ -32,7 +29,8 @@
   </li>
   <li>
     <strong>Public Institutional Webpage:</strong>
-    {% if user.profile.institutional_url %} {{ user.profile.institutional_url }}{% else %}Not provided{% endif %}
+    {% if user.profile.institutional_url %} {{ user.profile.institutional_url
+    }}{% else %}Not provided{% endif %}
   </li>
   <li>
     <strong>Membership Option:</strong> {{
@@ -47,21 +45,21 @@
     <strong>Notes:</strong>
     {% if user_special_membership_request.notes %}
     <blockquote>{{ user_special_membership_request.notes }}</blockquote>
-    {% else %} No notes provided. 
-    {% endif %}
+    {% else %} No notes provided. {% endif %}
   </li>
 </ul>
 
 <p>
-  We have included both parties in this message to facilitate direct
-  communication. {{ user.first_name|default:user.username }}, please feel free
-  to reach out to {{ reviewer.get_full_name|default:reviewer.username }} here
-  for any questions regarding your request or the data access process.
+  The request will now be reviewed by {{
+  reviewer.get_full_name|default:reviewer.username }}. We have included both
+  parties in this message to facilitate direct communication. Once {{
+  reviewer.get_full_name|default:reviewer.username }} approves the request,
+  special membership access will be granted automatically.
 </p>
 
 <p>
-  Should you need any further assistance from our side, the Impresso Team
-  remains at your service.
+  Should you need any further assistance, contact the Impresso Team via
+  info@impresso-project.ch
 </p>
 
 <p>
