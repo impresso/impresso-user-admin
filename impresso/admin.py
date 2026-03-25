@@ -1,5 +1,8 @@
+from django import forms
 from django.contrib import admin
 from django.contrib import messages
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from unfold.admin import ModelAdmin  # type: ignore
 from django.contrib.auth.models import User
 from django.utils.translation import ngettext
@@ -83,12 +86,46 @@ class UserBitmapAdmin(ModelAdmin):
     user_plan_display.short_description = "User Plan"  # type: ignore[attr-defined]
 
 
+class SpecialMembershipDatasetAdminForm(forms.ModelForm):
+    class Meta:
+        model = SpecialMembershipDataset
+        fields = "__all__"
+
+    def clean_metadata(self) -> dict:
+        metadata = self.cleaned_data.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            raise ValidationError("Metadata must be a JSON object.")
+
+        allowed_keys = {"modality"}
+        extra_keys = set(metadata.keys()) - allowed_keys
+        if extra_keys:
+            raise ValidationError(
+                f"Unknown metadata key(s): {', '.join(sorted(extra_keys))}. Allowed key(s) are: {', '.join(sorted(allowed_keys))}."
+            )
+
+        modality = metadata.get("modality")
+        if modality is not None:
+            if not isinstance(modality, str):
+                raise ValidationError("metadata.modality must be a string.")
+
+            allowed_modalities = {
+                settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER,
+                settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
+            }
+            if modality not in allowed_modalities:
+                allowed = ", ".join(sorted(allowed_modalities))
+                raise ValidationError(f"metadata.modality must be one of: {allowed}.")
+
+        return metadata
+
+
 @admin.register(SpecialMembershipDataset)
 class SpecialMembershipDatasetAdmin(ModelAdmin):
-    list_display = ("title", "bitmap_position", "reviewer")
+    list_display = ("title", "bitmap_position", "reviewer", "metadata")
     search_fields = ["title", "reviewer__username", "reviewer__email"]
     readonly_fields = ("bitmap_position",)
     autocomplete_fields = ["reviewer"]
+    form = SpecialMembershipDatasetAdminForm
 
 
 @admin.register(Issue)

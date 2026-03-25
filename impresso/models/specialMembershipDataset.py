@@ -1,5 +1,16 @@
+from typing import Optional, TypedDict
+
 from django.db import models
 from django.db.models import Max
+
+
+# --- Typing Definition for Metadata---
+class Metadata(TypedDict, total=False):
+    """
+    Defines the strict type structure for a special membership dataset metadata.
+    """
+
+    modality: Optional[str]  # e.g., "cc_reviewer", "notify_reviewer"
 
 
 class SpecialMembershipDataset(models.Model):
@@ -10,7 +21,7 @@ class SpecialMembershipDataset(models.Model):
     Attributes:
         title (CharField): The title of the special membership dataset.
         bitmap_position (PositiveIntegerField): The position in the user's bitmap representing this dataset.
-        metadata (JSONField): Additional metadata related to the dataset.
+        metadata (Metadata): Additional metadata related to the dataset.
         reviewer (ForeignKey): Foreign key to the User model representing the reviewer of the dataset.
 
     Methods:
@@ -29,7 +40,7 @@ class SpecialMembershipDataset(models.Model):
         null=True,
         blank=True,
     )
-    metadata = models.JSONField(default=dict, blank=True)
+    metadata: Metadata = models.JSONField(default=dict, blank=True)
     reviewer = models.ForeignKey(
         "auth.User",
         on_delete=models.SET_NULL,
