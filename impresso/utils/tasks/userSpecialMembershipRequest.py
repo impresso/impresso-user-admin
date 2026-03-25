@@ -3,6 +3,10 @@ from logging import Logger
 from django.conf import settings
 from django.contrib.auth.models import User
 from impresso.models.userBitmap import UserBitmap
+from impresso.utils.models.user import (
+    get_number_of_special_memberships,
+    get_plan_from_user_groups,
+)
 from impresso.utils.tasks.email import send_templated_email_with_context
 from impresso.models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 
@@ -14,6 +18,15 @@ def apply_special_membership_to_bitmap(
     created: bool,
     logger: Logger = default_logger,
 ) -> None:
+    """
+    Applies the special membership to the user's bitmap based on the status of the UserSpecialMembershipRequest instance.
+    If the request is approved, the corresponding subscription is added to the user's bitmap.
+    If the request is rejected or pending, the corresponding subscription is removed from the user's bitmap.
+    Args:
+        instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
+        created (bool): A boolean indicating whether the instance was created or updated.
+        logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
+    """
     logger.info(
         f"apply_special_membership_to_bitmap for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
     )
@@ -23,7 +36,11 @@ def apply_special_membership_to_bitmap(
     logger.info(
         f"User {instance.user.pk} has bitmap {bin(user_bitmap.get_bitmap_as_int())}, {'(just created)' if created else '(already existing)'}"
     )
-
+    if not instance.subscription:
+        logger.warning(
+            f"UserSpecialMembershipRequest {instance.pk} has no subscription? skipping bitmap update."
+        )
+        return
     if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
         user_bitmap.subscriptions.add(instance.subscription)
 
@@ -93,6 +110,12 @@ def send_email_after_user_special_membership_request_created(
 ) -> None:
     """
     Sends an email to the user after a special membership request has been created.
+    Also sends an email to the reviewer with reply-to set to the requester's
+    email, enabling direct confidential exchange (e.g., to send contracts for signature).
+    There are two modalities available: CC_REVIEWER: the reviewer is CC'd in the email sent to the user, with a clear indication
+    in the email content that the reviewer is CC'd; NOTIFY_REVIEWER: the reviewer receives a
+    SEPARATE email notification about the new request, with reply-to set to the requester's email for direct
+    confidential exchange.
 
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
@@ -101,21 +124,112 @@ def send_email_after_user_special_membership_request_created(
     Raises:
         Exception: If there is an error sending the email.
     """
+    template = "user_special_membership_request_created_to_user"
+    subject = (
+        settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER
+    )
+    cc = []
+    reviewer = instance.reviewer or (
+        instance.subscription.reviewer if instance.subscription else None
+    )
+    plan_label, plan_group = get_plan_from_user_groups(instance.user)
+    number_of_special_memberships = get_number_of_special_memberships(instance.user)
+
+    # get modality from instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
+    modality = (
+        instance.subscription.metadata.get("modality", None)
+        if instance.subscription
+        else None
+    )
+    if not modality:
+        modality = (
+            settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+        )
+    if (
+        modality
+        == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+        and reviewer
+        and reviewer.email
+    ):
+        template = "user_special_membership_request_created_to_user_cc_reviewer"
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER_CC_REVIEWER
+        )
+        if reviewer and reviewer.email:
+            cc.append(reviewer.email)
+        else:
+            logger.warning(
+                f"No reviewer with email found for special membership request {instance.pk}, "
+                "skipping reviewer CC."
+            )
+    logger.info(
+        f"send_email_after_user_special_membership_request_created for user={instance.user.pk} "
+        f"subscription={instance.subscription.title if instance.subscription else 'None'} "
+        f"reviewer={reviewer.pk if reviewer else 'None'} "
+        f"modality={modality} (if reviewer email is not found, modality will be downgraded to NOTIFY_REVIEWER) "
+        f"plan_label={plan_label} plan_group={plan_group}"
+    )
     send_templated_email_with_context(
-        template="user_special_membership_request_to_user",
-        subject=settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER,
+        template=template,
+        subject=subject,
         context={
             "user": instance.user,
+            "reviewer": reviewer,
             "user_special_membership_request": instance,
+            "plan_label": plan_label,
+            "plan_group": plan_group,
+            "number_of_special_memberships": number_of_special_memberships,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
             instance.user.email,
         ],
-        cc=[],
+        cc=cc,
         reply_to=[
             settings.DEFAULT_FROM_EMAIL,
         ],
         logger=logger,
         fail_silently=fail_silently,
     )
+
+    if (
+        modality
+        == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+        and reviewer
+        and reviewer.email
+    ):
+        # Send a SEPARATE email to the reviewer, with reply-to set to the requester's email for direct confidential exchange.
+        template = "user_special_membership_request_created_to_reviewer"
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_REVIEWER
+        )
+
+        send_templated_email_with_context(
+            template=template,
+            subject=subject,
+            context={
+                "reviewer": reviewer,
+                "user": instance.user,
+                "user_special_membership_request": instance,
+                "plan_label": plan_label,
+                "plan_group": plan_group,
+                "number_of_special_memberships": number_of_special_memberships,
+            },
+            from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+            to=[
+                reviewer.email,
+            ],
+            reply_to=[
+                instance.user.email,
+            ],
+            logger=logger,
+            fail_silently=fail_silently,
+        )
+    elif (
+        modality
+        == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+    ):
+        logger.warning(
+            f"No reviewer with email found for special membership request {instance.pk}, "
+            "skipping reviewer notification."
+        )

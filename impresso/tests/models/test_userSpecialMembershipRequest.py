@@ -47,7 +47,6 @@ class UserSpecialMembershipRequestTestCase(TransactionTestCase):
     def test_standard_lifecycle(self) -> None:
         special_membership_request = UserSpecialMembershipRequest.objects.create(
             user=self.user,
-            reviewer=self.test_subscription_domain_A.reviewer,
             subscription=self.test_subscription_domain_A,
             status=UserSpecialMembershipRequest.STATUS_APPROVED,
         )
