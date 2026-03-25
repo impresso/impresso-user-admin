@@ -256,7 +256,7 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
             reviewer_email.subject,
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_REVIEWER,
         )
-        self.assertIn("Dear John,", reviewer_email.body)
+        self.assertIn("Dear John Reviewer,", reviewer_email.body)
         self.assertIn("Alice Smith", reviewer_email.body)
         self.assertIn("alice@example.com", reviewer_email.body)
         self.assertIn("Test Dataset", reviewer_email.body)

@@ -107,7 +107,6 @@ class TestAccountPlanChangeToBasicUser(TransactionTestCase):
         self.assertEqual(mail.outbox[0].subject, "Change plan for Impresso")
         # first line of the email is: Dear Jane,
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
-        print(mail.outbox[1].body)
 
 
 class TestAccountCreation(TestCase):
@@ -242,7 +241,6 @@ class TestAccountPlanChange(TransactionTestCase):
         self.assertEqual(
             len(mail.outbox), 1, f"one email should be sent, received:{mail.outbox}"
         )
-        print(mail.outbox[0].body)
         # Check that the body starts with Dear Jane, and contains the settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
         self.assertTrue(
