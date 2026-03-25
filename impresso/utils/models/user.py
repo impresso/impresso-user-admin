@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from typing import Tuple, Optional
 
+from impresso.models.userBitmap import UserBitmap
+
 
 def get_plan_from_group_name(group_name: str) -> Tuple[str, Optional[str]]:
     """
@@ -68,3 +70,20 @@ def get_plan_from_user_groups(user: User) -> Tuple[str, Optional[str]]:
         plan_label = settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
 
     return (plan_label, plan_group)
+
+
+def get_number_of_special_memberships(user: User) -> int:
+    """
+    Get the number of special memberships for the user.
+
+    This function counts the number of special memberships the user has.
+    It returns the count of special memberships.
+
+
+    Args:
+      user (User): The user object.
+    Returns:
+      int: The number of special memberships for the user.
+    """
+    user_bitmap, _created = UserBitmap.objects.get_or_create(user=user)
+    return user_bitmap.subscriptions.count()
