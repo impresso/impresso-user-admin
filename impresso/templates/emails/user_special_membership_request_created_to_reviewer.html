@@ -5,8 +5,7 @@
 </p>
 <p>
   We wish to inform you that {{ user.get_full_name|default:user.username }} has
-  requested special membership access to the {{
-  user_special_membership_request.subscription.title }}. Here are the details of
+  requested special membership access to the <strong>{{ user_special_membership_request.subscription.title }}</strong>. Here are the details of
   the access request for your reference:
 </p>
 <ul>
@@ -16,8 +15,7 @@
   <li><strong>Requester Email:</strong> {{ user.email }}</li>
   <li><strong>Requester Plan:</strong> {{ plan_label }}</li>
   <li>
-    <strong>Number of Special Membership Accesses granted:</strong> {{
-    number_of_special_memberships }}
+    <strong>Number of Special Membership Accesses granted:</strong> {{ number_of_special_memberships }}
   </li>
   <li>
     <strong>Affiliation:</strong> 
@@ -27,12 +25,10 @@
     <strong> Public Institutional Webpage:</strong> {% if user.profile.institutional_url %}{{ user.profile.institutional_url }}{% else %}Not provided{% endif %}
   </li>
   <li>
-    <strong>Membership Option:</strong> {{
-    user_special_membership_request.subscription.title }}
+    <strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}
   </li>
   <li>
-    <strong>Request Date:</strong> {{
-    user_special_membership_request.date_created|date:"l, d.m.Y, H:i T" }}
+    <strong>Request Date:</strong> {{ user_special_membership_request.date_created|date:"l, d.m.Y, H:i T" }}
   </li>
   <li><strong>Request Status:</strong> Pending Review</li>
   <li>
