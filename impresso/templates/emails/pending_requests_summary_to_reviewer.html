@@ -1,5 +1,6 @@
-Dear {{ reviewer.get_full_name|default:reviewer.username }},
-
+<p>
+  Dear {{ reviewer.get_full_name|default:reviewer.username }},
+</p>
 <p>
   You currently have
   <strong>
@@ -7,9 +8,13 @@ Dear {{ reviewer.get_full_name|default:reviewer.username }},
   </strong>
   awaiting your review.
 </p>
-
-<p>Here are the 3 most recent requests:</p>
-
+<p>
+{% if count_latest_requests > 1 %}
+Here are the {{ count_latest_requests }} most recent requests:</p>
+{% else %}
+Here is the most recent request:
+{% endif %}
+</p>
 <ul>
   {% for request in latest_requests %}
   <li>
