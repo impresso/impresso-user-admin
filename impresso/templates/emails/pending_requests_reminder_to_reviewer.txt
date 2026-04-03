@@ -1,4 +1,4 @@
-Dear {{ reviewer.first_name }},
+Dear {{ reviewer.get_full_name|default:reviewer.username }},
 
 We hope this message finds you well. This is a friendly reminder that you have {{ total_count }} pending special membership request{{ total_count|pluralize }} that {{ total_count|pluralize:"has,have" }} been awaiting review for over a week.
 
@@ -6,7 +6,9 @@ Here are the requests that need your attention:
 {% for request in latest_requests %}
 {{ forloop.counter }}. Request from {{ request.user.get_full_name|default:request.user.username }}
    - Email: {{ request.user.email }}
-   - Subscription: {{ request.subscription.title }}
+   - Affiliation: {% if request.user.profile.affiliation %}{{ request.user.profile.affiliation }}{% else %}Not provided{% endif %}
+   - Public Institutional Webpage: {% if request.user.profile.institutional_url %}{{ request.user.profile.institutional_url }}{% else %}Not provided{% endif %}
+   - Membership Option: {{ request.subscription.title }}
    - Submitted: {{ request.date_created|date:"F j, Y" }} ({{ request.days_waiting }} day{{ request.days_waiting|pluralize }} ago)
    {% if request.notes %}- Notes: {{ request.notes|truncatewords:20 }}{% endif %}
 {% endfor %}

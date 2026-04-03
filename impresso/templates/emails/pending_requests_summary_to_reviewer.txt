@@ -1,4 +1,4 @@
-Dear {{ reviewer.first_name }},
+Dear {{ reviewer.get_full_name|default:reviewer.username }},
 
 You currently have {{ total_count }} pending special membership request{{ total_count|pluralize }} awaiting your review.
 

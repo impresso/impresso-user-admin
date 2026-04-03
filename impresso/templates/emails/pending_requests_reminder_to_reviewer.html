@@ -1,13 +1,10 @@
-Dear {{ reviewer.first_name }},
-
+<p>
+  Dear {{ reviewer.get_full_name|default:reviewer.username }},
+</p>
 <p>
   We hope this message finds you well. This is a friendly reminder that you have
-  <strong
-    >{{ total_count }} pending special membership request{{
-    total_count|pluralize }}</strong
-  >
-  that {{ total_count|pluralize:"has,have" }} been awaiting review for over a
-  week.
+  <strong>{{ total_count }} pending special membership request{{total_count|pluralize }}</strong>
+  that {{ total_count|pluralize:"has,have" }} been awaiting review for over a week.
 </p>
 
 <p>Here are the requests that need your attention:</p>
@@ -15,19 +12,33 @@ Dear {{ reviewer.first_name }},
 <ul>
   {% for request in latest_requests %}
   <li>
-    <strong
-      >Request from {{ request.user.get_full_name|default:request.user.username
-      }}</strong
-    >
+    Request from: <strong>{{ request.user.get_full_name|default:request.user.username}}</strong>
     <ul>
-      <li><strong>Email:</strong> {{ request.user.email }}</li>
-      <li><strong>Subscription:</strong> {{ request.subscription.title }}</li>
       <li>
-        <strong>Submitted:</strong> {{ request.date_created|date:"F j, Y" }}
-        <em
-          >({{ request.days_waiting }} day{{ request.days_waiting|pluralize }}
-          ago)</em
-        >
+        <strong>Email:</strong> {{ request.user.email }}</li>
+        <strong>Affiliation:</strong> 
+        {% if request.user.profile.affiliation %}
+          {{ request.user.profile.affiliation }}
+        {% else %}
+          Not provided
+        {% endif %}
+      </li>
+      <li>
+        <strong> Public Institutional Webpage:</strong> 
+        {% if request.user.profile.institutional_url %}
+          {{ request.user.profile.institutional_url }}
+        {% else %}
+          Not provided
+        {% endif %}
+      </li>
+      <li>
+        <strong>Membership Option:</strong> {{ request.subscription.title }}
+      </li>
+      <li>
+        <strong>Request Date:</strong> {{ request.date_created|date:"l, d.m.Y, H:i T" }}
+        <em>
+          ({{ request.days_waiting }} day{{ request.days_waiting|pluralize }} ago)
+        </em>
       </li>
       {% if request.notes %}
       <li><strong>Notes:</strong> {{ request.notes|truncatewords:20 }}</li>
@@ -39,11 +50,7 @@ Dear {{ reviewer.first_name }},
 
 {% if total_count > 3 %}
 <p>
-  ...and
-  <strong
-    >{{ total_count|add:"-3" }} more request{{ total_count|add:"-3"|pluralize
-    }}</strong
-  >.
+  ...and <strong>{{ total_count|add:"-3" }} more request{{ total_count|add:"-3"|pluralize}}</strong>.
 </p>
 {% endif %}
 
@@ -54,14 +61,12 @@ Dear {{ reviewer.first_name }},
 </p>
 
 <p>
-  <a href="{{ settings.IMPRESSO_INSTITUTIONS_ACCESS_URL }}"
-    >{{ settings.IMPRESSO_INSTITUTIONS_ACCESS_URL }}</a
-  >
+  <a href="{{ settings.IMPRESSO_INSTITUTIONS_ACCESS_URL }}">{{ settings.IMPRESSO_INSTITUTIONS_ACCESS_URL }}</a>
 </p>
 
 <p>Thank you for your continued support!</p>
 
 <p>
-  Best regards,<br />
+  Warm regards,<br />
   The Impresso Team
 </p>

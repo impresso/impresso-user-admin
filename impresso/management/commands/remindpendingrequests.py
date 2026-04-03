@@ -6,7 +6,10 @@ from django.utils import timezone
 from datetime import timedelta
 from typing import List, Dict, Any, Optional
 from impresso.models import UserSpecialMembershipRequest
-from impresso.utils.tasks.email import send_templated_email_with_context
+from impresso.utils.tasks.email import (
+    get_emails_rendered_contents,
+    send_templated_email_with_context,
+)
 
 
 class Command(BaseCommand):
@@ -56,12 +59,23 @@ class Command(BaseCommand):
             action="store_true",
             help="Show what would be sent without actually sending emails",
         )
+        parser.add_argument(
+            "--preview",
+            action="store_true",
+            help="Preview email txt content for all reviewers without sending emails",
+        )
 
     def handle(self, username: Optional[str] = None, *args, **options) -> None:
         days_threshold: int = options.get("days", 7)
         dry_run: bool = options.get("dry_run", False)
+        preview: bool = options.get("preview", False)
 
-        self.stdout.write(f"\n{'='*80}")
+        self.stdout.write(
+            self.style.HTTP_INFO(f"\nRunning remindpendingrequests command with:\n")
+            + self.style.SUCCESS(
+                f"days={days_threshold}, dry_run={dry_run}, username={username} \n"
+            )
+        )
         self.stdout.write(
             f"Starting reminder process for requests older than \033[1m{days_threshold} days\033[0m"
         )
@@ -69,7 +83,10 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING("DRY RUN MODE - No emails will be sent")
             )
-        self.stdout.write(f"{'='*80}\n")
+        if preview:
+            self.stdout.write(
+                self.style.WARNING("PREVIEW MODE - Only email content will be displayed")
+            )
 
         # Calculate cutoff date
         cutoff_date = timezone.now() - timedelta(days=days_threshold)
@@ -93,7 +110,7 @@ class Command(BaseCommand):
             # Get all reviewers with old pending requests
             reviewers = self._get_reviewers_with_old_pending_requests(cutoff_date)
             self.stdout.write(
-                f"Found \033[1m{len(reviewers)}\033[0m reviewer(s) with old pending requests\n"
+                f"\nFound \033[1m{len(reviewers)}\033[0m reviewer(s) with old pending requests\n"
             )
 
         if not reviewers:
@@ -104,17 +121,25 @@ class Command(BaseCommand):
 
         # Process each reviewer
         total_emails_sent = 0
-        for reviewer in reviewers:
-            result = self._process_reviewer(reviewer, cutoff_date, dry_run)
+        for idx, reviewer in enumerate(reviewers):
+            self.stdout.write(
+                f"\n{idx + 1} of {len(reviewers)} - Reviewer: <{self.style.WARNING(reviewer.email)}> (username: {reviewer.username})"
+            )
+            self.stdout.write(f"\n{'-'*80}")
+            result = self._process_reviewer(reviewer, cutoff_date, dry_run, preview)
             if result:
                 total_emails_sent += 1
 
-        # Summary
-        self.stdout.write(f"\n{'='*80}")
         if dry_run:
             self.stdout.write(
                 self.style.SUCCESS(
                     f"✓ DRY RUN: Would have sent {total_emails_sent} reminder email(s)\n"
+                )
+            )
+        elif preview:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"✓ PREVIEW: Displayed email content for {total_emails_sent} reviewer(s)\n"
                 )
             )
         else:
@@ -123,7 +148,6 @@ class Command(BaseCommand):
                     f"✓ Successfully sent {total_emails_sent} reminder email(s)\n"
                 )
             )
-        self.stdout.write(f"{'='*80}\n")
 
     def _get_reviewers_with_old_pending_requests(self, cutoff_date) -> List[User]:
         """Get all reviewers who have pending requests older than cutoff date."""
@@ -146,11 +170,10 @@ class Command(BaseCommand):
         return list(User.objects.filter(id__in=reviewer_ids))
 
     def _process_reviewer(
-        self, reviewer: User, cutoff_date, dry_run: bool = False
+        self, reviewer: User, cutoff_date, dry_run: bool = False, preview: bool = False
     ) -> bool:
         """Process a single reviewer and send reminder email if needed."""
-        self.stdout.write(f"\nProcessing reviewer: \033[1m{reviewer.username}\033[0m")
-
+        template: str = "pending_requests_reminder_to_reviewer"
         # Query pending requests older than cutoff date
         pending_requests: QuerySet[UserSpecialMembershipRequest] = (
             UserSpecialMembershipRequest.objects.filter(
@@ -165,16 +188,16 @@ class Command(BaseCommand):
         request_count: int = pending_requests.count()
 
         if request_count == 0:
-            self.stdout.write(f"  No old pending requests for {reviewer.username}")
+            self.stdout.write(f"No old pending requests for {reviewer.username}")
             return False
 
-        self.stdout.write(f"  Found {request_count} old pending request(s)")
+        self.stdout.write(f"\nFound {request_count} old pending request(s)")
 
         # Check if reviewer has email
         if not reviewer.email:
             self.stdout.write(
                 self.style.WARNING(
-                    f"  ✗ Skipping: {reviewer.username} has no email address configured"
+                    f"✗ Skipping: {reviewer.username} has no email address configured"
                 )
             )
             return False
@@ -199,18 +222,24 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(
                 self.style.WARNING(
-                    f"  [DRY RUN] Would send reminder email to {reviewer.email}"
+                    f"[DRY RUN] Would send reminder email to {reviewer.email}"
                 )
             )
             self.stdout.write(
-                f"    Subject: Impresso: Reminder - {request_count} Pending Request(s) Need Review"
+                f"Subject: Impresso: Reminder - {request_count} Pending Request(s) Need Review"
             )
+            return True
+        if preview:
+            txt_content, _ = get_emails_rendered_contents(
+                prefix=template, context=context
+            )
+            self.stdout.write(f"\nEmail content (text):\n\n{txt_content}\n")
             return True
 
         # Send email
         try:
             success = send_templated_email_with_context(
-                template="pending_requests_reminder_to_reviewer",
+                template=template,
                 subject=f"Impresso: Reminder - {request_count} Pending Request{'s' if request_count != 1 else ''} Need{'s' if request_count == 1 else ''} Review",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[reviewer.email],
