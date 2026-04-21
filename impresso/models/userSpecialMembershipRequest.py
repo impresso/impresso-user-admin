@@ -11,7 +11,9 @@ class ChangelogEntry(TypedDict):
     Defines the strict type structure for a special membership request changelog entry.
     """
 
-    status: str  # e.g., "pending", "approved", "rejected"
+    status: (
+        str  # e.g., "pending", "approved", "approved_temporary", "rejected", "revoked"
+    )
     subscription: Optional[str]  # The title of the subscription
     date: str  # ISO formatted date string
     reviewer: Optional[str]  # Username of the reviewer
@@ -28,7 +30,9 @@ class UserSpecialMembershipRequest(models.Model):
     Attributes:
         STATUS_PENDING (str): Status indicating the request is pending.
         STATUS_APPROVED (str): Status indicating the request is approved.
+        STATUS_APPROVED_TEMPORARY (str): Status indicating the request is temporarily approved.
         STATUS_REJECTED (str): Status indicating the request is rejected.
+        STATUS_REVOKED (str): Status indicating the request has been revoked after temporary approval.
 
         user (ForeignKey): Foreign key to the User model representing the user making the request.
         reviewer (ForeignKey): Foreign key to the User model representing the reviewer of the request.
@@ -52,7 +56,9 @@ class UserSpecialMembershipRequest(models.Model):
 
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"
+    STATUS_APPROVED_TEMPORARY = "temporary"
     STATUS_REJECTED = "rejected"
+    STATUS_REVOKED = "revoked"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="request")
     reviewer = models.ForeignKey(
@@ -66,13 +72,20 @@ class UserSpecialMembershipRequest(models.Model):
     )
     date_created = models.DateTimeField(auto_now_add=True)
     date_last_modified = models.DateTimeField(auto_now=True)
+    temporary_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Expiration date used for temporary automatic approvals",
+    )
     status = models.CharField(
         max_length=10,
         default=STATUS_PENDING,
         choices=(
             (STATUS_PENDING, "Pending"),
             (STATUS_APPROVED, "Approved"),
+            (STATUS_APPROVED_TEMPORARY, "Approved (Temporary)"),
             (STATUS_REJECTED, "Rejected"),
+            (STATUS_REVOKED, "Revoked"),
         ),
     )
     changelog = models.JSONField(null=True, blank=True, default=list)
