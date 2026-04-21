@@ -1,7 +1,6 @@
 import logging
 from logging import Logger
 from django.conf import settings
-from django.contrib.auth.models import User
 from impresso.models.userBitmap import UserBitmap
 from impresso.utils.models.user import (
     get_number_of_special_memberships,
@@ -19,9 +18,11 @@ def apply_special_membership_to_bitmap(
     logger: Logger = default_logger,
 ) -> None:
     """
-    Applies the special membership to the user's bitmap based on the status of the UserSpecialMembershipRequest instance.
-    If the request is approved, the corresponding subscription is added to the user's bitmap.
-    If the request is rejected or pending, the corresponding subscription is removed from the user's bitmap.
+    Applies the special membership to the user's bitmap based on the status of the
+    UserSpecialMembershipRequest instance.
+
+    Approved statuses add the subscription to the bitmap; non-approved statuses
+    remove it.
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
         created (bool): A boolean indicating whether the instance was created or updated.
@@ -41,12 +42,16 @@ def apply_special_membership_to_bitmap(
             f"UserSpecialMembershipRequest {instance.pk} has no subscription? skipping bitmap update."
         )
         return
-    if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
+    if instance.status in [
+        UserSpecialMembershipRequest.STATUS_APPROVED,
+        UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+    ]:
         user_bitmap.subscriptions.add(instance.subscription)
 
     elif instance.status in [
         UserSpecialMembershipRequest.STATUS_REJECTED,
         UserSpecialMembershipRequest.STATUS_PENDING,
+        UserSpecialMembershipRequest.STATUS_REVOKED,
     ]:
         user_bitmap.subscriptions.remove(instance.subscription)
         # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
@@ -72,11 +77,21 @@ def send_email_after_user_special_membership_request_updated(
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TO_USER
         )
+    elif instance.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY:
+        template = "user_special_membership_request_approved_temporary_to_user"
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER
+        )
     elif instance.status == UserSpecialMembershipRequest.STATUS_REJECTED:
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REJECTED_TO_USER
         )
         template = "user_special_membership_request_rejected_to_user"
+    elif instance.status == UserSpecialMembershipRequest.STATUS_REVOKED:
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER
+        )
+        template = "user_special_membership_request_revoked_to_user"
     else:
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER

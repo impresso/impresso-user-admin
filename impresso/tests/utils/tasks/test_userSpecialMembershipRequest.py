@@ -1,4 +1,6 @@
 import logging
+from datetime import timedelta
+
 from django.conf import settings
 from django.test import TestCase
 from django.contrib.auth.models import Group, User
@@ -8,6 +10,10 @@ from django.utils import timezone
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.models.profile import Profile
 from impresso.models.userBitmap import UserBitmap
+from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    after_special_membership_request_created,
+    revoke_special_membership_request,
+)
 from impresso.utils.tasks.userSpecialMembershipRequest import (
     send_email_after_user_special_membership_request_created,
 )
@@ -353,3 +359,88 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
             "Email should have HTML alternative",
         )
         self.assertGreater(len(reviewer_email.alternatives), 0)
+
+
+class TestTemporaryAutomaticAcceptance(TestCase):
+    def setUp(self):
+        self.reviewer = User.objects.create_user(
+            username="temp-reviewer",
+            email="temp-reviewer@example.com",
+            password="testpass123",
+        )
+        self.user = User.objects.create_user(
+            username="temp-user",
+            first_name="Temp",
+            email="temp-user@example.com",
+            password="testpass123",
+        )
+        self.dataset = SpecialMembershipDataset.objects.create(
+            title="Temporary Dataset",
+            reviewer=self.reviewer,
+            metadata={
+                "enableTemporaryAutomaticAcceptance": True,
+                "revokeAfterDays": 7,
+                "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
+            },
+        )
+        mail.outbox = []
+
+    def test_created_request_is_auto_approved_temporarily(self):
+        req = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+
+        mail.outbox = []
+        after_special_membership_request_created(None, req.pk)
+        req.refresh_from_db()
+
+        self.assertEqual(
+            req.status,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        )
+        self.assertIsNotNone(req.temporary_expires_at)
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
+        )
+
+
+class TestTemporaryAutomaticRevocation(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="revoked-user",
+            first_name="Revoked",
+            email="revoked-user@example.com",
+            password="testpass123",
+        )
+        self.dataset = SpecialMembershipDataset.objects.create(
+            title="Revoked Dataset",
+            metadata={"revokeAfterDays": 1},
+        )
+        mail.outbox = []
+
+    def test_expired_temporary_request_is_revoked(self):
+        req = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() - timedelta(days=1),
+        )
+        self.user.bitmap.subscriptions.add(self.dataset)
+        mail.outbox = []
+
+        revoke_special_membership_request(None, req.pk)
+        req.refresh_from_db()
+
+        self.assertEqual(req.status, UserSpecialMembershipRequest.STATUS_REVOKED)
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 0)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER,
+        )
