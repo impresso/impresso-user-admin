@@ -96,7 +96,11 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
         if not isinstance(metadata, dict):
             raise ValidationError("Metadata must be a JSON object.")
 
-        allowed_keys = {"modality"}
+        allowed_keys = {
+            "modality",
+            "enableTemporaryAutomaticAcceptance",
+            "revokeAfterDays",
+        }
         extra_keys = set(metadata.keys()) - allowed_keys
         if extra_keys:
             raise ValidationError(
@@ -115,7 +119,23 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
             if modality not in allowed_modalities:
                 allowed = ", ".join(sorted(allowed_modalities))
                 raise ValidationError(f"metadata.modality must be one of: {allowed}.")
-
+        enable_temporary_automatic_acceptance = metadata.get(
+            "enableTemporaryAutomaticAcceptance"
+        )
+        if enable_temporary_automatic_acceptance is not None and not isinstance(
+            enable_temporary_automatic_acceptance, bool
+        ):
+            raise ValidationError(
+                "metadata.enableTemporaryAutomaticAcceptance must be a boolean."
+            )
+        revoke_after_days = metadata.get("revokeAfterDays")
+        if revoke_after_days is not None:
+            if not isinstance(revoke_after_days, int):
+                raise ValidationError("metadata.revokeAfterDays must be an integer.")
+            if revoke_after_days < 0:
+                raise ValidationError(
+                    "metadata.revokeAfterDays must be a non-negative integer."
+                )
         return metadata
 
 

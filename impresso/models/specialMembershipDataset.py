@@ -11,6 +11,8 @@ class Metadata(TypedDict, total=False):
     """
 
     modality: Optional[str]  # e.g., "cc_reviewer", "notify_reviewer"
+    enableTemporaryAutomaticAcceptance: Optional[bool]
+    revokeAfterDays: Optional[int]
 
 
 class SpecialMembershipDataset(models.Model):
