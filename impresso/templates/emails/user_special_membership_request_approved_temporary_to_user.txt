@@ -1,0 +1,13 @@
+Dear {{ user.first_name }},
+
+Great news: your request for special membership access has been temporarily approved.
+
+You now have access to: {{ user_special_membership_request.subscription.title }}.
+
+This temporary access is valid until {{ user_special_membership_request.temporary_expires_at|date:"Y-m-d H:i" }}.
+After that date, access will be automatically revoked unless a permanent approval is granted.
+
+If you have questions or need an extension, please reply to this email.
+
+Best regards,
+The Impresso Team
