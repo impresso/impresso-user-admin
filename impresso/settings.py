@@ -173,6 +173,14 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
     get_env_variable("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", False) == "True"
 )
 
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    "revoke-expired-temporary-memberships-every-hour": {
+        "task": "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_expired_temporary_memberships_beat",
+        "schedule": crontab(minute=0),
+    },
+}
+
 IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
 IMPRESSO_INSTITUTIONS_ACCESS_URL = get_env_variable(
     "IMPRESSO_INSTITUTIONS_ACCESS_URL",

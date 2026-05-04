@@ -173,3 +173,31 @@ def revoke_special_membership_request(self, instance_id: int) -> None:
     send_email_after_user_special_membership_request_updated(
         instance=req, logger=logger
     )
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    exponential_backoff=2,
+    retry_kwargs={"max_retries": 5},
+    retry_jitter=True,
+)
+def revoke_expired_temporary_memberships_beat(self) -> None:
+    """
+    Periodic task to revoke any STATUS_APPROVED_TEMPORARY memberships
+    that have passed their temporary_expires_at date.
+    """
+    expired_requests = UserSpecialMembershipRequest.objects.filter(
+        status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        temporary_expires_at__lt=timezone.now()
+    )
+    
+    count = expired_requests.count()
+    if count == 0:
+        logger.info("No expired temporary memberships found to revoke.")
+        return
+
+    logger.info(f"Found {count} expired temporary memberships to revoke.")
+    
+    for req in expired_requests:
+        revoke_special_membership_request.delay(instance_id=req.pk)

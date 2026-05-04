@@ -444,3 +444,27 @@ class TestTemporaryAutomaticRevocation(TestCase):
             mail.outbox[0].subject,
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER,
         )
+
+    def test_revoke_expired_temporary_memberships_beat(self):
+        from unittest.mock import patch
+        from impresso.tasks.userSpecialMembershipRequest_tasks import revoke_expired_temporary_memberships_beat
+
+        req1 = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() - timedelta(days=1),
+        )
+        
+        user2 = User.objects.create_user(username="other-user")
+        req2 = UserSpecialMembershipRequest.objects.create(
+            user=user2,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        with patch("impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.delay") as mock_delay:
+            revoke_expired_temporary_memberships_beat(None)
+            
+            mock_delay.assert_called_once_with(instance_id=req1.pk)
