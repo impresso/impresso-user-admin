@@ -130,11 +130,13 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
             )
         revoke_after_days = metadata.get("revokeAfterDays")
         if revoke_after_days is not None:
-            if not isinstance(revoke_after_days, int):
-                raise ValidationError("metadata.revokeAfterDays must be an integer.")
+            if not isinstance(revoke_after_days, (int, float)):
+                raise ValidationError(
+                    "metadata.revokeAfterDays must be an integer or float."
+                )
             if revoke_after_days < 0:
                 raise ValidationError(
-                    "metadata.revokeAfterDays must be a non-negative integer."
+                    "metadata.revokeAfterDays must be a non-negative integer or float."
                 )
         return metadata
 
