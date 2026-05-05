@@ -60,6 +60,7 @@ def apply_special_membership_to_bitmap(
 def send_email_after_user_special_membership_request_updated(
     instance: UserSpecialMembershipRequest,
     fail_silently: bool = False,
+    is_modality_cc_reviewer_enabled: bool = False,
     logger: Logger = default_logger,
 ) -> None:
     """
@@ -68,10 +69,29 @@ def send_email_after_user_special_membership_request_updated(
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
         fail_silently (bool, optional): Whether to fail silently if there is an error sending the email. Defaults to False.
+
+        is_modality_cc_reviewer_enabled (bool, optional): Whether the modality for CC reviewers is enabled. Defaults to False.
         logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
     Raises:
         Exception: If there is an error sending the email.
     """
+    reply_to = []
+    plan_label, plan_group = get_plan_from_user_groups(instance.user)
+    duration = None
+    if instance.temporary_expires_at:
+        delta = instance.temporary_expires_at - instance.date_created
+        total_hours = int(delta.total_seconds() // 3600)
+        if total_hours < 24:
+            duration = f"{total_hours} hour{'s' if total_hours != 1 else ''}"
+        else:
+            total_days = int(delta.total_seconds() // 86400)
+            duration = f"{total_days} day{'s' if total_days != 1 else ''}"
+    if is_modality_cc_reviewer_enabled:
+        reviewer = instance.reviewer or (
+            instance.subscription.reviewer if instance.subscription else None
+        )
+        if reviewer and reviewer.email:
+            reply_to.append(reviewer.email)
     if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
         template = "user_special_membership_request_approved_to_user"
         subject = (
@@ -104,15 +124,16 @@ def send_email_after_user_special_membership_request_updated(
         context={
             "user": instance.user,
             "user_special_membership_request": instance,
+            "plan_label": plan_label,
+            "plan_group": plan_group,
+            "user_special_membership_request_duration": duration,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
             instance.user.email,
         ],
         cc=[],
-        reply_to=[
-            settings.DEFAULT_FROM_EMAIL,
-        ],
+        reply_to=reply_to,
         logger=logger,
         fail_silently=fail_silently,
     )

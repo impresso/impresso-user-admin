@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from celery.utils.log import get_task_logger
 from django.utils import timezone
-
+from django.conf import settings
 from ..celery import app
 from ..models.userSpecialMembershipRequest import UserSpecialMembershipRequest
 from impresso.utils.tasks.userSpecialMembershipRequest import (
@@ -20,12 +20,21 @@ def _is_temporary_auto_accept_enabled(req: UserSpecialMembershipRequest) -> bool
     return bool(req.subscription.metadata.get("enableTemporaryAutomaticAcceptance"))
 
 
-def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> int | None:
+def _is_modality_cc_reviewer_enabled(req: UserSpecialMembershipRequest) -> bool:
+    if not req.subscription:
+        return False
+    return bool(
+        req.subscription.metadata.get("modality")
+        == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+    )
+
+
+def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float | None:
     if not req.subscription:
         return None
     revoke_after_days = req.subscription.metadata.get("revokeAfterDays")
-    if isinstance(revoke_after_days, int) and revoke_after_days > 0:
-        return revoke_after_days
+    if isinstance(revoke_after_days, (int, float)) and revoke_after_days > 0:
+        return float(revoke_after_days)
     return None
 
 
@@ -51,14 +60,16 @@ def _schedule_temporary_revocation(req: UserSpecialMembershipRequest) -> None:
 )
 def after_special_membership_request_created(self, instance_id: int) -> None:
     """
-    THe request has been created outside of the flow in the admin panel.
-    In this case we should manually apply the post-create actions.
-
+    The special membership request (pk:{instance_id}) has already been created in the database.
+    In Django Admin site, this task is scheduled when the `impresso.signals.post_save_user_special_membership_request` signal is triggered;
+    in other backends, this task must be called manually using the backend Celery integration.
+    Note that this task can be called with a status other than PENDING, thus triggering the
+    `after_special_membership_request_updated` logic immediately and skipping the
+    `send_email_after_user_special_membership_request_created` logic.
     Args:
         self: The task instance.
         instance_id (int): The ID of the UserSpecialMembershipRequest instance that was created.
     """
-    # get request
     try:
         req = UserSpecialMembershipRequest.objects.get(pk=instance_id)
     except UserSpecialMembershipRequest.DoesNotExist:
@@ -67,11 +78,13 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
     logger.info(
         f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
     )
-
+    # If the request is pending and temporary auto-accept is enabled, approve it as temporary and schedule revocation,
+    # instead of going through the regular pending flow.
     if (
         req.status == UserSpecialMembershipRequest.STATUS_PENDING
         and _is_temporary_auto_accept_enabled(req)
     ):
+
         revoke_after_days = _get_revoke_after_days(req)
         if revoke_after_days is None:
             logger.warning(
@@ -79,6 +92,10 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
             )
         else:
             req.status = UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+            # add the temporary expiration date using the last modified date + revoke_after_days
+            req.temporary_expires_at = req.date_last_modified + timedelta(
+                days=revoke_after_days
+            )
             req.save()
             logger.info(
                 f"[instance:{instance_id}] auto-accepted as temporary for {revoke_after_days} day(s)"
@@ -103,10 +120,14 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
 def after_special_membership_request_updated(self, instance_id: int) -> None:
     """
     Send emails after a UserSpecialMembershipRequest is updated.
-    TODO:
-    If its status is "STATUS_APPROVED", notify the user with the details of the special membership granted.
-    If its status is "STATUS_PENDING", notify the institution reviewer with the details of the request AND to the user that their request is pending review.
-    If its status is "STATUS_REJECTED", notify the user that their request has been rejected.
+    This task doesn't change the status of the request, but only reacts to the change by sending the appropriate email notifications and applying the special membership to the bitmap.
+
+    In Django Admin site, this task is scheduled when the `impresso.signals.post_save_user_special_membership_request` signal is triggered and the instance is not newly created (i.e., it's an update);
+    in other backends, this task must be called manually using the backend Celery integration.
+
+    If current status is "STATUS_APPROVED", congratulate the user with the details of the special membership granted.
+    If current status is "STATUS_PENDING", notify the institution reviewer with the details of the request AND to the user that their request is pending review.
+    If current status is "STATUS_REJECTED", notify the user that their request has been rejected.
 
     Args:
         self: The task instance.
@@ -128,10 +149,15 @@ def after_special_membership_request_updated(self, instance_id: int) -> None:
     )
     apply_special_membership_to_bitmap(instance=req, created=False, logger=logger)
     send_email_after_user_special_membership_request_updated(
-        instance=req, logger=logger
+        instance=req,
+        logger=logger,
+        is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
     )
 
     if req.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY:
+        logger.info(
+            f"[instance:{instance_id}] STATUS_APPROVED_TEMPORARY, scheduling revocation..."
+        )
         _schedule_temporary_revocation(req)
 
 
@@ -171,7 +197,9 @@ def revoke_special_membership_request(self, instance_id: int) -> None:
     )
     apply_special_membership_to_bitmap(instance=req, created=False, logger=logger)
     send_email_after_user_special_membership_request_updated(
-        instance=req, logger=logger
+        instance=req,
+        logger=logger,
+        is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
     )
 
 
@@ -189,15 +217,15 @@ def revoke_expired_temporary_memberships_beat(self) -> None:
     """
     expired_requests = UserSpecialMembershipRequest.objects.filter(
         status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-        temporary_expires_at__lt=timezone.now()
+        temporary_expires_at__lt=timezone.now(),
     )
-    
+
     count = expired_requests.count()
     if count == 0:
         logger.info("No expired temporary memberships found to revoke.")
         return
 
     logger.info(f"Found {count} expired temporary memberships to revoke.")
-    
+
     for req in expired_requests:
         revoke_special_membership_request.delay(instance_id=req.pk)

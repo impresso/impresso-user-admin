@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.utils import timezone
@@ -361,7 +361,7 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
         self.assertGreater(len(reviewer_email.alternatives), 0)
 
 
-class TestTemporaryAutomaticAcceptance(TestCase):
+class TestTemporaryAutomaticAcceptance(TransactionTestCase):
     def setUp(self):
         self.reviewer = User.objects.create_user(
             username="temp-reviewer",
@@ -386,28 +386,84 @@ class TestTemporaryAutomaticAcceptance(TestCase):
         mail.outbox = []
 
     def test_created_request_is_auto_approved_temporarily(self):
-        req = UserSpecialMembershipRequest.objects.create(
-            user=self.user,
+        from unittest.mock import patch
+
+        mail.outbox = []
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ) as mock_apply_async:
+            req = UserSpecialMembershipRequest.objects.create(
+                user=self.user,
+                reviewer=self.reviewer,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_PENDING,
+            )
+
+            req.refresh_from_db()
+
+            self.assertEqual(
+                req.status,
+                UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            )
+            self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(
+                mail.outbox[0].subject,
+                settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
+            )
+
+            mock_apply_async.assert_called_once()
+            _, call_kwargs = mock_apply_async.call_args
+            self.assertEqual(call_kwargs["kwargs"], {"instance_id": req.pk})
+            self.assertIn("eta", call_kwargs)
+            logger.info(
+                f"Scheduled revocation ETA: {call_kwargs['kwargs']['instance_id']} at {call_kwargs['eta']}"
+            )
+
+    def test_created_requests_with_float_days_for_revoke_after_days(self):
+        from unittest.mock import patch
+
+        dataset_with_float_revoke_after_days = SpecialMembershipDataset.objects.create(
+            title="Float Revoke After Days Dataset",
             reviewer=self.reviewer,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_PENDING,
+            metadata={
+                "enableTemporaryAutomaticAcceptance": True,
+                "revokeAfterDays": 0.5,  # 12 hours
+                "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
+            },
         )
 
         mail.outbox = []
-        after_special_membership_request_created(None, req.pk)
-        req.refresh_from_db()
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ) as mock_apply_async:
+            req = UserSpecialMembershipRequest.objects.create(
+                user=self.user,
+                reviewer=self.reviewer,
+                subscription=dataset_with_float_revoke_after_days,
+                status=UserSpecialMembershipRequest.STATUS_PENDING,
+            )
 
-        self.assertEqual(
-            req.status,
-            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-        )
-        self.assertIsNotNone(req.temporary_expires_at)
-        self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(
-            mail.outbox[0].subject,
-            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
-        )
+            req.refresh_from_db()
+
+            self.assertEqual(
+                req.status,
+                UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            )
+            self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(
+                mail.outbox[0].subject,
+                settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
+            )
+
+            mock_apply_async.assert_called_once()
+            _, call_kwargs = mock_apply_async.call_args
+            self.assertEqual(call_kwargs["kwargs"], {"instance_id": req.pk})
+            self.assertIn("eta", call_kwargs)
+            logger.info(
+                f"Scheduled revocation ETA: {call_kwargs['kwargs']['instance_id']} at {call_kwargs['eta']}"
+            )
 
 
 class TestTemporaryAutomaticRevocation(TestCase):
@@ -434,20 +490,25 @@ class TestTemporaryAutomaticRevocation(TestCase):
         self.user.bitmap.subscriptions.add(self.dataset)
         mail.outbox = []
 
-        revoke_special_membership_request(None, req.pk)
+        revoke_special_membership_request.delay(instance_id=req.pk)
         req.refresh_from_db()
 
         self.assertEqual(req.status, UserSpecialMembershipRequest.STATUS_REVOKED)
         self.assertEqual(self.user.bitmap.subscriptions.count(), 0)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(
-            mail.outbox[0].subject,
-            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER,
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(
+            all(
+                email.subject
+                == settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER
+                for email in mail.outbox
+            )
         )
 
     def test_revoke_expired_temporary_memberships_beat(self):
         from unittest.mock import patch
-        from impresso.tasks.userSpecialMembershipRequest_tasks import revoke_expired_temporary_memberships_beat
+        from impresso.tasks.userSpecialMembershipRequest_tasks import (
+            revoke_expired_temporary_memberships_beat,
+        )
 
         req1 = UserSpecialMembershipRequest.objects.create(
             user=self.user,
@@ -455,16 +516,20 @@ class TestTemporaryAutomaticRevocation(TestCase):
             status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
             temporary_expires_at=timezone.now() - timedelta(days=1),
         )
-        
-        user2 = User.objects.create_user(username="other-user")
-        req2 = UserSpecialMembershipRequest.objects.create(
+
+        user2 = User.objects.create_user(
+            username="other-user", email="other-user@example.com"
+        )
+        UserSpecialMembershipRequest.objects.create(
             user=user2,
             subscription=self.dataset,
             status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
             temporary_expires_at=timezone.now() + timedelta(days=1),
         )
 
-        with patch("impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.delay") as mock_delay:
-            revoke_expired_temporary_memberships_beat(None)
-            
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.delay"
+        ) as mock_delay:
+            revoke_expired_temporary_memberships_beat.delay()
+
             mock_delay.assert_called_once_with(instance_id=req1.pk)

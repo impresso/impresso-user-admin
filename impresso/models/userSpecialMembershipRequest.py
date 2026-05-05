@@ -25,7 +25,7 @@ class UserSpecialMembershipRequest(models.Model):
     UserRequest model represents a request made by a user for a subscription.
     Note: The unique_together constraint ensures that each user can only have one request per subscription,
         regardless of the reviewer. This is to prevent duplicate requests for the same subscription by the same user.
-    Check post_save_user_special_membership_request signal to handle the approval process.
+    Check `impresso.signals.post_save_user_special_membership_request` signal to handle the approval process.
 
     Attributes:
         STATUS_PENDING (str): Status indicating the request is pending.
@@ -39,6 +39,7 @@ class UserSpecialMembershipRequest(models.Model):
         subscription (ForeignKey): Foreign key to the SpecialMembershipDataset model representing the subscription requested.
         date_created (DateTimeField): The date and time when the request was created.
         date_last_modified (DateTimeField): The date and time when the request was last modified.
+        temporary_expires_at (DateTimeField): The expiration date used for temporary automatic approvals.
         status (CharField): The current status of the request.
         changelog (JSONField): A list of changes made to the request.
         notes (TextField): Additional notes related to the request.

@@ -8,96 +8,178 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('impresso', '0056_collection_search_query_hash_squashed_0057_remove_collection_search_query_hash_and_more'),
+        (
+            "impresso",
+            "0056_collection_search_query_hash_squashed_0057_remove_collection_search_query_hash_and_more",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='userrequest',
-            name='subscription',
-        ),
-        migrations.AlterUniqueTogether(
-            name='userrequest',
-            unique_together=None,
-        ),
-        migrations.RemoveField(
-            model_name='userrequest',
-            name='reviewer',
-        ),
-        migrations.RemoveField(
-            model_name='userrequest',
-            name='user',
-        ),
-        migrations.AlterField(
-            model_name='collection',
-            name='serialized_search_query',
-            field=models.TextField(blank=True, help_text='Initial search query that generated the collection.', null=True),
-        ),
-        migrations.AlterField(
-            model_name='searchquery',
-            name='hash',
-            field=models.TextField(blank=True, null=True),
-        ),
-        migrations.CreateModel(
-            name='SpecialMembershipDataset',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(db_column='name', max_length=255)),
-                ('bitmap_position', models.PositiveIntegerField(blank=True, null=True, unique=True)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
-                ('reviewer', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviewed_datasets', to=settings.AUTH_USER_MODEL)),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.CreateModel(
+                    name="SpecialMembershipDataset",
+                    fields=[
+                        (
+                            "id",
+                            models.AutoField(
+                                auto_created=True,
+                                primary_key=True,
+                                serialize=False,
+                                verbose_name="ID",
+                            ),
+                        ),
+                        ("title", models.CharField(db_column="name", max_length=255)),
+                        (
+                            "bitmap_position",
+                            models.PositiveIntegerField(
+                                blank=True, null=True, unique=True
+                            ),
+                        ),
+                        ("metadata", models.JSONField(blank=True, default=dict)),
+                        (
+                            "reviewer",
+                            models.ForeignKey(
+                                blank=True,
+                                null=True,
+                                on_delete=django.db.models.deletion.SET_NULL,
+                                related_name="reviewed_datasets",
+                                to=settings.AUTH_USER_MODEL,
+                            ),
+                        ),
+                    ],
+                    options={
+                        "verbose_name": "Special Membership Access",
+                        "verbose_name_plural": "Special Membership Accesses",
+                        "db_table": "impresso_datasetbitmapposition",
+                    },
+                ),
+                migrations.CreateModel(
+                    name="UserBitmapSubscription",
+                    fields=[
+                        (
+                            "id",
+                            models.AutoField(
+                                auto_created=True,
+                                primary_key=True,
+                                serialize=False,
+                                verbose_name="ID",
+                            ),
+                        ),
+                        (
+                            "specialmembershipdataset",
+                            models.ForeignKey(
+                                db_column="datasetbitmapposition_id",
+                                on_delete=django.db.models.deletion.CASCADE,
+                                to="impresso.specialmembershipdataset",
+                            ),
+                        ),
+                        (
+                            "userbitmap",
+                            models.ForeignKey(
+                                db_column="userbitmap_id",
+                                on_delete=django.db.models.deletion.CASCADE,
+                                to="impresso.userbitmap",
+                            ),
+                        ),
+                    ],
+                    options={
+                        "verbose_name": "User Special Membership Access",
+                        "verbose_name_plural": "User Special Membership Accesses",
+                        "db_table": "impresso_userbitmap_subscriptions",
+                        "unique_together": {("userbitmap", "specialmembershipdataset")},
+                    },
+                ),
+                migrations.CreateModel(
+                    name="UserSpecialMembershipRequest",
+                    fields=[
+                        (
+                            "id",
+                            models.AutoField(
+                                auto_created=True,
+                                primary_key=True,
+                                serialize=False,
+                                verbose_name="ID",
+                            ),
+                        ),
+                        ("date_created", models.DateTimeField(auto_now_add=True)),
+                        ("date_last_modified", models.DateTimeField(auto_now=True)),
+                        (
+                            "status",
+                            models.CharField(
+                                choices=[
+                                    ("pending", "Pending"),
+                                    ("approved", "Approved"),
+                                    ("temporary", "Approved (Temporary)"),
+                                    ("rejected", "Rejected"),
+                                    ("revoked", "Revoked"),
+                                ],
+                                default="pending",
+                                max_length=10,
+                            ),
+                        ),
+                        (
+                            "changelog",
+                            models.JSONField(blank=True, default=list, null=True),
+                        ),
+                        ("notes", models.TextField(blank=True, null=True)),
+                        (
+                            "reviewer",
+                            models.ForeignKey(
+                                blank=True,
+                                null=True,
+                                on_delete=django.db.models.deletion.SET_NULL,
+                                related_name="review",
+                                to=settings.AUTH_USER_MODEL,
+                            ),
+                        ),
+                        (
+                            "subscription",
+                            models.ForeignKey(
+                                help_text="The special membership dataset being requested",
+                                null=True,
+                                on_delete=django.db.models.deletion.SET_NULL,
+                                to="impresso.specialmembershipdataset",
+                            ),
+                        ),
+                        (
+                            "user",
+                            models.ForeignKey(
+                                on_delete=django.db.models.deletion.CASCADE,
+                                related_name="request",
+                                to=settings.AUTH_USER_MODEL,
+                            ),
+                        ),
+                    ],
+                    options={
+                        "verbose_name": "User Special Membership Request",
+                        "verbose_name_plural": "User Special Membership Requests",
+                        "db_table": "impresso_userrequest",
+                        "unique_together": {("user", "subscription")},
+                    },
+                ),
+                migrations.AlterField(
+                    model_name="userbitmap",
+                    name="subscriptions",
+                    field=models.ManyToManyField(
+                        blank=True,
+                        through="impresso.UserBitmapSubscription",
+                        to="impresso.specialmembershipdataset",
+                    ),
+                ),
+                migrations.DeleteModel(name="DatasetBitmapPosition"),
+                migrations.DeleteModel(name="UserRequest"),
             ],
-            options={
-                'verbose_name': 'Special Membership Access',
-                'verbose_name_plural': 'Special Membership Accesses',
-                'db_table': 'impresso_datasetbitmapposition',
-            },
         ),
-        migrations.CreateModel(
-            name='UserBitmapSubscription',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('specialmembershipdataset', models.ForeignKey(db_column='datasetbitmapposition_id', on_delete=django.db.models.deletion.CASCADE, to='impresso.specialmembershipdataset')),
-                ('userbitmap', models.ForeignKey(db_column='userbitmap_id', on_delete=django.db.models.deletion.CASCADE, to='impresso.userbitmap')),
-            ],
-            options={
-                'verbose_name': 'User Special Membership Access',
-                'verbose_name_plural': 'User Special Membership Accesses',
-                'db_table': 'impresso_userbitmap_subscriptions',
-                'unique_together': {('userbitmap', 'specialmembershipdataset')},
-            },
-        ),
-        migrations.AlterField(
-            model_name='userbitmap',
-            name='subscriptions',
-            field=models.ManyToManyField(blank=True, through='impresso.UserBitmapSubscription', to='impresso.specialmembershipdataset'),
-        ),
-        migrations.CreateModel(
-            name='UserSpecialMembershipRequest',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_created', models.DateTimeField(auto_now_add=True)),
-                ('date_last_modified', models.DateTimeField(auto_now=True)),
-                ('temporary_expires_at', models.DateTimeField(blank=True, help_text='Expiration date used for temporary automatic approvals', null=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('approved', 'Approved'), ('temporary', 'Approved (Temporary)'), ('rejected', 'Rejected'), ('revoked', 'Revoked')], default='pending', max_length=10)),
-                ('changelog', models.JSONField(blank=True, default=list, null=True)),
-                ('notes', models.TextField(blank=True, null=True)),
-                ('reviewer', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review', to=settings.AUTH_USER_MODEL)),
-                ('subscription', models.ForeignKey(help_text='The special membership dataset being requested', null=True, on_delete=django.db.models.deletion.SET_NULL, to='impresso.specialmembershipdataset')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='request', to=settings.AUTH_USER_MODEL)),
-            ],
-            options={
-                'verbose_name': 'User Special Membership Request',
-                'verbose_name_plural': 'User Special Membership Requests',
-                'db_table': 'impresso_userrequest',
-                'unique_together': {('user', 'subscription')},
-            },
-        ),
-        migrations.DeleteModel(
-            name='DatasetBitmapPosition',
-        ),
-        migrations.DeleteModel(
-            name='UserRequest',
+        migrations.AddField(
+            model_name="userspecialmembershiprequest",
+            name="temporary_expires_at",
+            field=models.DateTimeField(
+                blank=True,
+                help_text="Expiration date used for temporary automatic approvals",
+                null=True,
+            ),
         ),
     ]

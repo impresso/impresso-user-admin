@@ -1,13 +1,31 @@
+{% load tz %}
+
 Dear {{ user.first_name }},
 
-Great news: your request for special membership access has been temporarily approved.
+We have received your request for Special Membership Access to {{ user_special_membership_request.subscription.title }}.
+To allow you to begin your work immediately, your account has been granted Provisional Access for a period of {{ user_special_membership_request_duration }} 
+until {{ user_special_membership_request.temporary_expires_at|date:"l, Y-m-d H:i" }}
+and gives you full access contents from Test Dataset. Note that Impresso Terms of Use always apply.
 
-You now have access to: {{ user_special_membership_request.subscription.title }}.
+Next Steps & Extensions:
+Access will be automatically revoked after {{ user_special_membership_request_duration }} from now. For continued access, please request "Standard Access" via the Impresso platform.
+Please note that institutional approval for Standard Access can take some time. You may contact the institutional reviewer directly by replying to this email.
 
-This temporary access is valid until {{ user_special_membership_request.temporary_expires_at|date:"Y-m-d H:i" }}.
-After that date, access will be automatically revoked unless a permanent approval is granted.
+Here are the details of the access request for your reference:
 
-If you have questions or need an extension, please reply to this email.
+    Requester: {{ user.get_full_name|default:user.username }}
+    Requester Email: {{ user.email }}
+    Requester Plan:  {{ plan_label }}
 
-Best regards,
+    Affiliation: {% if user.profile.affiliation %}{{ user.profile.affiliation }}{% else %}Not provided{% endif %}
+    Public Institutional Webpage: {% if user.profile.institutional_url %}{{ user.profile.institutional_url }}{% else %}Not provided{% endif %}
+    
+    Membership Option: {{ user_special_membership_request.subscription.title }}
+    Request Date: {{ user_special_membership_request.date_created|timezone:"UTC"|date:"l, d.m.Y, H:i T" }}
+    Expiration Date: {{ user_special_membership_request.temporary_expires_at|timezone:"UTC"|date:"l, d.m.Y, H:i T" }}
+    Request Status: {{ user_special_membership_request.status}}
+
+Should you need any further assistance from our side, the Impresso Team remains at your service.
+
+Warm regards,
 The Impresso Team
