@@ -8,7 +8,7 @@ Dear {{ user.first_name }},
   <ul>
     <li><strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}</li>
     <li><strong>Request Submitted:</strong> {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}</li>
-    <li><strong>Current Status:</strong> Under Review</li>
+    <li><strong>Current Status:</strong> {{ status_label }}</li>
   </ul>
 </p>
 <p>

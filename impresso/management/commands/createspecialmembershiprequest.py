@@ -24,12 +24,38 @@ class Command(BaseCommand):
             type=int,
             help="SpecialMembershipDataset id",
         )
+        parser.add_argument(
+            "--status",
+            type=str,
+            default=UserSpecialMembershipRequest.STATUS_PENDING,
+            choices=[
+                UserSpecialMembershipRequest.STATUS_PENDING,
+                UserSpecialMembershipRequest.STATUS_APPROVED,
+                UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+                UserSpecialMembershipRequest.STATUS_REJECTED,
+                UserSpecialMembershipRequest.STATUS_REVOKED,
+            ],
+            help=(
+                "Initial status of the request "
+                f"(default: {UserSpecialMembershipRequest.STATUS_PENDING})"
+            ),
+        )
+        parser.add_argument(
+            "--notes",
+            type=str,
+            default=None,
+            help="Optional notes to attach to the request",
+        )
 
-    def handle(self, user_email: str, dataset_id: int, *args: Any, **options: Any) -> None:
+    def handle(
+        self, user_email: str, dataset_id: int, *args: Any, **options: Any
+    ) -> None:
         try:
             user = User.objects.get(email=user_email)
         except User.DoesNotExist as exc:
-            raise CommandError(f"User with email '{user_email}' does not exist.") from exc
+            raise CommandError(
+                f"User with email '{user_email}' does not exist."
+            ) from exc
 
         try:
             dataset = SpecialMembershipDataset.objects.select_related("reviewer").get(
@@ -45,7 +71,8 @@ class Command(BaseCommand):
                 user=user,
                 reviewer=dataset.reviewer,
                 subscription=dataset,
-                status=UserSpecialMembershipRequest.STATUS_PENDING,
+                status=options["status"],
+                notes=options["notes"],
             )
         except IntegrityError as exc:
             raise CommandError(

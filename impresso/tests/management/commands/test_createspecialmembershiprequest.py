@@ -7,6 +7,8 @@ from django.test import TestCase
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.signals import create_default_groups
 
+from unittest.mock import patch
+
 
 class TestCreateSpecialMembershipRequestCommand(TestCase):
     """Test the createspecialmembershiprequest management command.
@@ -130,3 +132,64 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
                 self.user.email,
                 str(self.dataset.pk),
             )
+
+
+class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
+    """Test the createspecialmembershiprequest management command with different options.
+    ENV=test pipenv run python manage.py test impresso.tests.management.commands.test_createspecialmembershiprequest.TestCreateSpecialMembershipRequestCommandWithOptions
+    """
+
+    def setUp(self) -> None:
+        create_default_groups(sender="impresso")
+
+        create_default_groups(sender="impresso")
+
+        self.reviewer = User.objects.create_user(
+            username="reviewer",
+            first_name="John",
+            last_name="Reviewer",
+            email="reviewer@example.com",
+            password="testpass123",
+        )
+        self.user = User.objects.create_user(
+            username="request-user",
+            first_name="Alice",
+            last_name="Smith",
+            email="alice@example.com",
+            password="testpass123",
+        )
+        self.dataset = SpecialMembershipDataset.objects.create(
+            title="Dataset Alpha",
+            reviewer=self.reviewer,
+        )
+
+    def test_add_notes_and_approved_status(self) -> None:
+        out = StringIO()
+        mail.outbox = []
+        call_command(
+            "createspecialmembershiprequest",
+            self.user.email,
+            str(self.dataset.pk),
+            "--status",
+            UserSpecialMembershipRequest.STATUS_APPROVED,
+            "--notes",
+            "This is an approved request with notes.",
+            stdout=out,
+        )
+        print(len(mail.outbox))
+        print(mail.outbox[1].body)
+        request = UserSpecialMembershipRequest.objects.get(
+            user=self.user,
+            subscription=self.dataset,
+        )
+        self.assertEqual(request.status, UserSpecialMembershipRequest.STATUS_APPROVED)
+        self.assertEqual(request.reviewer, self.reviewer)
+        self.assertIn(
+            "Created special membership request",
+            out.getvalue(),
+        )
+
+
+#         with patch(
+#     "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+# ) as mock_apply_async:

@@ -60,7 +60,14 @@ class UserSpecialMembershipRequest(models.Model):
     STATUS_APPROVED_TEMPORARY = "temporary"
     STATUS_REJECTED = "rejected"
     STATUS_REVOKED = "revoked"
-
+    # Define the choices for the status field using the class-level constants
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_APPROVED_TEMPORARY, "Approved (Temporary)"),
+        (STATUS_REJECTED, "Rejected"),
+        (STATUS_REVOKED, "Revoked"),
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="request")
     reviewer = models.ForeignKey(
         User, on_delete=models.SET_NULL, related_name="review", null=True, blank=True
@@ -81,13 +88,7 @@ class UserSpecialMembershipRequest(models.Model):
     status = models.CharField(
         max_length=10,
         default=STATUS_PENDING,
-        choices=(
-            (STATUS_PENDING, "Pending"),
-            (STATUS_APPROVED, "Approved"),
-            (STATUS_APPROVED_TEMPORARY, "Approved (Temporary)"),
-            (STATUS_REJECTED, "Rejected"),
-            (STATUS_REVOKED, "Revoked"),
-        ),
+        choices=STATUS_CHOICES,
     )
     changelog = models.JSONField(null=True, blank=True, default=list)
     notes = models.TextField(null=True, blank=True)

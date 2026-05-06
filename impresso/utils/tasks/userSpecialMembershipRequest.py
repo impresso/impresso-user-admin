@@ -118,6 +118,9 @@ def send_email_after_user_special_membership_request_updated(
         )
         template = "user_special_membership_request_pending_to_user"
 
+    status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+        instance.status, instance.status
+    )
     send_templated_email_with_context(
         template=template,
         subject=subject,
@@ -127,6 +130,7 @@ def send_email_after_user_special_membership_request_updated(
             "plan_label": plan_label,
             "plan_group": plan_group,
             "user_special_membership_request_duration": duration,
+            "status_label": status_label,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
@@ -170,7 +174,9 @@ def send_email_after_user_special_membership_request_created(
     )
     plan_label, plan_group = get_plan_from_user_groups(instance.user)
     number_of_special_memberships = get_number_of_special_memberships(instance.user)
-
+    status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+        instance.status, instance.status
+    )
     # get modality from instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
     modality = (
         instance.subscription.metadata.get("modality", None)
@@ -215,6 +221,7 @@ def send_email_after_user_special_membership_request_created(
             "plan_label": plan_label,
             "plan_group": plan_group,
             "number_of_special_memberships": number_of_special_memberships,
+            "status_label": status_label,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
@@ -249,6 +256,7 @@ def send_email_after_user_special_membership_request_created(
                 "user_special_membership_request": instance,
                 "plan_label": plan_label,
                 "plan_group": plan_group,
+                "status_label": status_label,
                 "number_of_special_memberships": number_of_special_memberships,
             },
             from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,

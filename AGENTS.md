@@ -52,6 +52,8 @@ When eager mode is enabled by the custom test runner, `apply_async(..., eta=...)
 For scheduling assertions, patch the task method and assert it was called with the expected `eta` and kwargs, for example:
 
 ```python
+from unittest.mock import patch
+
 with patch(
     "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
 ) as mock_apply_async:
