@@ -104,7 +104,20 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
             # sends the temporary-approval email, and schedules revocation.
             return
 
+    # Apply special membership to bitmap before sending emails, so that the user gets the access as soon as they receive the email
     apply_special_membership_to_bitmap(instance=req, created=True, logger=logger)
+
+    if req.status != UserSpecialMembershipRequest.STATUS_PENDING:
+        logger.info(
+            f"[instance:{instance_id}] created with status {req.status}, skipping created email and sending update email instead"
+        )
+        send_email_after_user_special_membership_request_updated(
+            instance=req,
+            logger=logger,
+            is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
+        )
+        return
+    
     send_email_after_user_special_membership_request_created(
         instance=req, logger=logger
     )

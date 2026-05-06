@@ -1,25 +1,35 @@
 Dear {{ user.first_name }},
 
 <p>
-  Thank you for requesting special membership access on Impresso. We've successfully received your request and our team is now reviewing it.
+  Thank you for requesting special membership access on Impresso. We've
+  successfully received your request and our team is now reviewing it.
 </p>
 <p>
   Here are the details of the access you requested, for your reference:
-  <ul>
-    <li><strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}</li>
-    <li><strong>Request Submitted:</strong> {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}</li>
-    <li><strong>Current Status:</strong> {{ status_label }}</li>
-  </ul>
 </p>
+<ul style="list-style-type: none; padding-left: 0;">
+  <li><strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}</li>
+  <li><strong>Request Date:</strong> {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}</li>
+  <li><strong>Current Status:</strong> {{ status_label }}</li>
+  <li>
+    <strong>Notes:</strong>
+    {% if user_special_membership_request.notes %}
+      {{ user_special_membership_request.notes }}
+    {% else %}
+      No notes provided.
+    {% endif %}
+  </li>
+</ul>
 <p>
-  We aim to complete the review as quickly as possible and will notify you as soon as a decision has been made.
-  <br/>
-  Please check your inbox regularly, as the reviewer may reach out to you via email (e.g., to send a contract for signature).
+  We aim to complete the review as quickly as possible and will notify you as
+  soon as a decision has been made. Please check your inbox regularly, as the
+  reviewer may reach out to you via email (e.g., to send a contract for
+  signature).
 </p>
 <p>
   We appreciate your patience!
-  <br/>
-  Best regards,
-  <br/>
+</p>
+<p>
+  Best regards,<br />
   The Impresso Team
 </p>

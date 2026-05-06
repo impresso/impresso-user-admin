@@ -97,7 +97,10 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             email.body,
             "Email body should contain the user's full name.",
         )
-        self.assertIn("Pending Review", email.body)
+        status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+            instance.status, instance.status
+        )
+        self.assertIn(status_label, email.body)
         self.assertIn("Test Dataset", email.body)
 
     def test_created_based_on_metadata_modality(self):
@@ -251,7 +254,10 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER,
         )
         self.assertIn("Dear Alice,", user_email.body)
-        self.assertIn("Pending Review", user_email.body)
+        status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+            instance.status, instance.status
+        )
+        self.assertIn(status_label, user_email.body)
         self.assertIn("Test Dataset", user_email.body)
         self.assertIn("Please review my request.", user_email.body)
 

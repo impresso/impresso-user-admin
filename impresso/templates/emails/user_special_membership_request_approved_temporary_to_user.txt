@@ -23,7 +23,7 @@ Here are the details of the access request for your reference:
     Membership Option: {{ user_special_membership_request.subscription.title }}
     Request Date: {{ user_special_membership_request.date_created|timezone:"UTC"|date:"l, d.m.Y, H:i T" }}
     Expiration Date: {{ user_special_membership_request.temporary_expires_at|timezone:"UTC"|date:"l, d.m.Y, H:i T" }}
-    Request Status: {{ user_special_membership_request.status}}
+    Request Status: {{ status_label }}
 
 Should you need any further assistance from our side, the Impresso Team remains at your service.
 

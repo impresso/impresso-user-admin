@@ -176,12 +176,15 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             "This is an approved request with notes.",
             stdout=out,
         )
-        print(len(mail.outbox))
-        print(mail.outbox[1].body)
+        self.assertEqual(len(mail.outbox), 1, "Expected only one email to be sent when creating an APPROVED request")
+        self.assertEqual(mail.outbox[0].to, [self.user.email])
+        self.assertIn("approved", mail.outbox[0].subject.lower())
+        
         request = UserSpecialMembershipRequest.objects.get(
             user=self.user,
             subscription=self.dataset,
         )
+        
         self.assertEqual(request.status, UserSpecialMembershipRequest.STATUS_APPROVED)
         self.assertEqual(request.reviewer, self.reviewer)
         self.assertIn(

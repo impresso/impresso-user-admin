@@ -12,11 +12,11 @@
 <ul>
   {% for request in latest_requests %}
   <li>
-    Request from: <strong>{{ request.user.get_full_name|default:request.user.username}}</strong>
+    Request from: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
     <ul>
+      <li><strong>Email:</strong> {{ request.user.email }}</li>
       <li>
-        <strong>Email:</strong> {{ request.user.email }}</li>
-        <strong>Affiliation:</strong> 
+        <strong>Affiliation:</strong>
         {% if request.user.profile.affiliation %}
           {{ request.user.profile.affiliation }}
         {% else %}
@@ -24,7 +24,7 @@
         {% endif %}
       </li>
       <li>
-        <strong> Public Institutional Webpage:</strong> 
+        <strong>Public Institutional Webpage:</strong>
         {% if request.user.profile.institutional_url %}
           {{ request.user.profile.institutional_url }}
         {% else %}
@@ -35,7 +35,7 @@
         <strong>Membership Option:</strong> {{ request.subscription.title }}
       </li>
       <li>
-        <strong>Request Date:</strong> {{ request.date_created|date:"l, d.m.Y, H:i T" }}
+        <strong>Submitted:</strong> {{ request.date_created|date:"F j, Y" }}
         <em>
           ({{ request.days_waiting }} day{{ request.days_waiting|pluralize }} ago)
         </em>
@@ -67,6 +67,6 @@
 <p>Thank you for your continued support!</p>
 
 <p>
-  Warm regards,<br />
+  Best regards,<br />
   The Impresso Team
 </p>
