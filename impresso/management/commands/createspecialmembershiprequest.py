@@ -1,8 +1,10 @@
+from datetime import timedelta
 from typing import Any
 
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError
+from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 
@@ -46,6 +48,13 @@ class Command(BaseCommand):
             default=None,
             help="Optional notes to attach to the request",
         )
+        parser.add_argument(
+            "--revoke-after",
+            type=float,
+            default=None,
+            dest="revoke_after",
+            help="Number of days after which the temporary membership expires (sets temporary_expires_at and overrides the default value from subscrption metadata)",
+        )
 
     def handle(
         self, user_email: str, dataset_id: int, *args: Any, **options: Any
@@ -66,6 +75,13 @@ class Command(BaseCommand):
                 f"SpecialMembershipDataset with id={dataset_id} does not exist."
             ) from exc
 
+        revoke_after: float | None = options["revoke_after"]
+        temporary_expires_at = (
+            timezone.now() + timedelta(days=revoke_after)
+            if revoke_after is not None
+            else None
+        )
+
         try:
             request = UserSpecialMembershipRequest.objects.create(
                 user=user,
@@ -73,6 +89,7 @@ class Command(BaseCommand):
                 subscription=dataset,
                 status=options["status"],
                 notes=options["notes"],
+                temporary_expires_at=temporary_expires_at,
             )
         except IntegrityError as exc:
             raise CommandError(

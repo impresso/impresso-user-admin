@@ -1,8 +1,10 @@
+from datetime import timedelta
 from io import StringIO
 from django.core import mail
 from django.contrib.auth.models import User
 from django.core.management import CommandError, call_command
 from django.test import TestCase
+from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.signals import create_default_groups
@@ -54,14 +56,10 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
             str(dataset_with_revokeable_period.pk),
             stdout=out,
         )
-        print(mail.outbox[0].body)
         request = UserSpecialMembershipRequest.objects.get(
             user=self.user,
             subscription=dataset_with_revokeable_period,
         )
-        print("olalalla this terminates here", request.date_created, request.status)
-        print(mail.outbox[1].body)
-        print(out.getvalue())
         # date dataset_with_revokeable_period should sset and be more or less 24 h from now
         self.assertIsNotNone(request.temporary_expires_at)
         now = request.date_created
@@ -176,15 +174,19 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             "This is an approved request with notes.",
             stdout=out,
         )
-        self.assertEqual(len(mail.outbox), 1, "Expected only one email to be sent when creating an APPROVED request")
+        self.assertEqual(
+            len(mail.outbox),
+            1,
+            "Expected only one email to be sent when creating an APPROVED request",
+        )
         self.assertEqual(mail.outbox[0].to, [self.user.email])
         self.assertIn("approved", mail.outbox[0].subject.lower())
-        
+
         request = UserSpecialMembershipRequest.objects.get(
             user=self.user,
             subscription=self.dataset,
         )
-        
+
         self.assertEqual(request.status, UserSpecialMembershipRequest.STATUS_APPROVED)
         self.assertEqual(request.reviewer, self.reviewer)
         self.assertIn(
@@ -192,7 +194,120 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             out.getvalue(),
         )
 
+    def test_add_notes_and_approved_temporary_status(self) -> None:
+        out = StringIO()
+        mail.outbox = []
+        call_command(
+            "createspecialmembershiprequest",
+            self.user.email,
+            str(self.dataset.pk),
+            "--status",
+            UserSpecialMembershipRequest.STATUS_APPROVED,
+            "--notes",
+            "This is an approved request with notes.",
+            stdout=out,
+        )
+        # check user_bitmap.subscriptions
 
-#         with patch(
-#     "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
-# ) as mock_apply_async:
+    #         with patch(
+    #     "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+    # ) as mock_apply_async:
+    def test_create_pending_when_temporary_automatic_acceptance_is_enabled(
+        self,
+    ) -> None:
+        revokable_dataset = SpecialMembershipDataset.objects.create(
+            title="Revokable Dataset",
+            reviewer=self.reviewer,
+            metadata={
+                "revokeAfterDays": 5,
+                "enableTemporaryAutomaticAcceptance": True,
+            },
+        )
+        out = StringIO()
+        mail.outbox = []
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ) as mock_apply_async:
+            call_command(
+                "createspecialmembershiprequest",
+                self.user.email,
+                str(revokable_dataset.pk),
+                stdout=out,
+            )
+            request = UserSpecialMembershipRequest.objects.get(
+                user=self.user,
+                subscription=revokable_dataset,
+            )
+            self.assertEqual(
+                request.status, UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+            )
+            # check that the revoke task was scheduled with the correct eta (approximately now + 5 days)
+            self.assertTrue(
+                request.temporary_expires_at is not None,
+                "temporary_expires_at should be set for temporary approved requests",
+            )
+            self.assertEqual(
+                request.temporary_expires_at.date(),
+                (
+                    timezone.now()
+                    + timedelta(days=revokable_dataset.metadata["revokeAfterDays"])
+                ).date(),
+                "temporary_expires_at should be approximately now + 5 days",
+            )
+
+            self.assertTrue(
+                mock_apply_async.called,
+                "Expected revoke_special_membership_request.apply_async to be called for temporary approval",
+            )
+            _args, kwargs = mock_apply_async.call_args
+            self.assertIn("eta", kwargs, "Expected 'eta' argument in apply_async call")
+
+    def test_revoke_after_half_day_sets_temporary_expires_at(self) -> None:
+        """
+        --revoke-after 0.5 should set temporary_expires_at to approximately now + 12 hours.
+        """
+        out = StringIO()
+        before = timezone.now()
+        call_command(
+            "createspecialmembershiprequest",
+            self.user.email,
+            str(self.dataset.pk),
+            "--revoke-after",
+            "0.5",
+            "--status",
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            stdout=out,
+        )
+        after = timezone.now()
+
+        request = UserSpecialMembershipRequest.objects.get(
+            user=self.user,
+            subscription=self.dataset,
+        )
+        self.assertIsNotNone(request.temporary_expires_at)
+
+        expected_lower = before + timedelta(days=0.5)
+        expected_upper = after + timedelta(days=0.5)
+
+        self.assertGreaterEqual(
+            request.temporary_expires_at,
+            expected_lower,
+            "temporary_expires_at should be at least now + 0.5 days",
+        )
+        self.assertLessEqual(
+            request.temporary_expires_at,
+            expected_upper,
+            "temporary_expires_at should be at most now + 0.5 days",
+        )
+        self.assertIn("Created special membership request", out.getvalue())
+        self.assertIn("Access will be automatically revoked after", mail.outbox[0].body)
+        # second email is revoke (in test, all celery taks are executed synchronously, so the revoke email is sent immediately after the creation email)
+        self.assertEqual(
+            len(mail.outbox),
+            2,
+            "Expected two emails to be sent during testing without patch: one for creation and one for revoke",
+        )
+        self.assertIn(
+            "Your temporary special membership access has expired and is now revoked",
+            mail.outbox[1].body,
+        )

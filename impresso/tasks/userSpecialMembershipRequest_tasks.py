@@ -29,23 +29,37 @@ def _is_modality_cc_reviewer_enabled(req: UserSpecialMembershipRequest) -> bool:
     )
 
 
-def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float | None:
+def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
+    """
+    Always return a positive number of days from the request's subscription metadata.
+    If they're wrong or missing, get the value from the default settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
+    """
+    req.refresh_from_db()  # ensure we have the latest subscription metadata
+    DEFAULT_DAYS: float = (
+        settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
+    )
     if not req.subscription:
-        return None
+        logger.warning(
+            f"[instance:{req.pk}] No subscription associated with the request, cannot get revokeAfterDays, using default {DEFAULT_DAYS} day(s)"
+        )
+        return DEFAULT_DAYS
+
     revoke_after_days = req.subscription.metadata.get("revokeAfterDays")
     if isinstance(revoke_after_days, (int, float)) and revoke_after_days > 0:
         return float(revoke_after_days)
-    return None
+
+    logger.warning(
+        f"[instance:{req.pk}] revokeAfterDays is missing or invalid in subscription metadata (value={revoke_after_days}), using default {DEFAULT_DAYS} day(s)"
+    )
+    return DEFAULT_DAYS
 
 
 def _schedule_temporary_revocation(req: UserSpecialMembershipRequest) -> None:
     revoke_after_days = _get_revoke_after_days(req)
-    if revoke_after_days is None:
-        logger.warning(
-            f"[instance:{req.pk}] STATUS_APPROVED_TEMPORARY but revokeAfterDays is missing/invalid, skipping scheduling"
-        )
-        return
-    revoke_at = timezone.now() + timedelta(days=revoke_after_days)
+    if req.temporary_expires_at is not None:
+        revoke_at = req.temporary_expires_at
+    else:
+        revoke_at = timezone.now() + timedelta(days=revoke_after_days)
     revoke_special_membership_request.apply_async(
         kwargs={"instance_id": req.pk}, eta=revoke_at
     )
@@ -111,13 +125,9 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
         logger.info(
             f"[instance:{instance_id}] created with status {req.status}, skipping created email and sending update email instead"
         )
-        send_email_after_user_special_membership_request_updated(
-            instance=req,
-            logger=logger,
-            is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
-        )
+        after_special_membership_request_updated.delay(instance_id=instance_id)
         return
-    
+
     send_email_after_user_special_membership_request_created(
         instance=req, logger=logger
     )
@@ -166,8 +176,10 @@ def after_special_membership_request_updated(self, instance_id: int) -> None:
         logger=logger,
         is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
     )
-
-    if req.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY:
+    if (
+        req.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        or req.temporary_expires_at is not None
+    ):
         logger.info(
             f"[instance:{instance_id}] STATUS_APPROVED_TEMPORARY, scheduling revocation..."
         )
@@ -205,14 +217,9 @@ def revoke_special_membership_request(self, instance_id: int) -> None:
 
     req.status = UserSpecialMembershipRequest.STATUS_REVOKED
     req.save()
+    # usual signals will take care of applying the bitmap changes and sending the email notification about revocation
     logger.info(
         f"[instance:{instance_id}] temporary membership revoked for user={req.user.pk}"
-    )
-    apply_special_membership_to_bitmap(instance=req, created=False, logger=logger)
-    send_email_after_user_special_membership_request_updated(
-        instance=req,
-        logger=logger,
-        is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
     )
 
 

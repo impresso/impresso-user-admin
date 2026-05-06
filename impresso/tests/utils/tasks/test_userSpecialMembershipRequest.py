@@ -75,7 +75,9 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         # Set pk and dates manually to avoid triggering signals
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
-
+        self.assertEqual(
+            len(mail.outbox), 0, "No emails should be sent before the task is called"
+        )
         send_email_after_user_special_membership_request_created(
             instance=instance,
             logger=logger,
@@ -154,15 +156,15 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             subscription=dataset_existing,
             status=UserSpecialMembershipRequest.STATUS_APPROVED,
         )
-
+        # reload from db
+        self.user.refresh_from_db()
         self.assertEqual(
             self.user.bitmap.subscriptions.count(),
             1,
             "User should have 1 existing special membership subscription as it is already approved.",
         )
-
         self.assertIn(
-            "Membership Option: Existing Dataset",
+            "You now have full access to: Existing Dataset.",
             mail.outbox[0].body,
             "Email context should include the correct number of existing special memberships.",
         )

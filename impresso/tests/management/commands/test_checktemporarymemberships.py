@@ -1,6 +1,6 @@
 from datetime import timedelta
 from io import StringIO
-
+from django.core import mail
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import TestCase
@@ -9,9 +9,13 @@ from django.utils import timezone
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.signals import create_default_groups
 
+from unittest.mock import patch
+
 
 class TestCheckTemporaryMembershipsCommand(TestCase):
-    """Test the checktemporarymemberships management command."""
+    """Test the checktemporarymemberships management command.
+    ENV=test pipenv run python manage.py test impresso.tests.management.commands.test_checktemporarymemberships.TestCheckTemporaryMembershipsCommand
+    """
 
     def setUp(self) -> None:
         create_default_groups(sender="impresso")
@@ -38,18 +42,30 @@ class TestCheckTemporaryMembershipsCommand(TestCase):
 
     def test_finds_temporary_memberships(self) -> None:
         # Create one pending, one temporary approved
+        # pending request should not be included in the output, only the temporary approved one
         UserSpecialMembershipRequest.objects.create(
             user=self.user1,
             subscription=self.dataset,
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
-        
-        temp_req = UserSpecialMembershipRequest.objects.create(
-            user=self.user2,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-            temporary_expires_at=timezone.now() + timedelta(days=7),
-        )
+        self.assertEqual(
+            len(mail.outbox),
+            1,
+            "Always expect an email to be sent when creating a request",
+        )  # Debug assertion to check mail outbox length
+        mail.outbox = []
+        # Clear the outbox before creating the temporary approved request
+
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ) as mock_apply_async:
+            temp_req = UserSpecialMembershipRequest.objects.create(
+                user=self.user2,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+                temporary_expires_at=timezone.now() + timedelta(days=7),
+            )
+            self.assertEqual(len(mail.outbox), 1)
 
         out = StringIO()
         call_command("checktemporarymemberships", stdout=out)
@@ -63,12 +79,15 @@ class TestCheckTemporaryMembershipsCommand(TestCase):
 
     def test_shows_expired_memberships(self) -> None:
         # Create a temporary approved request that has already expired
-        temp_req = UserSpecialMembershipRequest.objects.create(
-            user=self.user1,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-            temporary_expires_at=timezone.now() - timedelta(days=1),
-        )
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ):
+            temp_req = UserSpecialMembershipRequest.objects.create(
+                user=self.user1,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+                temporary_expires_at=timezone.now() - timedelta(days=1),
+            )
 
         out = StringIO()
         call_command("checktemporarymemberships", stdout=out)
