@@ -9,9 +9,7 @@ from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.models.profile import Profile
-from impresso.models.userBitmap import UserBitmap
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
-    after_special_membership_request_created,
     revoke_special_membership_request,
 )
 from impresso.utils.tasks.userSpecialMembershipRequest import (
@@ -475,6 +473,10 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
 
 
 class TestTemporaryAutomaticRevocation(TestCase):
+    """
+    ENV=test pipenv run ./manage.py test impresso.tests.utils.tasks.test_userSpecialMembershipRequest.TestTemporaryAutomaticRevocation
+    """
+
     def setUp(self):
         self.user = User.objects.create_user(
             username="revoked-user",
@@ -528,16 +530,16 @@ class TestTemporaryAutomaticRevocation(TestCase):
         user2 = User.objects.create_user(
             username="other-user", email="other-user@example.com"
         )
-        UserSpecialMembershipRequest.objects.create(
-            user=user2,
-            subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-            temporary_expires_at=timezone.now() + timedelta(days=1),
-        )
 
         with patch(
             "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.delay"
         ) as mock_delay:
+            UserSpecialMembershipRequest.objects.create(
+                user=user2,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+                temporary_expires_at=timezone.now() + timedelta(days=1),
+            )
             revoke_expired_temporary_memberships_beat.delay()
 
             mock_delay.assert_called_once_with(instance_id=req1.pk)
