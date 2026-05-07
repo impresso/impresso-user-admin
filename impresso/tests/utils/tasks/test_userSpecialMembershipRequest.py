@@ -512,13 +512,6 @@ class TestTemporaryAutomaticRevocation(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.bitmap.subscriptions.count(), 0)
         self.assertEqual(len(mail.outbox), 2)
-        # self.assertTrue(
-        #     all(
-        #         email.subject
-        #         == settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER
-        #         for email in mail.outbox
-        #     )
-        # )
 
     def test_revoke_expired_temporary_memberships_beat(self):
 
@@ -526,46 +519,45 @@ class TestTemporaryAutomaticRevocation(TestCase):
             username="other-user", email="other-user@example.com"
         )
 
-        with patch(
-            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
-        ) as mock_delay:
+        request_that_need_to_be_revoked = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() - timedelta(days=1),
+        )
 
-            request_that_need_to_be_revoked = (
-                UserSpecialMembershipRequest.objects.create(
-                    user=self.user,
-                    subscription=self.dataset,
-                    status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-                    temporary_expires_at=timezone.now() - timedelta(days=1),
-                )
-            )
+        request_still_active = UserSpecialMembershipRequest.objects.create(
+            user=user2,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() + timedelta(days=1),
+        )
 
-            req2 = UserSpecialMembershipRequest.objects.create(
-                user=user2,
-                subscription=self.dataset,
-                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-                temporary_expires_at=timezone.now() + timedelta(days=1),
-            )
-            all_subscriptions = UserSpecialMembershipRequest.objects.filter(
-                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
-            )
-            # they are still "acive"
-            self.assertEqual(all_subscriptions.count(), 2)
-            self.assertEqual(
-                ",".join(all_subscriptions.values_list("status", flat=True)),
-                "temporary,temporary",
-                "both requests should not be expired yet",
-            )
-            print("statuseeeeeeees", self.user.bitmap.subscriptions.count())
-            print("statuseeeeeeees", user2.bitmap.subscriptions.count())
-            active_subscriptions = UserSpecialMembershipRequest.objects.filter(
-                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-                temporary_expires_at__gt=timezone.now(),
-            )
-            self.assertEqual(active_subscriptions.count(), 1)
+        all_subscriptions = UserSpecialMembershipRequest.objects.filter(
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        )
+        # they are both "STATUS_APPROVED_TEMPORARY"
+        self.assertEqual(
+            ",".join(all_subscriptions.values_list("status", flat=True)),
+            "temporary,temporary",
+            "both requests should not be expired yet",
+        )
+        # one of them has already expired based on temporary_expires_at
+        expired_subscriptions = UserSpecialMembershipRequest.objects.filter(
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at__lt=timezone.now(),
+        )
+        self.assertEqual(expired_subscriptions.count(), 1)
 
-            print("DODODODODODODODODD", active_subscriptions.count())
-            print(
-                "statuseeeeeeees", active_subscriptions.values_list("status", flat=True)
-            )
-
-            revoke_expired_temporary_memberships_beat.delay()
+        revoke_expired_temporary_memberships_beat.delay()
+        # now self user request should be revoked, while the other user's request should still be active
+        request_that_need_to_be_revoked.refresh_from_db()
+        request_still_active.refresh_from_db()
+        self.assertEqual(
+            request_that_need_to_be_revoked.status,
+            UserSpecialMembershipRequest.STATUS_REVOKED,
+        )
+        self.assertEqual(
+            request_still_active.status,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        )

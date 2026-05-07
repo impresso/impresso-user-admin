@@ -138,8 +138,6 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
     def setUp(self) -> None:
         create_default_groups(sender="impresso")
 
-        create_default_groups(sender="impresso")
-
         self.reviewer = User.objects.create_user(
             username="reviewer",
             first_name="John",
@@ -206,6 +204,15 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             stdout=out,
         )
         # check user_bitmap.subscriptions
+        request = UserSpecialMembershipRequest.objects.get(
+            user=self.user,
+            subscription=self.dataset,
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(request.status, UserSpecialMembershipRequest.STATUS_APPROVED)
+        self.assertEqual(request.reviewer, self.reviewer)
+        self.assertEqual(request.notes, "This is an approved request with notes.")
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
 
     def test_create_pending_when_temporary_automatic_acceptance_is_enabled(
         self,
@@ -241,7 +248,9 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             request.temporary_expires_at.date(),
             (
                 timezone.now()
-                + timedelta(days=revokable_dataset.metadata["revokeAfterDays"])
+                + timedelta(
+                    days=revokable_dataset.resolve_revoke_after_days(default_days=1)
+                )
             ).date(),
             "temporary_expires_at should be approximately now + 5 days",
         )

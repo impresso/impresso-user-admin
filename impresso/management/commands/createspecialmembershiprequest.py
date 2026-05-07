@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError
 from django.utils import timezone
 
+from django.conf import settings
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 
 
@@ -53,7 +54,7 @@ class Command(BaseCommand):
             type=float,
             default=None,
             dest="revoke_after",
-            help="Number of days after which the temporary membership expires (sets temporary_expires_at and overrides the default value from subscrption metadata)",
+            help="Number of days after which the temporary membership expires (sets temporary_expires_at and overrides the default value from subscription metadata)",
         )
 
     def handle(
@@ -76,7 +77,24 @@ class Command(BaseCommand):
             ) from exc
 
         revoke_after: float | None = options["revoke_after"]
-        # normally this would be set from request.creation_date + revoke_after, but since we're creating the request now we can set it from now + revoke_after :)
+        # Check that revoke_after options is valid int or float greater than 0
+        if revoke_after is not None:
+            if revoke_after <= 0:
+                raise CommandError(
+                    f"Invalid value for --revoke-after: {revoke_after}. It must be a positive number."
+                )
+
+        if (
+            revoke_after is None
+            and options["status"]
+            == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        ):
+            revoke_after = dataset.resolve_revoke_after_days(
+                default_days=settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
+            )
+
+        # normally this would be set from request.creation_date + revoke_after,
+        # but since we're creating the request now we can set it from now + revoke_after.
         temporary_expires_at = (
             timezone.now() + timedelta(days=revoke_after)
             if revoke_after is not None
