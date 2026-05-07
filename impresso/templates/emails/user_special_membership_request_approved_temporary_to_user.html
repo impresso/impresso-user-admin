@@ -9,7 +9,7 @@ Dear {{ user.first_name }},
   Provisional Access for a period of {{ user_special_membership_request_duration }}
   until
   <strong>{{ user_special_membership_request.temporary_expires_at|date:"l, Y-m-d H:i" }}</strong>
-  and gives you full access contents from Test Dataset. Note that Impresso Terms
+  and gives you full access contents from {{ user_special_membership_request.subscription.title }}. Note that Impresso Terms
   of Use always apply.
 </p>
 
