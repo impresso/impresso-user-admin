@@ -1,5 +1,6 @@
 from typing import Optional, TypedDict
-
+from numbers import Real
+from django.conf import settings
 from django.db import models
 from django.db.models import Max
 
@@ -53,6 +54,34 @@ class SpecialMembershipDataset(models.Model):
 
     def __str__(self):
         return self.title
+
+    def is_temporary_auto_accept_enabled(self) -> bool:
+        return bool(self.metadata.get("enableTemporaryAutomaticAcceptance"))
+
+    def is_modality_cc_reviewer_enabled(self) -> bool:
+        return bool(
+            self.metadata.get("modality")
+            == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+        )
+
+    def resolve_revoke_after_days(self, default_days: Optional[float]) -> float:
+        """
+        Returns the number of days after which a temporary approval
+        should be revoked.
+
+        Priority:
+        1. metadata["revokeAfterDays"]
+        2. provided default_days
+        3. Django settings fallback
+        """
+        revoke_after_days = self.metadata.get("revokeAfterDays")
+        if isinstance(revoke_after_days, Real) and revoke_after_days > 0:
+            return float(revoke_after_days)
+        if isinstance(default_days, Real) and default_days > 0:
+            return float(default_days)
+        return float(
+            settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
+        )
 
     class Meta:
         verbose_name = "Special Membership Access"
