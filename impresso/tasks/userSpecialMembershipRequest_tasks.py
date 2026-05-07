@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 from django.conf import settings
@@ -54,17 +52,6 @@ def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
     return DEFAULT_DAYS
 
 
-def _schedule_temporary_revocation(req: UserSpecialMembershipRequest) -> None:
-    revoke_after_days = _get_revoke_after_days(req)
-    if req.temporary_expires_at is not None:
-        revoke_at = req.temporary_expires_at
-    else:
-        revoke_at = timezone.now() + timedelta(days=revoke_after_days)
-    revoke_special_membership_request.apply_async(
-        kwargs={"instance_id": req.pk}, eta=revoke_at
-    )
-
-
 @app.task(
     bind=True,
     autoretry_for=(Exception,),
@@ -92,31 +79,25 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
     logger.info(
         f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
     )
-    # If the request is pending and temporary auto-accept is enabled, approve it as temporary and schedule revocation,
+    # If the request is pending and temporary auto-accept is enabled, approve it as temporary,
+    # and let celery beat handle revocation after expiration.
     # instead of going through the regular pending flow.
     if (
         req.status == UserSpecialMembershipRequest.STATUS_PENDING
         and _is_temporary_auto_accept_enabled(req)
     ):
-
+        # Always set an expires at date in case of temporary approval
         revoke_after_days = _get_revoke_after_days(req)
-        if revoke_after_days is None:
-            logger.warning(
-                f"[instance:{instance_id}] enableTemporaryAutomaticAcceptance is true but revokeAfterDays is missing or invalid, continuing regular pending flow"
-            )
-        else:
-            req.status = UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
-            # add the temporary expiration date using the last modified date + revoke_after_days
-            req.temporary_expires_at = req.date_last_modified + timedelta(
-                days=revoke_after_days
-            )
-            req.save()
-            logger.info(
-                f"[instance:{instance_id}] auto-accepted as temporary for {revoke_after_days} day(s)"
-            )
-            # The save above triggers the update task via signal, which applies bitmap,
-            # sends the temporary-approval email, and schedules revocation.
-            return
+        req.status = UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        # add the temporary expiration date using the last modified date + revoke_after_days
+        req.temporary_expires_at = req.calculate_temporary_expiration(revoke_after_days)
+        req.save()
+        logger.info(
+            f"[instance:{instance_id}] auto-accepted as temporary for {revoke_after_days} day(s)"
+        )
+        # The save above triggers the update task via signal, which applies bitmap
+        # and sends the temporary-approval email. Revocation is handled by celery beat.
+        return
 
     # Apply special membership to bitmap before sending emails, so that the user gets the access as soon as they receive the email
     apply_special_membership_to_bitmap(instance=req, created=True, logger=logger)
@@ -176,14 +157,6 @@ def after_special_membership_request_updated(self, instance_id: int) -> None:
         logger=logger,
         is_modality_cc_reviewer_enabled=_is_modality_cc_reviewer_enabled(req),
     )
-    if (
-        req.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
-        or req.temporary_expires_at is not None
-    ):
-        logger.info(
-            f"[instance:{instance_id}] STATUS_APPROVED_TEMPORARY, scheduling revocation..."
-        )
-        _schedule_temporary_revocation(req)
 
 
 @app.task(

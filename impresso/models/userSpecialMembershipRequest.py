@@ -18,6 +18,7 @@ class ChangelogEntry(TypedDict):
     date: str  # ISO formatted date string
     reviewer: Optional[str]  # Username of the reviewer
     notes: str  # Additional notes (guaranteed to be a string, not None)
+    temporary_expires_at: Optional[str]  # ISO formatted date string or None
 
 
 class UserSpecialMembershipRequest(models.Model):
@@ -102,19 +103,51 @@ class UserSpecialMembershipRequest(models.Model):
         verbose_name_plural = "User Special Membership Requests"
         db_table = "impresso_userrequest"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        changelog_entry: ChangelogEntry = {
+    def _append_changelog(self) -> None:
+        entry: ChangelogEntry = {
             "status": self.status,
             "subscription": self.subscription.title if self.subscription else None,
-            "date": (
-                timezone.now().isoformat()
-                if not self.pk
-                else self.date_last_modified.isoformat()
-            ),
+            "date": timezone.now().isoformat(),
             "reviewer": self.reviewer.username if self.reviewer else None,
-            "notes": self.notes if self.notes else "",
+            "notes": self.notes or "",
+            "temporary_expires_at": (
+                self.temporary_expires_at.isoformat()
+                if self.temporary_expires_at
+                else None
+            ),
         }
-        current_changelog: List[ChangelogEntry] = self.changelog or []
-        current_changelog.append(changelog_entry)
-        self.changelog = current_changelog  # Assign the updated list back
+        current_changelog = self.changelog or []
+        latest_entry = current_changelog[-1] if current_changelog else None
+        # Avoid duplicate consecutive entries
+        if latest_entry:
+            comparable_fields = [
+                "status",
+                "reviewer",
+                "notes",
+                "temporary_expires_at",
+                "subscription",
+            ]
+            is_same = all(
+                latest_entry.get(field) == entry.get(field)
+                for field in comparable_fields
+            )
+
+            if is_same:
+                return
+        self.changelog = current_changelog + [entry]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self._append_changelog()
         super().save(*args, **kwargs)
+
+    def calculate_temporary_expiration(
+        self, revoke_after_days: float
+    ) -> timezone.datetime:
+        """
+        Calculates the expiration date for temporary approvals from request creation date.
+        Supports fractional days (e.g., 0.5 for 12 hours).
+        Returns:
+            timezone.datetime: The calculated expiration datetime for temporary approvals.
+        """
+        initial_datetime = self.date_created or timezone.now()
+        return initial_datetime + timezone.timedelta(days=revoke_after_days)

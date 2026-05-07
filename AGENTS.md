@@ -65,6 +65,20 @@ with patch(
     assert "eta" in call_kwargs
 ```
 
+### Temporary special membership revocation strategy
+
+Temporary special membership revocation is beat-driven in this repository:
+
+- Requests are marked with `temporary_expires_at` when temporarily approved.
+- Periodic task `revoke_expired_temporary_memberships_beat` is the single revocation trigger.
+- Save/update flows should not enqueue direct revocation scheduling for temporary requests.
+
+Testing implications for this feature:
+
+- Do not patch `revoke_special_membership_request.apply_async` to assert ETA scheduling in temporary auto-accept tests.
+- Prefer asserting persisted state (`status`, `temporary_expires_at`) and beat-driven revocation behavior.
+- Keep generic `apply_async(..., eta=...)` assertions only for features that still use explicit ETA scheduling.
+
 ## Email and templates
 
 ### Overview

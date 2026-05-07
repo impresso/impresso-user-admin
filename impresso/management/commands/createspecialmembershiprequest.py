@@ -76,6 +76,7 @@ class Command(BaseCommand):
             ) from exc
 
         revoke_after: float | None = options["revoke_after"]
+        # normally this would be set from request.creation_date + revoke_after, but since we're creating the request now we can set it from now + revoke_after :)
         temporary_expires_at = (
             timezone.now() + timedelta(days=revoke_after)
             if revoke_after is not None
