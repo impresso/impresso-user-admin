@@ -1,13 +1,19 @@
 import logging
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.models.profile import Profile
-from impresso.models.userBitmap import UserBitmap
+from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    revoke_special_membership_request,
+    revoke_expired_temporary_memberships,
+)
 from impresso.utils.tasks.userSpecialMembershipRequest import (
     send_email_after_user_special_membership_request_created,
 )
@@ -69,7 +75,9 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         # Set pk and dates manually to avoid triggering signals
         instance.pk = 1
         instance.date_created = instance.date_last_modified = timezone.now()
-
+        self.assertEqual(
+            len(mail.outbox), 0, "No emails should be sent before the task is called"
+        )
         send_email_after_user_special_membership_request_created(
             instance=instance,
             logger=logger,
@@ -91,7 +99,10 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             email.body,
             "Email body should contain the user's full name.",
         )
-        self.assertIn("Pending Review", email.body)
+        status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+            instance.status, instance.status
+        )
+        self.assertIn(status_label, email.body)
         self.assertIn("Test Dataset", email.body)
 
     def test_created_based_on_metadata_modality(self):
@@ -145,15 +156,15 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             subscription=dataset_existing,
             status=UserSpecialMembershipRequest.STATUS_APPROVED,
         )
-
+        # reload from db
+        self.user.refresh_from_db()
         self.assertEqual(
             self.user.bitmap.subscriptions.count(),
             1,
             "User should have 1 existing special membership subscription as it is already approved.",
         )
-
         self.assertIn(
-            "Membership Option: Existing Dataset",
+            "You now have full access to: Existing Dataset.",
             mail.outbox[0].body,
             "Email context should include the correct number of existing special memberships.",
         )
@@ -245,7 +256,10 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER,
         )
         self.assertIn("Dear Alice,", user_email.body)
-        self.assertIn("Pending Review", user_email.body)
+        status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+            instance.status, instance.status
+        )
+        self.assertIn(status_label, user_email.body)
         self.assertIn("Test Dataset", user_email.body)
         self.assertIn("Please review my request.", user_email.body)
 
@@ -353,3 +367,197 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
             "Email should have HTML alternative",
         )
         self.assertGreater(len(reviewer_email.alternatives), 0)
+
+
+class TestTemporaryAutomaticAcceptance(TransactionTestCase):
+    def setUp(self):
+        self.reviewer = User.objects.create_user(
+            username="temp-reviewer",
+            email="temp-reviewer@example.com",
+            password="testpass123",
+        )
+        self.user = User.objects.create_user(
+            username="temp-user",
+            first_name="Temp",
+            email="temp-user@example.com",
+            password="testpass123",
+        )
+        self.dataset = SpecialMembershipDataset.objects.create(
+            title="Temporary Dataset",
+            reviewer=self.reviewer,
+            metadata={
+                "enableTemporaryAutomaticAcceptance": True,
+                "revokeAfterDays": 7,
+                "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
+            },
+        )
+        mail.outbox = []
+
+    def test_created_request_is_auto_approved_temporarily(self):
+        mail.outbox = []
+        req = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+
+        req.refresh_from_db()
+
+        self.assertEqual(
+            req.status,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        )
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
+        )
+        self.assertIsNotNone(req.temporary_expires_at)
+
+    def test_created_requests_with_float_days_for_revoke_after_days(self):
+        dataset_with_float_revoke_after_days = SpecialMembershipDataset.objects.create(
+            title="Float Revoke After Days Dataset",
+            reviewer=self.reviewer,
+            metadata={
+                "enableTemporaryAutomaticAcceptance": True,
+                "revokeAfterDays": 0.5,  # 12 hours
+                "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
+            },
+        )
+
+        mail.outbox = []
+        req = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=dataset_with_float_revoke_after_days,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+
+        req.refresh_from_db()
+
+        self.assertEqual(
+            req.status,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        )
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER,
+        )
+        self.assertIsNotNone(req.temporary_expires_at)
+
+    def test_update_does_not_schedule_temporary_revocation(self):
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
+        ) as mock_apply_async:
+            req = UserSpecialMembershipRequest.objects.create(
+                user=self.user,
+                reviewer=self.reviewer,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_PENDING,
+            )
+
+            req.refresh_from_db()
+            req.notes = "Admin updated notes"
+            req.save()
+
+            self.assertEqual(
+                req.status,
+                UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            )
+            mock_apply_async.assert_not_called()
+
+
+class TestTemporaryAutomaticRevocation(TestCase):
+    """
+    ENV=test pipenv run ./manage.py test impresso.tests.utils.tasks.test_userSpecialMembershipRequest.TestTemporaryAutomaticRevocation
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="revoked-user",
+            first_name="Revoked",
+            email="revoked-user@example.com",
+            password="testpass123",
+        )
+        self.dataset = SpecialMembershipDataset.objects.create(
+            title="Revoked Dataset",
+            metadata={"revokeAfterDays": 1},
+        )
+        mail.outbox = []
+
+    def test_expired_temporary_request_is_revoked(self):
+        with patch(
+            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.delay"
+        ) as mock_delay:
+            req = UserSpecialMembershipRequest.objects.create(
+                user=self.user,
+                subscription=self.dataset,
+                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+                temporary_expires_at=timezone.now() - timedelta(days=1),
+            )
+
+            self.assertEqual(
+                req.status,
+                UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            )
+
+        revoke_special_membership_request.delay(instance_id=req.pk)
+        req.refresh_from_db()
+
+        self.assertEqual(req.status, UserSpecialMembershipRequest.STATUS_REVOKED)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.bitmap.subscriptions.count(), 0)
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_revoke_expired_temporary_memberships(self):
+
+        user2 = User.objects.create_user(
+            username="other-user", email="other-user@example.com"
+        )
+
+        request_that_need_to_be_revoked = UserSpecialMembershipRequest.objects.create(
+            user=self.user,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() - timedelta(days=1),
+        )
+
+        request_still_active = UserSpecialMembershipRequest.objects.create(
+            user=user2,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        all_subscriptions = UserSpecialMembershipRequest.objects.filter(
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        )
+        # they are both "STATUS_APPROVED_TEMPORARY"
+        self.assertEqual(
+            ",".join(all_subscriptions.values_list("status", flat=True)),
+            "temporary,temporary",
+            "both requests should not be expired yet",
+        )
+        # one of them has already expired based on temporary_expires_at
+        expired_subscriptions = UserSpecialMembershipRequest.objects.filter(
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at__lt=timezone.now(),
+        )
+        self.assertEqual(expired_subscriptions.count(), 1)
+
+        revoke_expired_temporary_memberships.delay()
+        # now self user request should be revoked, while the other user's request should still be active
+        request_that_need_to_be_revoked.refresh_from_db()
+        request_still_active.refresh_from_db()
+        self.assertEqual(
+            request_that_need_to_be_revoked.status,
+            UserSpecialMembershipRequest.STATUS_REVOKED,
+        )
+        self.assertEqual(
+            request_still_active.status,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+        )

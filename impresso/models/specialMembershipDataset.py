@@ -1,5 +1,6 @@
 from typing import Optional, TypedDict
-
+from numbers import Real
+from django.conf import settings
 from django.db import models
 from django.db.models import Max
 
@@ -11,6 +12,8 @@ class Metadata(TypedDict, total=False):
     """
 
     modality: Optional[str]  # e.g., "cc_reviewer", "notify_reviewer"
+    enableTemporaryAutomaticAcceptance: Optional[bool]
+    revokeAfterDays: Optional[float]
 
 
 class SpecialMembershipDataset(models.Model):
@@ -41,6 +44,7 @@ class SpecialMembershipDataset(models.Model):
         blank=True,
     )
     metadata: Metadata = models.JSONField(default=dict, blank=True)
+
     reviewer = models.ForeignKey(
         "auth.User",
         on_delete=models.SET_NULL,
@@ -49,8 +53,56 @@ class SpecialMembershipDataset(models.Model):
         blank=True,
     )
 
+    METADATA_ALLOWED_KEYS = {
+        "modality",
+        "enableTemporaryAutomaticAcceptance",
+        "revokeAfterDays",
+    }
+
     def __str__(self):
         return self.title
+
+    @property
+    def modality(self) -> Optional[str]:
+        return self.metadata.get("modality")
+
+    @property
+    def enable_temporary_automatic_acceptance(self) -> Optional[bool]:
+        value = self.metadata.get("enableTemporaryAutomaticAcceptance")
+        return bool(value) if value is not None else None
+
+    @property
+    def revoke_after_days(self) -> Optional[float]:
+        value = self.metadata.get("revokeAfterDays")
+        return float(value) if value is not None else None
+
+    def is_temporary_auto_accept_enabled(self) -> bool:
+        return bool(self.enable_temporary_automatic_acceptance)
+
+    def is_modality_cc_reviewer_enabled(self) -> bool:
+        return (
+            self.modality
+            == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+        )
+
+    def resolve_revoke_after_days(self, default_days: Optional[float]) -> float:
+        """
+        Returns the number of days after which a temporary approval
+        should be revoked.
+
+        Priority:
+        1. metadata["revokeAfterDays"]
+        2. provided default_days
+        3. Django settings fallback
+        """
+        revoke_after_days = self.metadata.get("revokeAfterDays")
+        if isinstance(revoke_after_days, Real) and revoke_after_days > 0:
+            return float(revoke_after_days)
+        if isinstance(default_days, Real) and default_days > 0:
+            return float(default_days)
+        return float(
+            settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
+        )
 
     class Meta:
         verbose_name = "Special Membership Access"

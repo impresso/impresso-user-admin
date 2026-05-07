@@ -9,9 +9,7 @@ from impresso.models import SpecialMembershipDataset, UserSpecialMembershipReque
 
 
 class Command(BaseCommand):
-    help = (
-        "Create a pending special membership request for a specific user and dataset."
-    )
+    help = "Create a special membership request for a specific user and dataset."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(

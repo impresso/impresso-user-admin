@@ -1,7 +1,6 @@
 import logging
 from logging import Logger
 from django.conf import settings
-from django.contrib.auth.models import User
 from impresso.models.userBitmap import UserBitmap
 from impresso.utils.models.user import (
     get_number_of_special_memberships,
@@ -19,9 +18,11 @@ def apply_special_membership_to_bitmap(
     logger: Logger = default_logger,
 ) -> None:
     """
-    Applies the special membership to the user's bitmap based on the status of the UserSpecialMembershipRequest instance.
-    If the request is approved, the corresponding subscription is added to the user's bitmap.
-    If the request is rejected or pending, the corresponding subscription is removed from the user's bitmap.
+    Applies the special membership to the user's bitmap based on the status of the
+    UserSpecialMembershipRequest instance.
+
+    Approved statuses add the subscription to the bitmap; non-approved statuses
+    remove it.
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
         created (bool): A boolean indicating whether the instance was created or updated.
@@ -41,12 +42,16 @@ def apply_special_membership_to_bitmap(
             f"UserSpecialMembershipRequest {instance.pk} has no subscription? skipping bitmap update."
         )
         return
-    if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
+    if instance.status in [
+        UserSpecialMembershipRequest.STATUS_APPROVED,
+        UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+    ]:
         user_bitmap.subscriptions.add(instance.subscription)
 
     elif instance.status in [
         UserSpecialMembershipRequest.STATUS_REJECTED,
         UserSpecialMembershipRequest.STATUS_PENDING,
+        UserSpecialMembershipRequest.STATUS_REVOKED,
     ]:
         user_bitmap.subscriptions.remove(instance.subscription)
         # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
@@ -55,6 +60,7 @@ def apply_special_membership_to_bitmap(
 def send_email_after_user_special_membership_request_updated(
     instance: UserSpecialMembershipRequest,
     fail_silently: bool = False,
+    is_modality_cc_reviewer_enabled: bool = False,
     logger: Logger = default_logger,
 ) -> None:
     """
@@ -63,41 +69,75 @@ def send_email_after_user_special_membership_request_updated(
     Args:
         instance (UserSpecialMembershipRequest): The UserSpecialMembershipRequest instance.
         fail_silently (bool, optional): Whether to fail silently if there is an error sending the email. Defaults to False.
+
+        is_modality_cc_reviewer_enabled (bool, optional): Whether the modality for CC reviewers is enabled. Defaults to False.
         logger (Logger, optional): The logger to use for logging information. Defaults to default_logger.
     Raises:
         Exception: If there is an error sending the email.
     """
+    reply_to = []
+    plan_label, plan_group = get_plan_from_user_groups(instance.user)
+    duration = None
+    if instance.temporary_expires_at:
+        delta = instance.temporary_expires_at - instance.date_created
+        total_hours = int(delta.total_seconds() // 3600)
+        if total_hours < 24:
+            duration = f"{total_hours} hour{'s' if total_hours != 1 else ''}"
+        else:
+            total_days = int(delta.total_seconds() // 86400)
+            duration = f"{total_days} day{'s' if total_days != 1 else ''}"
+    if is_modality_cc_reviewer_enabled:
+        reviewer = instance.reviewer or (
+            instance.subscription.reviewer if instance.subscription else None
+        )
+        if reviewer and reviewer.email:
+            reply_to.append(reviewer.email)
     if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
         template = "user_special_membership_request_approved_to_user"
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TO_USER
+        )
+    elif instance.status == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY:
+        template = "user_special_membership_request_approved_temporary_to_user"
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER
         )
     elif instance.status == UserSpecialMembershipRequest.STATUS_REJECTED:
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REJECTED_TO_USER
         )
         template = "user_special_membership_request_rejected_to_user"
+    elif instance.status == UserSpecialMembershipRequest.STATUS_REVOKED:
+        subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER
+        )
+        template = "user_special_membership_request_revoked_to_user"
     else:
         subject = (
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER
         )
         template = "user_special_membership_request_pending_to_user"
 
+    status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+        instance.status, instance.status
+    )
     send_templated_email_with_context(
         template=template,
         subject=subject,
         context={
             "user": instance.user,
             "user_special_membership_request": instance,
+            "plan_label": plan_label,
+            "plan_group": plan_group,
+            "user_special_membership_request_duration": duration,
+            "status_label": status_label,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
             instance.user.email,
         ],
         cc=[],
-        reply_to=[
-            settings.DEFAULT_FROM_EMAIL,
-        ],
+        reply_to=reply_to,
         logger=logger,
         fail_silently=fail_silently,
     )
@@ -134,17 +174,13 @@ def send_email_after_user_special_membership_request_created(
     )
     plan_label, plan_group = get_plan_from_user_groups(instance.user)
     number_of_special_memberships = get_number_of_special_memberships(instance.user)
-
-    # get modality from instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
-    modality = (
-        instance.subscription.metadata.get("modality", None)
-        if instance.subscription
-        else None
+    status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
+        instance.status, instance.status
     )
-    if not modality:
-        modality = (
-            settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
-        )
+    # Default to NOTIFY_REVIEWER unless dataset metadata explicitly enables CC_REVIEWER.
+    modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+    if instance.subscription and instance.subscription.is_modality_cc_reviewer_enabled():
+        modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
     if (
         modality
         == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
@@ -179,6 +215,7 @@ def send_email_after_user_special_membership_request_created(
             "plan_label": plan_label,
             "plan_group": plan_group,
             "number_of_special_memberships": number_of_special_memberships,
+            "status_label": status_label,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
@@ -213,6 +250,7 @@ def send_email_after_user_special_membership_request_created(
                 "user_special_membership_request": instance,
                 "plan_label": plan_label,
                 "plan_group": plan_group,
+                "status_label": status_label,
                 "number_of_special_memberships": number_of_special_memberships,
             },
             from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,

@@ -28,7 +28,7 @@
     {% if user.profile.affiliation %}
       {{ user.profile.affiliation }}
     {% else %}
-      - <i>not provided</i>
+      Not provided
     {% endif %}
   </li>
   <li>
@@ -36,7 +36,7 @@
     {% if user.profile.institutional_url %}
       {{ user.profile.institutional_url }}
     {% else %}
-      - <i>not provided</i>
+      Not provided
     {% endif %}
   </li>
   <li>
@@ -47,15 +47,13 @@
     <strong>Request Date:</strong> 
     {{ user_special_membership_request.date_created|date:"l, d.m.Y, H:i T" }}
   </li>
-  <li><strong>Request Status:</strong> Pending Review</li>
+  <li><strong>Request Status:</strong> {{ status_label }}</li>
   <li>
     <strong>Notes:</strong>
     {% if user_special_membership_request.notes %}
-      <blockquote>
-        {{ user_special_membership_request.notes }}
-      </blockquote>
+      {{ user_special_membership_request.notes }}
     {% else %}
-      - <i>not provided</i> 
+      No notes provided.
     {% endif %}
   </li>
 </ul>
