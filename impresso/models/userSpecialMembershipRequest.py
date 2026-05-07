@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from .specialMembershipDataset import SpecialMembershipDataset
 from django.utils import timezone
-
+from datetime import timedelta
 
 # --- Typing Definition for Changelog Entry ---
 class ChangelogEntry(TypedDict):
@@ -150,4 +150,4 @@ class UserSpecialMembershipRequest(models.Model):
             timezone.datetime: The calculated expiration datetime for temporary approvals.
         """
         initial_datetime = self.date_created or timezone.now()
-        return initial_datetime + timezone.timedelta(days=revoke_after_days)
+        return initial_datetime + timedelta(days=revoke_after_days)
