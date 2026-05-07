@@ -27,6 +27,8 @@ class UserSpecialMembershipRequestAdmin(ModelAdmin):
         "subscription",
         "status",
         "date_created",
+        "date_last_modified",
+        "temporary_expires_at",
     )
     search_fields = ["user__username", "subscription__title"]
     list_filter = ["status"]
