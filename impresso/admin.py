@@ -134,9 +134,9 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
                 raise ValidationError(
                     "metadata.revokeAfterDays must be an integer or float."
                 )
-            if revoke_after_days < 0:
+            if revoke_after_days <= 0:
                 raise ValidationError(
-                    "metadata.revokeAfterDays must be a non-negative integer or float."
+                    "metadata.revokeAfterDays must be a positive integer or float."
                 )
         return metadata
 
