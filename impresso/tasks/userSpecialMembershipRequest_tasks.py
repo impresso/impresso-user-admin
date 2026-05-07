@@ -15,19 +15,16 @@ logger = get_task_logger(__name__)
 def _is_temporary_auto_accept_enabled(req: UserSpecialMembershipRequest) -> bool:
     if not req.subscription:
         return False
-    return bool(req.subscription.metadata.get("enableTemporaryAutomaticAcceptance"))
+    return req.subscription.is_temporary_auto_accept_enabled()
 
 
 def _is_modality_cc_reviewer_enabled(req: UserSpecialMembershipRequest) -> bool:
     if not req.subscription:
         return False
-    return bool(
-        req.subscription.metadata.get("modality")
-        == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
-    )
+    return req.subscription.is_modality_cc_reviewer_enabled()
 
 
-def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
+def _resolve_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
     """
     Always return a positive number of days from the request's subscription metadata.
     If they're wrong or missing, get the value from the default settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
@@ -42,14 +39,14 @@ def _get_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
         )
         return DEFAULT_DAYS
 
-    revoke_after_days = req.subscription.metadata.get("revokeAfterDays")
-    if isinstance(revoke_after_days, (int, float)) and revoke_after_days > 0:
-        return float(revoke_after_days)
+    revoke_after_days = req.subscription.resolve_revoke_after_days(DEFAULT_DAYS)
+    if revoke_after_days != float(DEFAULT_DAYS):
+        return revoke_after_days
 
     logger.warning(
-        f"[instance:{req.pk}] revokeAfterDays is missing or invalid in subscription metadata (value={revoke_after_days}), using default {DEFAULT_DAYS} day(s)"
+        f"[instance:{req.pk}] revokeAfterDays is missing or invalid in subscription metadata, using default {DEFAULT_DAYS} day(s)"
     )
-    return DEFAULT_DAYS
+    return revoke_after_days
 
 
 @app.task(
@@ -87,7 +84,7 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
         and _is_temporary_auto_accept_enabled(req)
     ):
         # Always set an expires at date in case of temporary approval
-        revoke_after_days = _get_revoke_after_days(req)
+        revoke_after_days = _resolve_revoke_after_days(req)
         req.status = UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
         # add the temporary expiration date using the last modified date + revoke_after_days
         req.temporary_expires_at = req.calculate_temporary_expiration(revoke_after_days)

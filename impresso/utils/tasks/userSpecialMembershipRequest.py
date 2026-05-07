@@ -177,16 +177,10 @@ def send_email_after_user_special_membership_request_created(
     status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
         instance.status, instance.status
     )
-    # get modality from instance metadata, default to NOTIFY_REVIEWER if no reviewer or no modality specified
-    modality = (
-        instance.subscription.metadata.get("modality", None)
-        if instance.subscription
-        else None
-    )
-    if not modality:
-        modality = (
-            settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
-        )
+    # Default to NOTIFY_REVIEWER unless dataset metadata explicitly enables CC_REVIEWER.
+    modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+    if instance.subscription and instance.subscription.is_modality_cc_reviewer_enabled():
+        modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
     if (
         modality
         == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
