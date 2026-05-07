@@ -44,6 +44,7 @@ class SpecialMembershipDataset(models.Model):
         blank=True,
     )
     metadata: Metadata = models.JSONField(default=dict, blank=True)
+
     reviewer = models.ForeignKey(
         "auth.User",
         on_delete=models.SET_NULL,
@@ -52,15 +53,35 @@ class SpecialMembershipDataset(models.Model):
         blank=True,
     )
 
+    METADATA_ALLOWED_KEYS = {
+        "modality",
+        "enableTemporaryAutomaticAcceptance",
+        "revokeAfterDays",
+    }
+
     def __str__(self):
         return self.title
 
+    @property
+    def modality(self) -> Optional[str]:
+        return self.metadata.get("modality")
+
+    @property
+    def enable_temporary_automatic_acceptance(self) -> Optional[bool]:
+        value = self.metadata.get("enableTemporaryAutomaticAcceptance")
+        return bool(value) if value is not None else None
+
+    @property
+    def revoke_after_days(self) -> Optional[float]:
+        value = self.metadata.get("revokeAfterDays")
+        return float(value) if value is not None else None
+
     def is_temporary_auto_accept_enabled(self) -> bool:
-        return bool(self.metadata.get("enableTemporaryAutomaticAcceptance"))
+        return bool(self.enable_temporary_automatic_acceptance)
 
     def is_modality_cc_reviewer_enabled(self) -> bool:
-        return bool(
-            self.metadata.get("modality")
+        return (
+            self.modality
             == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
         )
 

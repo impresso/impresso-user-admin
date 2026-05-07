@@ -7,7 +7,7 @@ from unfold.admin import ModelAdmin  # type: ignore
 from django.contrib.auth.models import User
 from django.utils.translation import ngettext
 from django.utils import timezone
-
+from django.utils.html import format_html
 from impresso.models.userBitmapSubscription import UserBitmapSubscription
 from .models import Issue, Job, Page, Newspaper
 from .models import SearchQuery, ContentItem
@@ -87,20 +87,23 @@ class UserBitmapAdmin(ModelAdmin):
 
 
 class SpecialMembershipDatasetAdminForm(forms.ModelForm):
+
     class Meta:
         model = SpecialMembershipDataset
         fields = "__all__"
+        help_texts = {
+            "metadata": format_html(
+                "<b>Allowed Values</b>: <pre>{}</pre><br><b>Note</b>: revokeAfterDays is working only if enableTemporaryAutomaticAcceptance is set to true.",
+                ", ".join(sorted(SpecialMembershipDataset.METADATA_ALLOWED_KEYS)),
+            ),
+        }
 
     def clean_metadata(self) -> dict:
         metadata = self.cleaned_data.get("metadata") or {}
         if not isinstance(metadata, dict):
             raise ValidationError("Metadata must be a JSON object.")
 
-        allowed_keys = {
-            "modality",
-            "enableTemporaryAutomaticAcceptance",
-            "revokeAfterDays",
-        }
+        allowed_keys = SpecialMembershipDataset.METADATA_ALLOWED_KEYS
         extra_keys = set(metadata.keys()) - allowed_keys
         if extra_keys:
             raise ValidationError(
@@ -143,11 +146,50 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
 
 @admin.register(SpecialMembershipDataset)
 class SpecialMembershipDatasetAdmin(ModelAdmin):
-    list_display = ("title", "bitmap_position", "reviewer", "metadata")
+    list_display = (
+        "title",
+        "bitmap_position",
+        "reviewer",
+        "modality",
+        "enable_temporary_automatic_acceptance",
+        "revoke_after_days_display",
+    )
     search_fields = ["title", "reviewer__username", "reviewer__email"]
     readonly_fields = ("bitmap_position",)
     autocomplete_fields = ["reviewer"]
     form = SpecialMembershipDatasetAdminForm
+
+    @admin.display(description="Revoke after")
+    def revoke_after_days_display(self, obj: SpecialMembershipDataset) -> str:
+        days = obj.revoke_after_days
+        if days is None:
+            return "-"
+        total_minutes = round(days * 24 * 60)
+        parts = []
+        years, remainder = divmod(total_minutes, 365 * 24 * 60)
+        if years:
+            parts.append(f"{years}y")
+        months, remainder = divmod(remainder, 30 * 24 * 60)
+        if months:
+            parts.append(f"{months}mo")
+        weeks, remainder = divmod(remainder, 7 * 24 * 60)
+        if weeks:
+            parts.append(f"{weeks}w")
+        day_part, remainder = divmod(remainder, 24 * 60)
+        if day_part:
+            parts.append(f"{day_part}d")
+        hours, minutes = divmod(remainder, 60)
+        if hours:
+            parts.append(f"{hours}h")
+        if minutes:
+            parts.append(f"{minutes}m")
+        return format_html(
+            (
+                f"<b>{obj.revoke_after_days}</b> days <br/> " + " ".join(parts)
+                if parts
+                else "0m"
+            ),
+        )
 
 
 @admin.register(Issue)
