@@ -294,7 +294,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
         )
         self.assertIn("Created special membership request", out.getvalue())
         self.assertIn("Access will be automatically revoked after", mail.outbox[0].body)
-        # Revocation is beat-driven, so only the temporary-approval email is sent here.
+        # Revocation is asynchronous, so only the temporary-approval email is sent here.
         self.assertEqual(
             len(mail.outbox),
             1,

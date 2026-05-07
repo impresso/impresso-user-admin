@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
-    revoke_expired_temporary_memberships_beat,
+    revoke_expired_temporary_memberships,
 )
 
 
@@ -47,7 +47,7 @@ class TestRevokeExpiredTemporaryMembershipsBeat(TestCase):
         self.assertEqual(self.expired_user.bitmap.subscriptions.count(), 1)
         self.assertEqual(self.active_user.bitmap.subscriptions.count(), 1)
 
-        revoke_expired_temporary_memberships_beat.delay()
+        revoke_expired_temporary_memberships.delay()
 
         expired_request.refresh_from_db()
         active_request.refresh_from_db()

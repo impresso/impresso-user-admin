@@ -12,7 +12,7 @@ from impresso.models import SpecialMembershipDataset, UserSpecialMembershipReque
 from impresso.models.profile import Profile
 from impresso.tasks.userSpecialMembershipRequest_tasks import (
     revoke_special_membership_request,
-    revoke_expired_temporary_memberships_beat,
+    revoke_expired_temporary_memberships,
 )
 from impresso.utils.tasks.userSpecialMembershipRequest import (
     send_email_after_user_special_membership_request_created,
@@ -513,7 +513,7 @@ class TestTemporaryAutomaticRevocation(TestCase):
         self.assertEqual(self.user.bitmap.subscriptions.count(), 0)
         self.assertEqual(len(mail.outbox), 2)
 
-    def test_revoke_expired_temporary_memberships_beat(self):
+    def test_revoke_expired_temporary_memberships(self):
 
         user2 = User.objects.create_user(
             username="other-user", email="other-user@example.com"
@@ -549,7 +549,7 @@ class TestTemporaryAutomaticRevocation(TestCase):
         )
         self.assertEqual(expired_subscriptions.count(), 1)
 
-        revoke_expired_temporary_memberships_beat.delay()
+        revoke_expired_temporary_memberships.delay()
         # now self user request should be revoked, while the other user's request should still be active
         request_that_need_to_be_revoked.refresh_from_db()
         request_still_active.refresh_from_db()

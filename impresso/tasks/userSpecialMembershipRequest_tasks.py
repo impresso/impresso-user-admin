@@ -76,8 +76,9 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
     logger.info(
         f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
     )
-    # If the request is pending and temporary auto-accept is enabled, approve it as temporary,
-    # and let celery beat handle revocation after expiration.
+    # If the request is pending and temporary auto-accept is enabled, approve it as temporary.
+    # Expired temporary memberships are later revoked by a dedicated Celery task,
+    # typically triggered from a cron-scheduled management command.
     # instead of going through the regular pending flow.
     if (
         req.status == UserSpecialMembershipRequest.STATUS_PENDING
@@ -93,7 +94,7 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
             f"[instance:{instance_id}] auto-accepted as temporary for {revoke_after_days} day(s)"
         )
         # The save above triggers the update task via signal, which applies bitmap
-        # and sends the temporary-approval email. Revocation is handled by celery beat.
+        # and sends the temporary-approval email.
         return
 
     # Apply special membership to bitmap before sending emails, so that the user gets the access as soon as they receive the email
@@ -200,7 +201,7 @@ def revoke_special_membership_request(self, instance_id: int) -> None:
     retry_kwargs={"max_retries": 5},
     retry_jitter=True,
 )
-def revoke_expired_temporary_memberships_beat(self) -> None:
+def revoke_expired_temporary_memberships(self) -> None:
     """
     Periodic task to revoke any STATUS_APPROVED_TEMPORARY memberships
     that have passed their temporary_expires_at date.
@@ -219,3 +220,7 @@ def revoke_expired_temporary_memberships_beat(self) -> None:
 
     for req in expired_requests:
         revoke_special_membership_request.delay(instance_id=req.pk)
+
+
+# Backward-compatible alias for older imports/usages.
+revoke_expired_temporary_memberships_beat = revoke_expired_temporary_memberships

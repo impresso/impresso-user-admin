@@ -2,9 +2,15 @@ from typing import Any
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from impresso.models import UserSpecialMembershipRequest
+from impresso.tasks.userSpecialMembershipRequest_tasks import (
+    revoke_expired_temporary_memberships,
+)
 
 class Command(BaseCommand):
-    help = "Check special memberships that have the temporary approved status."
+    help = (
+        "Check temporary special memberships and enqueue asynchronous revocation for "
+        "expired ones."
+    )
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -39,3 +45,18 @@ class Command(BaseCommand):
                 f"- Request ID: {req.pk}, User: {req.user.username}, "
                 f"Dataset: {dataset_title}{expired_str}"
             )
+
+        if dry_run:
+            self.stdout.write(
+                self.style.NOTICE(
+                    "Dry run completed: task dispatch skipped."
+                )
+            )
+            return
+
+        async_result = revoke_expired_temporary_memberships.delay()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Enqueued revoke_expired_temporary_memberships task (id={async_result.id})."
+            )
+        )

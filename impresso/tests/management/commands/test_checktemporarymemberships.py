@@ -56,19 +56,20 @@ class TestCheckTemporaryMembershipsCommand(TestCase):
         mail.outbox = []
         # Clear the outbox before creating the temporary approved request
 
-        with patch(
-            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
-        ) as mock_apply_async:
-            temp_req = UserSpecialMembershipRequest.objects.create(
-                user=self.user2,
-                subscription=self.dataset,
-                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-                temporary_expires_at=timezone.now() + timedelta(days=7),
-            )
-            self.assertEqual(len(mail.outbox), 1)
+        temp_req = UserSpecialMembershipRequest.objects.create(
+            user=self.user2,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() + timedelta(days=7),
+        )
+        self.assertEqual(len(mail.outbox), 1)
 
         out = StringIO()
-        call_command("checktemporarymemberships", stdout=out)
+        with patch(
+            "impresso.management.commands.checktemporarymemberships.revoke_expired_temporary_memberships.delay"
+        ) as mock_delay:
+            call_command("checktemporarymemberships", stdout=out)
+            mock_delay.assert_called_once_with()
 
         output = out.getvalue()
         self.assertIn("Found 1 special memberships with temporary approval.", output)
@@ -76,18 +77,17 @@ class TestCheckTemporaryMembershipsCommand(TestCase):
         self.assertIn("User: user2", output)
         self.assertIn("Dataset: Dataset Alpha", output)
         self.assertIn("(Expires:", output)
+        self.assertIn("Enqueued revoke_expired_temporary_memberships task", output)
 
     def test_shows_expired_memberships(self) -> None:
         # Create a temporary approved request that has already expired
-        with patch(
-            "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_special_membership_request.apply_async"
-        ):
-            temp_req = UserSpecialMembershipRequest.objects.create(
-                user=self.user1,
-                subscription=self.dataset,
-                status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
-                temporary_expires_at=timezone.now() - timedelta(days=1),
-            )
+
+        temp_req = UserSpecialMembershipRequest.objects.create(
+            user=self.user1,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
+            temporary_expires_at=timezone.now() - timedelta(days=1),
+        )
 
         out = StringIO()
         call_command("checktemporarymemberships", stdout=out)
@@ -104,3 +104,4 @@ class TestCheckTemporaryMembershipsCommand(TestCase):
         output = out.getvalue()
         self.assertIn("Running in DRY RUN mode.", output)
         self.assertIn("Found 0 special memberships with temporary approval.", output)
+        self.assertIn("Dry run completed: task dispatch skipped.", output)
