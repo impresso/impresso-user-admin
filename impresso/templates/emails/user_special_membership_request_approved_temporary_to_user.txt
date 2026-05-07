@@ -5,7 +5,7 @@ Dear {{ user.first_name }},
 We have received your request for Special Membership Access to {{ user_special_membership_request.subscription.title }}.
 To allow you to begin your work immediately, your account has been granted Provisional Access for a period of {{ user_special_membership_request_duration }} 
 until {{ user_special_membership_request.temporary_expires_at|date:"l, Y-m-d H:i" }}
-and gives you full access contents from Test Dataset. Note that Impresso Terms of Use always apply.
+and gives you access to the contents from {{ user_special_membership_request.subscription.title }}. Note that Impresso Terms of Use always apply.
 
 Next Steps & Extensions:
 Access will be automatically revoked after {{ user_special_membership_request_duration }} from now. For continued access, please request "Standard Access" via the Impresso platform.
