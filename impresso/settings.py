@@ -176,9 +176,9 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
-    "revoke-expired-temporary-memberships-every-hour": {
+    "revoke-expired-temporary-memberships-every-five-minutes": {
         "task": "impresso.tasks.userSpecialMembershipRequest_tasks.revoke_expired_temporary_memberships_beat",
-        "schedule": crontab(minute=0),
+        "schedule": crontab(minute="*/30"),
     },
 }
 
