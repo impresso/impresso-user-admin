@@ -5,15 +5,14 @@ from .specialMembershipDataset import SpecialMembershipDataset
 from django.utils import timezone
 from datetime import timedelta
 
+
 # --- Typing Definition for Changelog Entry ---
 class ChangelogEntry(TypedDict):
     """
     Defines the strict type structure for a special membership request changelog entry.
     """
 
-    status: (
-        str  # e.g., "pending", "approved", "approved_temporary", "rejected", "revoked"
-    )
+    status: str  # e.g., "pending", "pending_temporary", "approved", "approved_temporary", "rejected", "revoked"
     subscription: Optional[str]  # The title of the subscription
     date: str  # ISO formatted date string
     reviewer: Optional[str]  # Username of the reviewer
@@ -57,6 +56,7 @@ class UserSpecialMembershipRequest(models.Model):
     """
 
     STATUS_PENDING = "pending"
+    STATUS_PENDING_TEMPORARY = "pending-t"
     STATUS_APPROVED = "approved"
     STATUS_APPROVED_TEMPORARY = "temporary"
     STATUS_REJECTED = "rejected"
@@ -64,6 +64,7 @@ class UserSpecialMembershipRequest(models.Model):
     # Define the choices for the status field using the class-level constants
     STATUS_CHOICES = (
         (STATUS_PENDING, "Pending"),
+        (STATUS_PENDING_TEMPORARY, "Pending (Temporary)"),
         (STATUS_APPROVED, "Approved"),
         (STATUS_APPROVED_TEMPORARY, "Approved (Temporary)"),
         (STATUS_REJECTED, "Rejected"),

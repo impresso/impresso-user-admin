@@ -52,6 +52,8 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
             "createspecialmembershiprequest",
             self.user.email,
             str(dataset_with_revokeable_period.pk),
+            "--status",
+            UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
             stdout=out,
         )
         request = UserSpecialMembershipRequest.objects.get(
@@ -198,7 +200,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             self.user.email,
             str(self.dataset.pk),
             "--status",
-            UserSpecialMembershipRequest.STATUS_APPROVED,
+            UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
             "--notes",
             "This is an approved request with notes.",
             stdout=out,
@@ -209,7 +211,9 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             subscription=self.dataset,
         )
         self.user.refresh_from_db()
-        self.assertEqual(request.status, UserSpecialMembershipRequest.STATUS_APPROVED)
+        self.assertEqual(
+            request.status, UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
+        )
         self.assertEqual(request.reviewer, self.reviewer)
         self.assertEqual(request.notes, "This is an approved request with notes.")
         self.assertEqual(self.user.bitmap.subscriptions.count(), 1)
@@ -230,6 +234,8 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
         call_command(
             "createspecialmembershiprequest",
             self.user.email,
+            "--status",
+            UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
             str(revokable_dataset.pk),
             stdout=out,
         )

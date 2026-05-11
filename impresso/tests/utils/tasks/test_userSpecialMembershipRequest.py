@@ -399,7 +399,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             user=self.user,
             reviewer=self.reviewer,
             subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_PENDING,
+            status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
         )
 
         req.refresh_from_db()
@@ -432,7 +432,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             user=self.user,
             reviewer=self.reviewer,
             subscription=dataset_with_float_revoke_after_days,
-            status=UserSpecialMembershipRequest.STATUS_PENDING,
+            status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
         )
 
         req.refresh_from_db()
@@ -457,7 +457,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
                 user=self.user,
                 reviewer=self.reviewer,
                 subscription=self.dataset,
-                status=UserSpecialMembershipRequest.STATUS_PENDING,
+                status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
             )
 
             req.refresh_from_db()
