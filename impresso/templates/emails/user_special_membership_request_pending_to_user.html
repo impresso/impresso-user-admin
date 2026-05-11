@@ -1,26 +1,34 @@
 Dear {{ user.first_name }},
-
 <p>
-  Thank you for requesting special membership access on Impresso. We've successfully received your request and our team is now reviewing it.
+  We have received an update on your special membership request on Impresso.
+  Your request is currently under review by our team.
 </p>
+<p>Here are the details of your request, for your reference:</p>
+<ul style="list-style-type: none; padding-left: 0">
+  <li>
+    <strong>Membership Option:</strong> {{
+    user_special_membership_request.subscription.title }}
+  </li>
+  <li>
+    <strong>Request Date:</strong> {{
+    user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}
+  </li>
+  <li><strong>Current Status:</strong> {{ status_label }}</li>
+  <li>
+    <strong>Notes:</strong>
+    {% if user_special_membership_request.notes %} {{
+    user_special_membership_request.notes }} {% else %} No notes provided. {%
+    endif %}
+  </li>
+</ul>
 <p>
-  Here are the details of the access you requested, for your reference:
-  <ul>
-    <li><strong>Membership Option:</strong> {{ user_special_membership_request.subscription.title }}</li>
-    <li><strong>Request Submitted:</strong> {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}</li>
-    <li><strong>Current Status:</strong> Under Review</li>
-  </ul>
+  We aim to complete the review as quickly as possible and will notify you as
+  soon as a decision has been made. Please check your inbox regularly, as the
+  reviewer may reach out to you via email (e.g., to send a contract for
+  signature).
 </p>
+<p>We appreciate your patience!</p>
 <p>
-  We understand you're eager to get started and we aim to complete the review process as quickly as possible.
-  <br/>
-  We will send a follow-up email immediately once a decision has been made.
-</p>
-<p>
-  In the meantime, you can check the status of your request at any time by visiting [Link to the user's request status page].
-</p>
-<p>
-  We appreciate your patience!
-  <br/>
+  Best regards,<br />
   The Impresso Team
 </p>
