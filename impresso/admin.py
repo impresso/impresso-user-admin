@@ -14,6 +14,7 @@ from .models import SearchQuery, ContentItem
 from .models import Collection, CollectableItem, Tag, TaggableItem
 from .models import Attachment, UploadedImage
 from .models import UserBitmap, SpecialMembershipDataset, UserSpecialMembershipRequest
+from .models import BaristaConversation
 
 from .views.admin.user_admin import UserAdmin
 from .views.admin.user_change_plan_request_admin import UserChangePlanRequestAdmin
@@ -296,6 +297,19 @@ class TaggableItemAdmin(ModelAdmin):
 @admin.register(UploadedImage)
 class UploadImageAdmin(ModelAdmin):
     list_display = ("id", "creator", "name", "date_last_modified")
+
+
+@admin.register(BaristaConversation)
+class BaristaConversationAdmin(ModelAdmin):
+    list_display = (
+        "user",
+        "label",
+        "barista_session_id",
+        "date_last_modified",
+    )
+    search_fields = ["label", "user__username", "user__email"]
+    list_select_related = ["user"]
+    ordering = ["-date_last_modified"]
 
 
 class AttachmentInline(admin.StackedInline):
