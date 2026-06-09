@@ -44,7 +44,7 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
             reviewer=self.reviewer,
             metadata={
                 "revokeAfterDays": 1,
-                "enableTemporaryAutomaticAcceptance": True,
+                "enableTemporaryAutomaticApproval": True,
             },
         )
         mail.outbox = []
@@ -226,7 +226,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             reviewer=self.reviewer,
             metadata={
                 "revokeAfterDays": 5,
-                "enableTemporaryAutomaticAcceptance": True,
+                "enableTemporaryAutomaticApproval": True,
             },
         )
         out = StringIO()
@@ -255,7 +255,9 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             (
                 timezone.now()
                 + timedelta(
-                    days=revokable_dataset.resolve_revoke_after_days(default_days=1)
+                    days=revokable_dataset.resolve_temporary_automatic_approval_after_days(
+                        default_days=1
+                    )
                 )
             ).date(),
             "temporary_expires_at should be approximately now + 5 days",

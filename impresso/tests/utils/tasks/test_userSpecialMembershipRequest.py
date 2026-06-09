@@ -386,7 +386,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             title="Temporary Dataset",
             reviewer=self.reviewer,
             metadata={
-                "enableTemporaryAutomaticAcceptance": True,
+                "enableTemporaryAutomaticApproval": True,
                 "revokeAfterDays": 7,
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
@@ -421,7 +421,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             title="Float Revoke After Days Dataset",
             reviewer=self.reviewer,
             metadata={
-                "enableTemporaryAutomaticAcceptance": True,
+                "enableTemporaryAutomaticApproval": True,
                 "revokeAfterDays": 0.5,  # 12 hours
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
