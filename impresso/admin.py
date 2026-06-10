@@ -95,7 +95,7 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
         fields = "__all__"
         help_texts = {
             "metadata": format_html(
-                "<b>Allowed Values</b>: <pre>{}</pre><br><b>Note</b>: revokeTemporaryAutomaticApprovalAfterDays configures temporary automatic approvals, while revokeAfterDays is used for revoking already-approved memberships.",
+                "<b>Allowed Values</b>: <pre>{}</pre><br><b>Note</b>: revokeTemporaryAutomaticApprovalAfterDays configures automatic revocation for temporary approvals, while revokeAfterDays configures revocation for standard approved memberships.",
                 ", ".join(sorted(SpecialMembershipDataset.METADATA_ALLOWED_KEYS)),
             ),
         }
