@@ -89,11 +89,14 @@ def send_email_after_user_special_membership_request_updated(
         else:
             total_days = int(delta.total_seconds() // 86400)
             duration = f"{total_days} day{'s' if total_days != 1 else ''}"
-    if instance.subscription.reviewer and instance.subscription.reviewer.email:
+    reviewer = instance.reviewer or (
+        instance.subscription.reviewer if instance.subscription else None
+    )
+    if reviewer and reviewer.email:
         if is_modality_cc_reviewer_enabled:
-            cc.append(instance.subscription.reviewer.email)
+            cc.append(reviewer.email)
         else:
-            reply_to.append(instance.subscription.reviewer.email)
+            reply_to.append(reviewer.email)
     else:
         logger.warning(
             f"No reviewer with email found for special membership request {instance.pk}, "

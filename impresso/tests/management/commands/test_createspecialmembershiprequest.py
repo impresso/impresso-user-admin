@@ -43,7 +43,7 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
             title="Dataset with Revokeable Period",
             reviewer=self.reviewer,
             metadata={
-                "revokeAfterDays": 1,
+                "revokeTemporaryAutomaticApprovalAfterDays": 1,
                 "enableTemporaryAutomaticApproval": True,
             },
         )
@@ -225,7 +225,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
             title="Revokable Dataset",
             reviewer=self.reviewer,
             metadata={
-                "revokeAfterDays": 5,
+                "revokeTemporaryAutomaticApprovalAfterDays": 5,
                 "enableTemporaryAutomaticApproval": True,
             },
         )

@@ -1,18 +1,11 @@
-from unittest.mock import ANY, patch
-
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.core import mail
 from django.conf import settings
 from impresso.models import SpecialMembershipDataset, UserSpecialMembershipRequest
 from impresso.models.userBitmap import UserBitmap
-from impresso.tasks.userSpecialMembershipRequest_tasks import (
-    after_special_membership_request_created,
-)
 
 from django.utils import timezone
-
-from impresso.utils.bitmask import int_to_bytes
 
 
 class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
@@ -147,13 +140,13 @@ class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
         )
 
         self.assertEqual(
-            mail.outbox[1].to,
-            [self.reviewer_user.email],
-        )
-        self.assertEqual(
             len(mail.outbox),
             2,
             "Non-auto-approval dataset should send the receipt to the user",
+        )
+        self.assertEqual(
+            mail.outbox[1].to,
+            [self.reviewer_user.email],
         )
 
     def test_create_revokable_not_auto_approval_cc_reviewer_dataset(self) -> None:

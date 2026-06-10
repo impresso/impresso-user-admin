@@ -387,7 +387,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             reviewer=self.reviewer,
             metadata={
                 "enableTemporaryAutomaticApproval": True,
-                "revokeAfterDays": 7,
+                "revokeTemporaryAutomaticApprovalAfterDays": 7,
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
         )
@@ -422,7 +422,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             reviewer=self.reviewer,
             metadata={
                 "enableTemporaryAutomaticApproval": True,
-                "revokeAfterDays": 0.5,  # 12 hours
+                "revokeTemporaryAutomaticApprovalAfterDays": 0.5,  # 12 hours
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
         )

@@ -145,7 +145,7 @@ class UserSpecialMembershipRequest(models.Model):
         self._append_changelog()
         super().save(*args, **kwargs)
 
-    def save_without_signals(self, *args, **kwargs):
+    def save_without_signals(self, *args: Any, **kwargs: Any) -> None:
         """
         Saves the model instance while explicitly bypassing the post_save signals.
         """
