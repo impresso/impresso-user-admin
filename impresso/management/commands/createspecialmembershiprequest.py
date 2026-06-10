@@ -33,6 +33,7 @@ class Command(BaseCommand):
             default=UserSpecialMembershipRequest.STATUS_PENDING,
             choices=[
                 UserSpecialMembershipRequest.STATUS_PENDING,
+                UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
                 UserSpecialMembershipRequest.STATUS_APPROVED,
                 UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY,
                 UserSpecialMembershipRequest.STATUS_REJECTED,
@@ -89,7 +90,7 @@ class Command(BaseCommand):
             and options["status"]
             == UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
         ):
-            revoke_after = dataset.resolve_revoke_after_days(
+            revoke_after = dataset.resolve_temporary_automatic_approval_after_days(
                 default_days=settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
             )
 

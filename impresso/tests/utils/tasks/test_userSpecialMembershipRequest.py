@@ -386,8 +386,8 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             title="Temporary Dataset",
             reviewer=self.reviewer,
             metadata={
-                "enableTemporaryAutomaticAcceptance": True,
-                "revokeAfterDays": 7,
+                "enableTemporaryAutomaticApproval": True,
+                "revokeTemporaryAutomaticApprovalAfterDays": 7,
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
         )
@@ -399,7 +399,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             user=self.user,
             reviewer=self.reviewer,
             subscription=self.dataset,
-            status=UserSpecialMembershipRequest.STATUS_PENDING,
+            status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
         )
 
         req.refresh_from_db()
@@ -421,8 +421,8 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             title="Float Revoke After Days Dataset",
             reviewer=self.reviewer,
             metadata={
-                "enableTemporaryAutomaticAcceptance": True,
-                "revokeAfterDays": 0.5,  # 12 hours
+                "enableTemporaryAutomaticApproval": True,
+                "revokeTemporaryAutomaticApprovalAfterDays": 0.5,  # 12 hours
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER,
             },
         )
@@ -432,7 +432,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             user=self.user,
             reviewer=self.reviewer,
             subscription=dataset_with_float_revoke_after_days,
-            status=UserSpecialMembershipRequest.STATUS_PENDING,
+            status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
         )
 
         req.refresh_from_db()
@@ -457,7 +457,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
                 user=self.user,
                 reviewer=self.reviewer,
                 subscription=self.dataset,
-                status=UserSpecialMembershipRequest.STATUS_PENDING,
+                status=UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
             )
 
             req.refresh_from_db()

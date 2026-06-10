@@ -24,7 +24,9 @@ def _is_modality_cc_reviewer_enabled(req: UserSpecialMembershipRequest) -> bool:
     return req.subscription.is_modality_cc_reviewer_enabled()
 
 
-def _resolve_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
+def _resolve_temporary_automatic_approval_after_days(
+    req: UserSpecialMembershipRequest,
+) -> float:
     """
     Always return a positive number of days from the request's subscription metadata.
     If they're wrong or missing, get the value from the default settings.IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS
@@ -39,7 +41,9 @@ def _resolve_revoke_after_days(req: UserSpecialMembershipRequest) -> float:
         )
         return DEFAULT_DAYS
 
-    revoke_after_days = req.subscription.resolve_revoke_after_days(DEFAULT_DAYS)
+    revoke_after_days = (
+        req.subscription.resolve_temporary_automatic_approval_after_days(DEFAULT_DAYS)
+    )
     if revoke_after_days != float(DEFAULT_DAYS):
         return revoke_after_days
 
@@ -61,9 +65,10 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
     The special membership request (pk:{instance_id}) has already been created in the database.
     In Django Admin site, this task is scheduled when the `impresso.signals.post_save_user_special_membership_request` signal is triggered;
     in other backends, this task must be called manually using the backend Celery integration.
-    Note that this task can be called with a status other than PENDING, thus triggering the
-    `after_special_membership_request_updated` logic immediately and skipping the
-    `send_email_after_user_special_membership_request_created` logic.
+    Note that this task can be called with a status other than PENDING or PENDING_TEMPORARY, especially when creating the
+    request manually from the Django admin. In this case, we just trigger the
+    `after_special_membership_request_updated` logic immediately and skip the `send_email_after_user_special_membership_request_created` logic.
+
     Args:
         self: The task instance.
         instance_id (int): The ID of the UserSpecialMembershipRequest instance that was created.
@@ -76,16 +81,16 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
     logger.info(
         f"[UserSpecialMembershipRequest:{instance_id}] triggered signals after_special_membership_request_created, for user={req.user.username} subscription={req.subscription.title if req.subscription else 'None'} status={req.status}"
     )
-    # If the request is pending and temporary auto-accept is enabled, approve it as temporary.
+    # If the request is explicitly pending-temporary and temporary auto-accept is enabled,
+    # approve it as temporary.
     # Expired temporary memberships are later revoked by a dedicated Celery task,
     # typically triggered from a cron-scheduled management command.
-    # instead of going through the regular pending flow.
     if (
-        req.status == UserSpecialMembershipRequest.STATUS_PENDING
+        req.status == UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY
         and _is_temporary_auto_accept_enabled(req)
     ):
         # Always set an expires at date in case of temporary approval
-        revoke_after_days = _resolve_revoke_after_days(req)
+        revoke_after_days = _resolve_temporary_automatic_approval_after_days(req)
         req.status = UserSpecialMembershipRequest.STATUS_APPROVED_TEMPORARY
         # add the temporary expiration date using the last modified date + revoke_after_days
         req.temporary_expires_at = req.calculate_temporary_expiration(revoke_after_days)
@@ -96,7 +101,13 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
         # The save above triggers the update task via signal, which applies bitmap
         # and sends the temporary-approval email.
         return
-
+    if req.status == UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY:
+        # The API layer is expected to enforce whether temporary requests are allowed.
+        logger.warning(
+            f"[instance:{instance_id}] created with status pending_temporary but temporary auto-accept is not enabled. Switch back to pending status"
+        )
+        req.status = UserSpecialMembershipRequest.STATUS_PENDING
+        req.save_without_signals()
     # Apply special membership to bitmap before sending emails, so that the user gets the access as soon as they receive the email
     apply_special_membership_to_bitmap(instance=req, created=True, logger=logger)
 
