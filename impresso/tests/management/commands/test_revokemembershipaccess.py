@@ -82,7 +82,7 @@ class TestRevokeMembershipAccessCommand(TestCase):
         self.assertIn("Found 1 special memberships with approved status.", output)
         self.assertIn(f"Request ID: {revokable_request.pk}", output)
         self.assertIn(self._get_expected_admin_url(revokable_request.pk), output)
-        self.assertIn("REVOCATION NEEDED", output)
+        self.assertIn("Revocation needed", output)
         self.assertIn("Dry run completed: 1 revocations need implementation.", output)
 
     def test_revokes_expired_approved_request_and_updates_bitmap(self) -> None:
@@ -129,7 +129,7 @@ class TestRevokeMembershipAccessCommand(TestCase):
         self.assertIn(f"Request ID: {active_request.pk}", output)
         self.assertIn(self._get_expected_admin_url(revokable_request.pk), output)
         self.assertIn(self._get_expected_admin_url(active_request.pk), output)
-        self.assertIn("REVOCATION NEEDED", output)
+        self.assertIn("Revocation needed", output)
         self.assertIn("ACTIVE:", output)
         self.assertIn(
             "Revoked 1 approved special memberships that needed revocation.", output

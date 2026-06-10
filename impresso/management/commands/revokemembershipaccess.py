@@ -126,7 +126,7 @@ class Command(BaseCommand):
                         dataset_title=dataset_title,
                         admin_change_url=admin_change_url,
                         detail=(
-                            "REVOCATION NEEDED: "
+                            "Revocation needed: "
                             f"created {req.date_created.strftime('%Y-%m-%d %H:%M:%S %Z')}, "
                             f"revokeAfterDays={revoke_after_days}"
                         ),
@@ -150,14 +150,14 @@ class Command(BaseCommand):
         self.stdout.write(
             "\n"
             f"{self.ANSI_BOLD}Summary{self.ANSI_RESET}\n"
-            f"  - REVOCATION NEEDED: {self.ANSI_YELLOW}{len(revocation_needed_blocks)}{self.ANSI_RESET}\n"
+            f"  - Revocation needed: {self.ANSI_RED}{len(revocation_needed_blocks)}{self.ANSI_RESET}\n"
             f"  - ACTIVE: {self.ANSI_GREEN}{len(active_blocks)}{self.ANSI_RESET}\n"
-            f"  - ACTIVE (NON-REVOKABLE): {self.ANSI_RED}{len(non_revokable_blocks)}{self.ANSI_RESET}\n"
+            f"  - ACTIVE (NON-REVOKABLE): {self.ANSI_YELLOW}{len(non_revokable_blocks)}{self.ANSI_RESET}\n"
         )
 
         self._write_section(
-            title="REVOCATION NEEDED",
-            color=self.ANSI_YELLOW,
+            title="Revocation needed",
+            color=self.ANSI_RED,
             records=revocation_needed_blocks,
         )
         self._write_section(
@@ -167,7 +167,7 @@ class Command(BaseCommand):
         )
         self._write_section(
             title="ACTIVE (NON-REVOKABLE)",
-            color=self.ANSI_RED,
+            color=self.ANSI_YELLOW,
             records=non_revokable_blocks,
         )
 

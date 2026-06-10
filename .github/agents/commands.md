@@ -59,12 +59,12 @@ self.stdout.write(
 self.stdout.write(
 	"\n"
 	f"{self.ANSI_BOLD}Summary{self.ANSI_RESET}\n"
-	f"  - REVOCATION NEEDED: {self.ANSI_YELLOW}{needed_count}{self.ANSI_RESET}\n"
+	f"  - Revocation needed: {self.ANSI_YELLOW}{needed_count}{self.ANSI_RESET}\n"
 	f"  - ACTIVE: {self.ANSI_GREEN}{active_count}{self.ANSI_RESET}\n"
 	f"  - ACTIVE (NON-REVOKABLE): {self.ANSI_RED}{non_revokable_count}{self.ANSI_RESET}\n"
 )
 
-self._write_section("REVOCATION NEEDED", self.ANSI_YELLOW, needed_blocks)
+self._write_section("Revocation needed", self.ANSI_YELLOW, needed_blocks)
 self._write_section("ACTIVE", self.ANSI_GREEN, active_blocks)
 self._write_section(
 	"ACTIVE (NON-REVOKABLE)",
