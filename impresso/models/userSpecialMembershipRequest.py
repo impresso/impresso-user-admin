@@ -12,7 +12,7 @@ class ChangelogEntry(TypedDict):
     Defines the strict type structure for a special membership request changelog entry.
     """
 
-    status: str  # e.g., "pending", "pending_temporary", "approved", "approved_temporary", "rejected", "revoked"
+    status: str  # e.g., "pending", "pending-t", "approved", "temporary", "rejected", "revoked"
     subscription: Optional[str]  # The title of the subscription
     date: str  # ISO formatted date string
     reviewer: Optional[str]  # Username of the reviewer
@@ -27,8 +27,12 @@ class UserSpecialMembershipRequest(models.Model):
         regardless of the reviewer. This is to prevent duplicate requests for the same subscription by the same user.
     Check `impresso.signals.post_save_user_special_membership_request` signal to handle the approval process.
 
+    Supported Flags:
+        _skip_signal (bool): If set to True before saving, prevents the signal handler from executing.
+
     Attributes:
         STATUS_PENDING (str): Status indicating the request is pending.
+        STATUS_PENDING_TEMPORARY (str): Status indicating the request is pending temporary approval.
         STATUS_APPROVED (str): Status indicating the request is approved.
         STATUS_APPROVED_TEMPORARY (str): Status indicating the request is temporarily approved.
         STATUS_REJECTED (str): Status indicating the request is rejected.
@@ -140,6 +144,19 @@ class UserSpecialMembershipRequest(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         self._append_changelog()
         super().save(*args, **kwargs)
+
+    def save_without_signals(self, *args, **kwargs):
+        """
+        Saves the model instance while explicitly bypassing the post_save signals.
+        """
+        self._skip_signal = True
+        try:
+            self.save(*args, **kwargs)
+        finally:
+            # Clean up the flag afterward so subsequent normal saves
+            # still trigger the signal if the object stays in memory
+            if hasattr(self, "_skip_signal"):
+                delattr(self, "_skip_signal")
 
     def calculate_temporary_expiration(
         self, revoke_after_days: float

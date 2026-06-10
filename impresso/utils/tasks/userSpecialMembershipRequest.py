@@ -52,6 +52,7 @@ def apply_special_membership_to_bitmap(
         UserSpecialMembershipRequest.STATUS_REJECTED,
         UserSpecialMembershipRequest.STATUS_PENDING,
         UserSpecialMembershipRequest.STATUS_REVOKED,
+        UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY,
     ]:
         user_bitmap.subscriptions.remove(instance.subscription)
         # this should update the bitmap thanks to the signal @m2m_changed update_user_bitmap
@@ -76,8 +77,10 @@ def send_email_after_user_special_membership_request_updated(
         Exception: If there is an error sending the email.
     """
     reply_to = []
+    cc = []
     plan_label, plan_group = get_plan_from_user_groups(instance.user)
     duration = None
+
     if instance.temporary_expires_at:
         delta = instance.temporary_expires_at - instance.date_created
         total_hours = int(delta.total_seconds() // 3600)
@@ -86,12 +89,17 @@ def send_email_after_user_special_membership_request_updated(
         else:
             total_days = int(delta.total_seconds() // 86400)
             duration = f"{total_days} day{'s' if total_days != 1 else ''}"
-    if is_modality_cc_reviewer_enabled:
-        reviewer = instance.reviewer or (
-            instance.subscription.reviewer if instance.subscription else None
+    if instance.subscription.reviewer and instance.subscription.reviewer.email:
+        if is_modality_cc_reviewer_enabled:
+            cc.append(instance.subscription.reviewer.email)
+        else:
+            reply_to.append(instance.subscription.reviewer.email)
+    else:
+        logger.warning(
+            f"No reviewer with email found for special membership request {instance.pk}, "
+            "skipping reviewer notification in update email."
         )
-        if reviewer and reviewer.email:
-            reply_to.append(reviewer.email)
+
     if instance.status == UserSpecialMembershipRequest.STATUS_APPROVED:
         template = "user_special_membership_request_approved_to_user"
         subject = (
@@ -136,7 +144,7 @@ def send_email_after_user_special_membership_request_updated(
         to=[
             instance.user.email,
         ],
-        cc=[],
+        cc=cc,
         reply_to=reply_to,
         logger=logger,
         fail_silently=fail_silently,
@@ -178,9 +186,16 @@ def send_email_after_user_special_membership_request_created(
         instance.status, instance.status
     )
     # Default to NOTIFY_REVIEWER unless dataset metadata explicitly enables CC_REVIEWER.
-    modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
-    if instance.subscription and instance.subscription.is_modality_cc_reviewer_enabled():
-        modality = settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+    modality = (
+        settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
+    )
+    if (
+        instance.subscription
+        and instance.subscription.is_modality_cc_reviewer_enabled()
+    ):
+        modality = (
+            settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
+        )
     if (
         modality
         == settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER

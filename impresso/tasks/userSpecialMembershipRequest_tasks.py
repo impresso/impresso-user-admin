@@ -103,11 +103,11 @@ def after_special_membership_request_created(self, instance_id: int) -> None:
         return
     if req.status == UserSpecialMembershipRequest.STATUS_PENDING_TEMPORARY:
         # The API layer is expected to enforce whether temporary requests are allowed.
-        logger.error(
-            f"[instance:{instance_id}] created with status pending_temporary but temporary auto-accept is not enabled"
+        logger.warning(
+            f"[instance:{instance_id}] created with status pending_temporary but temporary auto-accept is not enabled. Switch back to pending status"
         )
-
-        return
+        req.status = UserSpecialMembershipRequest.STATUS_PENDING
+        req.save_without_signals()
     # Apply special membership to bitmap before sending emails, so that the user gets the access as soon as they receive the email
     apply_special_membership_to_bitmap(instance=req, created=True, logger=logger)
 
