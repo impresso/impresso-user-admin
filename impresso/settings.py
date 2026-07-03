@@ -474,6 +474,12 @@ LOGGING = {
     },
 }
 
+if not DEBUG:
+    # In production, switch to JSON logging to stdout so log aggregators can
+    # parse it. Django applies this dict via logging.config.dictConfig
+    # automatically during startup, so no manual dictConfig() call is needed.
+    from .prod_log_config import CONFIG as LOGGING
+
 
 UNFOLD = {
     "SITE_TITLE": "Impresso User Admin",
