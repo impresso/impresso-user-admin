@@ -16,8 +16,12 @@ CONFIG = {
         },
     },
     "loggers": {
-        # Django's own logs (requests, server, security, etc.)
+        # Django's own logs (requests, security, etc.)
         "django": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        # Django's DEFAULT_LOGGING gives this its own handler with
+        # propagate=False, so it must be overridden explicitly or runserver's
+        # access log lines bypass the "django" logger above entirely.
+        "django.server": {"handlers": ["default"], "level": "INFO", "propagate": False},
         # This project's app code
         "impresso": {"handlers": ["default"], "level": "INFO", "propagate": False},
     },
