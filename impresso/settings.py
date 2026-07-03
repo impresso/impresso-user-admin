@@ -474,7 +474,11 @@ LOGGING = {
     },
 }
 
-if not DEBUG:
+
+# Fallback to 'development' if the variable isn't set
+ENV = os.getenv("ENVIRONMENT", "development")
+
+if not ENV == 'development':
     # In production, switch to JSON logging to stdout so log aggregators can
     # parse it. Django applies this dict via logging.config.dictConfig
     # automatically during startup, so no manual dictConfig() call is needed.
