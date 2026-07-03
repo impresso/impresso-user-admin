@@ -75,7 +75,7 @@ The last command gives you the version of the local python. If it doesn't meet t
 use pyenv install command:
 
 ```sh
-pyenv install 3.12.4
+pyenv install 3.13.0
 ```
 
 Use pip to install Pipenv:
@@ -87,7 +87,7 @@ python -m pip install pipenv
 Then run
 
 ```sh
-pipenv --python 3.12 install
+pipenv --python 3.13 install
 ```
 
 To create and activate the virtualenv. Once in the shell, you can go back with the `exit` command and reactivate the virtualenv simply `pipenv shell`
