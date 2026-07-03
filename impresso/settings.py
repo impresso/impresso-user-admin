@@ -172,10 +172,6 @@ CELERYD_CONCURRENCY = int(get_env_variable("CELERYD_CONCURRENCY", "1"))
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
     get_env_variable("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", False) == "True"
 )
-# Celery hijacks the root logger by default (adding its own handler/formatter
-# for -l/--loglevel), which would override the LOGGING config above. Disable
-# that so the worker keeps using Django's (JSON-in-production) logging setup.
-CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
 IMPRESSO_INSTITUTIONS_ACCESS_URL = get_env_variable(
