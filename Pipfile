@@ -13,6 +13,7 @@ mypy = "*"
 pip = "*"
 pymysql = "*"
 python-dotenv = "*"
+python-json-logger = ">=4.1.0"
 pytz = "==2018.7"
 redis = "*"
 sockslib = "*"
@@ -24,4 +25,4 @@ fakeredis = "*"
 mypy = "1.9.0"
 
 [requires]
-python_version = "3.12.4"
+python_version = "3.13"
