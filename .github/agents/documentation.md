@@ -333,7 +333,7 @@ cd impresso-user-admin
 curl https://pyenv.run | bash
 
 # Install Python version
-pyenv install 3.12.4
+pyenv install 3.13.0
 
 # Install pipenv
 python -m pip install pipenv

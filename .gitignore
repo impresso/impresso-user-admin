@@ -121,3 +121,4 @@ ___*
 # local docker settings and config
 .docker/*
 !.docker/.gitkeep
+*.db

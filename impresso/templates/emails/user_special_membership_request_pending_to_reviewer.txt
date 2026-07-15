@@ -1,0 +1,19 @@
+Dear {{ reviewer.first_name }},
+
+A special membership request requires your review. Below are the details:
+
+- Requester: {{ user.get_full_name|default:user.username }}
+- Requester Email: {{ user.email }}
+- Membership Option: {{ user_special_membership_request.subscription.title }}
+- Request Submitted: {{ user_special_membership_request.date_created | date:"l, d.m.Y, H:i T" }}
+- Current Status: Pending Review
+{% if user_special_membership_request.notes %}
+- Notes: {{ user_special_membership_request.notes }}
+{% endif %}
+
+You can reply directly to this email to contact the requester (e.g., to send a contract for signature). Your reply will be delivered to {{ user.email }}.
+
+Please review this request at your earliest convenience.
+
+Best regards,
+The Impresso Team

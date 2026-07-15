@@ -1,0 +1,28 @@
+Dear {{ reviewer.get_full_name|default:reviewer.username }},
+
+This is an automatic notification from the Impresso User Management and Data Access system.
+
+We wish to inform you that {{ user.get_full_name|default:user.username }} has requested special membership access to the {{ user_special_membership_request.subscription.title }}.
+
+Here are the details of the access request for your reference:
+
+    Requester: {{ user.get_full_name|default:user.username }}
+    Requester Email: {{ user.email }}
+    Requester Plan: {{ plan_label }}
+    Number of Special Membership Accesses granted: {{ number_of_special_memberships }}
+
+    Affiliation: {% if user.profile.affiliation %}{{ user.profile.affiliation }}{% else %}Not provided{% endif %}
+    Public Institutional Webpage: {% if user.profile.institutional_url %}{{ user.profile.institutional_url }}{% else %}Not provided{% endif %}
+    
+    Membership Option: {{ user_special_membership_request.subscription.title }}
+    Request Date: {{ user_special_membership_request.date_created|date:"l, d.m.Y, H:i T" }}
+    Request Status: {{ status_label }}
+
+    Notes: 
+    {% if user_special_membership_request.notes %}{{ user_special_membership_request.notes }}{% else %}No notes provided.{% endif %}
+
+Once you approve the request the special membership access will be granted automatically.
+Should you need any further assistance, contact the Impresso Team via info@impresso-project.ch.
+
+Warm regards,
+The Impresso Team

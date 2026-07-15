@@ -11,6 +11,7 @@ from impresso.utils.tasks.account import (
     send_email_plan_change_rejected,
     send_emails_after_user_activation_plan_rejected,
     send_emails_after_user_registration,
+    send_magic_link_email,
 )
 from django.utils import timezone
 from django.core import mail
@@ -106,7 +107,6 @@ class TestAccountPlanChangeToBasicUser(TransactionTestCase):
         self.assertEqual(mail.outbox[0].subject, "Change plan for Impresso")
         # first line of the email is: Dear Jane,
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
-        print(mail.outbox[1].body)
 
 
 class TestAccountCreation(TestCase):
@@ -241,7 +241,6 @@ class TestAccountPlanChange(TransactionTestCase):
         self.assertEqual(
             len(mail.outbox), 1, f"one email should be sent, received:{mail.outbox}"
         )
-        print(mail.outbox[0].body)
         # Check that the body starts with Dear Jane, and contains the settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL_LABEL
         self.assertTrue("Dear Jane," in mail.outbox[0].body)
         self.assertTrue(
@@ -319,3 +318,43 @@ class TestAccount(TestCase):
         )
         # clean outbox
         mail.outbox = []
+
+
+class TestMagicLinkEmail(TestCase):
+    """
+    Test sending magic link email.
+    ENV=dev pipenv run ./manage.py test impresso.tests.utils.tasks.test_account.TestMagicLinkEmail
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            first_name="Jane",
+            last_name="Doe",
+            password="12345",
+            email="jane@doe.com",
+            is_active=True,
+        )
+        mail.outbox = []
+
+    def test_send_magic_link_email(self):
+        token = "abc123"
+        callback_url = "https://dev.impresso-project.ch/institutions-access/magic-link"
+        send_magic_link_email(
+            user_id=self.user.id,
+            token=token,
+            magic_link_callback_url=callback_url,
+            logger=logger,
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Your Impresso access link")
+        self.assertIn("Dear Jane,", mail.outbox[0].body)
+        self.assertIn(f"{callback_url}?token={token}", mail.outbox[0].body)
+
+    def test_send_magic_link_email_user_not_found(self):
+        with self.assertRaises(User.DoesNotExist):
+            send_magic_link_email(
+                user_id=999999,
+                token="sometoken",
+                logger=logger,
+            )

@@ -1,0 +1,10 @@
+Dear {{ user.first_name }},
+
+Your temporary special membership access has expired and is now revoked.
+
+Expired membership option: {{ user_special_membership_request.subscription.title }}.
+
+If you still need access, you can submit a new request or contact the reviewer.
+
+Best regards,
+The Impresso Team
