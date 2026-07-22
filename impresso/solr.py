@@ -43,7 +43,7 @@ def find_all(
 
     data = {"q": q, "fq": fq} if fq else {"q": q}
 
-    params = {
+    params: Dict[str, Any] = {
         "fl": fl,
         "start": int(skip),
         "rows": int(limit),
@@ -97,6 +97,9 @@ def update(
 ) -> Dict[str, Any]:
     if logger:
         logger.info(f"todos n:{len(todos)} for url:{url}")
+
+    if url is None:
+        raise ValueError("url is required")
 
     proxies = None
     proxy = get_proxy_for_host_or_url(url or "")

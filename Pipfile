@@ -5,18 +5,19 @@ verify_ssl = true
 
 [packages]
 celery = "*"
-django = "==5.2.10"
+django = "==5.2.16"
 django-registration = "*"
 django-unfold = "==0.72.0"
 gunicorn = "*"
 mypy = "*"
 pip = "*"
 pymysql = "*"
-python-dotenv = "*"
+python-dotenv = "==1.2.2"
+python-json-logger = ">=4.1.0"
 pytz = "==2018.7"
 redis = "*"
 sockslib = "*"
-requests = {extras = ["security"], version = "*"}
+requests = {extras = ["security"], version = "==2.34.2"}
 fakeredis = "*"
 
 [dev-packages]
@@ -24,4 +25,4 @@ fakeredis = "*"
 mypy = "1.9.0"
 
 [requires]
-python_version = "3.12.4"
+python_version = "3.13"

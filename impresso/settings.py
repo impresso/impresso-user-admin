@@ -429,50 +429,52 @@ IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER = (
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_ACTIVATION_PLAN_REJECTED_TO_USER = (
     "Access granted to Impresso (Basic User Access)"
 )
-# Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            # exact format is not important, this is the minimum information
-            "format": "%(asctime)s [%(name)s.%(funcName)s:%(lineno)s] %(levelname)-8s %(message)s",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.handlers.RotatingFileHandler",
-            "maxBytes": 15728640,  # 1024 * 1024 * 15B = 15MB
-            "filename": os.path.join(LOGS_ROOT, "debug.log"),
-            "formatter": "verbose",
-        },
-    },
-    "loggers": {
-        "impresso.management.commands": {
-            "level": "INFO",
-            "handlers": ["console"],
-        },
-        "console": {
-            "handlers": ["console"],
-            "level": "INFO",
-        },
-        "impresso": {
-            "handlers": ["file"],
-            "level": "DEBUG",
-            "propagate": True,
-        },
-        "impresso.utils": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-}
+# # Logging
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "verbose": {
+#             # exact format is not important, this is the minimum information
+#             "format": "%(asctime)s [%(name)s.%(funcName)s:%(lineno)s] %(levelname)-8s %(message)s",
+#         },
+#     },
+#     "handlers": {
+#         "console": {
+#             "class": "logging.StreamHandler",
+#             "formatter": "verbose",
+#         },
+#         # "file": {
+#         #     "level": "DEBUG",
+#         #     "class": "logging.handlers.RotatingFileHandler",
+#         #     "maxBytes": 15728640,  # 1024 * 1024 * 15B = 15MB
+#         #     "filename": os.path.join(LOGS_ROOT, "debug.log"),
+#         #     "formatter": "verbose",
+#         # },
+#     },
+#     "loggers": {
+#         "impresso.management.commands": {
+#             "level": "INFO",
+#             "handlers": ["console"],
+#         },
+#         "console": {
+#             "handlers": ["console"],
+#             "level": "INFO",
+#         },
+#         "impresso": {
+#             "handlers": ["file"],
+#             "level": "DEBUG",
+#             "propagate": True,
+#         },
+#         "impresso.utils": {
+#             "handlers": ["console"],
+#             "level": "INFO",
+#             "propagate": False,
+#         },
+#     },
+# }
+
+from .prod_log_config import CONFIG as LOGGING
 
 
 UNFOLD = {

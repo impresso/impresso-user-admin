@@ -96,7 +96,7 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
         fields = "__all__"
         help_texts = {
             "metadata": format_html(
-                "<b>Allowed Values</b>: <pre>{}</pre><br><b>Note</b>: revokeAfterDays is working only if enableTemporaryAutomaticAcceptance is set to true.",
+                "<b>Allowed Values</b>: <pre>{}</pre><br><b>Note</b>: revokeTemporaryAutomaticApprovalAfterDays configures automatic revocation for temporary approvals, while revokeAfterDays configures revocation for standard approved memberships.",
                 ", ".join(sorted(SpecialMembershipDataset.METADATA_ALLOWED_KEYS)),
             ),
         }
@@ -126,14 +126,15 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
                 allowed = ", ".join(sorted(allowed_modalities))
                 raise ValidationError(f"metadata.modality must be one of: {allowed}.")
         enable_temporary_automatic_acceptance = metadata.get(
-            "enableTemporaryAutomaticAcceptance"
+            "enableTemporaryAutomaticApproval"
         )
         if enable_temporary_automatic_acceptance is not None and not isinstance(
             enable_temporary_automatic_acceptance, bool
         ):
             raise ValidationError(
-                "metadata.enableTemporaryAutomaticAcceptance must be a boolean."
+                "metadata.enableTemporaryAutomaticApproval must be a boolean."
             )
+
         revoke_after_days = metadata.get("revokeAfterDays")
         if revoke_after_days is not None:
             if not isinstance(revoke_after_days, (int, float)):
@@ -155,6 +156,7 @@ class SpecialMembershipDatasetAdmin(ModelAdmin):
         "reviewer",
         "modality",
         "enable_temporary_automatic_acceptance",
+        "revoke_temporary_automatic_approval_after_days_display",
         "revoke_after_days_display",
     )
     search_fields = ["title", "reviewer__username", "reviewer__email"]
@@ -162,7 +164,7 @@ class SpecialMembershipDatasetAdmin(ModelAdmin):
     autocomplete_fields = ["reviewer"]
     form = SpecialMembershipDatasetAdminForm
 
-    @admin.display(description="Revoke after")
+    @admin.display(description="Always revoke after")
     def revoke_after_days_display(self, obj: SpecialMembershipDataset) -> str:
         days = obj.revoke_after_days
         if days is None:
@@ -189,6 +191,41 @@ class SpecialMembershipDatasetAdmin(ModelAdmin):
         return format_html(
             (
                 f"<b>{obj.revoke_after_days}</b> days <br/> " + " ".join(parts)
+                if parts
+                else "0m"
+            ),
+        )
+
+    @admin.display(description="Revoke TEMP AUTO approval after")
+    def revoke_temporary_automatic_approval_after_days_display(
+        self, obj: SpecialMembershipDataset
+    ) -> str:
+        days = obj.revoke_temporary_automatic_approval_after_days
+        if days is None:
+            return "-"
+        total_minutes = round(days * 24 * 60)
+        parts = []
+        years, remainder = divmod(total_minutes, 365 * 24 * 60)
+        if years:
+            parts.append(f"{years}y")
+        months, remainder = divmod(remainder, 30 * 24 * 60)
+        if months:
+            parts.append(f"{months}mo")
+        weeks, remainder = divmod(remainder, 7 * 24 * 60)
+        if weeks:
+            parts.append(f"{weeks}w")
+        day_part, remainder = divmod(remainder, 24 * 60)
+        if day_part:
+            parts.append(f"{day_part}d")
+        hours, minutes = divmod(remainder, 60)
+        if hours:
+            parts.append(f"{hours}h")
+        if minutes:
+            parts.append(f"{minutes}m")
+        return format_html(
+            (
+                f"<b>{obj.revoke_temporary_automatic_approval_after_days}</b> days <br/> "
+                + " ".join(parts)
                 if parts
                 else "0m"
             ),

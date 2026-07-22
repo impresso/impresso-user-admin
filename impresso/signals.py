@@ -74,6 +74,13 @@ def post_save_user_special_membership_request(
     Signal handler for post-save event of UserSpecialMembershipRequest model.
     Triggers asynchronous tasks based on whether the instance was created or updated.
     """
+    # Check if a custom flag is set on the instance
+    if getattr(instance, "_skip_signal", False):
+        logger.info(
+            f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status} - Skipping signal due to _skip_signal flag"
+        )
+        return  # Exit early without doing anything
+
     logger.info(
         f"@post_save UserSpecialMembershipRequest for user={instance.user.pk} subscription={instance.subscription.title if instance.subscription else 'None'} status={instance.status}"
     )
