@@ -7,6 +7,10 @@ from ...utils.bitmask import BitMask64, is_access_allowed
 
 
 class UserBitmapTestCase(TestCase):
+    """
+    Test the UserBitmap model and its related methods.
+    ENV=test ./manage.py test impresso.tests.models.test_userBitmap
+    """
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", password="12345")
@@ -21,15 +25,19 @@ class UserBitmapTestCase(TestCase):
             name=settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL
         )
         self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(
+            bitmap_position=5,
             title="Domain of TEST A archives",
         )
         self.test_subscription_domain_B = SpecialMembershipDataset.objects.create(
+            bitmap_position=6,
             title="Domain of TEST B archives",
         )
         self.test_subscription_domain_C = SpecialMembershipDataset.objects.create(
+            bitmap_position=7,
             title="Domain of TEST C archives",
         )
         self.test_subscription_domain_D = SpecialMembershipDataset.objects.create(
+            bitmap_position=8,
             title="Domain of TEST D archives",
         )
 

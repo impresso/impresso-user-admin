@@ -34,14 +34,17 @@ class TestRevokeMembershipAccessCommand(TestCase):
         )
 
         self.dataset_revokable = SpecialMembershipDataset.objects.create(
+            bitmap_position=7,
             title="Dataset Revokable",
             metadata={"revokeAfterDays": 3},
         )
         self.dataset_active = SpecialMembershipDataset.objects.create(
+            bitmap_position=6,
             title="Dataset Active",
             metadata={"revokeAfterDays": 7},
         )
         self.dataset_missing_metadata = SpecialMembershipDataset.objects.create(
+            bitmap_position=5,
             title="Dataset Missing Metadata",
             metadata={},
         )

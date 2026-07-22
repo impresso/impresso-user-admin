@@ -15,7 +15,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "sm_dataset_id",
             type=int,
-            help="SpecialMembershipDataset id",
+            help="SpecialMembershipDataset id (NOT the bitmap position) for which the request will be created",
         )
         parser.add_argument(
             "username",
@@ -29,7 +29,9 @@ class Command(BaseCommand):
             help="Optional notes to attach to the special membership request",
         )
 
-    def handle(self, sm_dataset_id: int, username: str, *args: Any, **options: Any) -> None:
+    def handle(
+        self, sm_dataset_id: int, username: str, *args: Any, **options: Any
+    ) -> None:
         notes = options.get("notes")
         self.stdout.write(
             f"Creating special membership request: dataset_id={sm_dataset_id}, username={username}"
@@ -46,10 +48,16 @@ class Command(BaseCommand):
                 f"SpecialMembershipDataset with id={sm_dataset_id} does not exist."
             ) from exc
 
+        self.stdout.write(
+            f"Found dataset: pk={dataset.id}, title='{dataset.title}', bitmap_position={dataset.bitmap_position}"
+        )
+
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist as exc:
-            raise CommandError(f"User with username='{username}' does not exist.") from exc
+            raise CommandError(
+                f"User with username='{username}' does not exist."
+            ) from exc
 
         reviewer = dataset.reviewer
         reviewer_email = reviewer.email if reviewer and reviewer.email else "None"
