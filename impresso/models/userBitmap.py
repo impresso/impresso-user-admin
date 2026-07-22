@@ -65,7 +65,9 @@ class UserBitmap(models.Model):
             return int_to_bytes(value)
         # Set the bits for each subscription
         for s in subscriptions:
-            value |= 1 << (s["bitmap_position"] + UserBitmap.BITMAP_PLAN_MAX_LENGTH)
+            # bitmap position has been offset by UserBitmap.BITMAP_PLAN_MAX_LENGTH
+            # in migration 0062_alter_specialmembershipdataset_bitmap_position_offset.py
+            value |= 1 << (s["bitmap_position"])
 
         return int_to_bytes(value)
 

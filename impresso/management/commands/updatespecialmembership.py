@@ -24,8 +24,13 @@ class Command(BaseCommand):
             "--sm",
             nargs="*",
             type=int,
-            default=[],
+            default=None,
             help="Special membership access ids to assign to the users",
+        )
+        parser.add_argument(
+            "--all-sm",
+            action="store_true",
+            help="Use all special membership access ids.",
         )
         parser.add_argument(
             "--noprompt",
@@ -39,9 +44,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, emails, *args, **options):
-        special_membership_access_ids = options.get("sm", [])
+        raw_special_membership_access_ids = options.get("sm")
+        special_membership_access_ids = raw_special_membership_access_ids or []
+        sm_provided = raw_special_membership_access_ids is not None
+        all_sm = options.get("all_sm", False)
         noprompt = options.get("noprompt", False)
         replace = options.get("replace", False)
+
+        if all_sm:
+            if sm_provided:
+                self.stdout.write(
+                    self.style.WARNING(
+                        " Both --all-sm and --sm were provided. Ignoring --sm and using all special memberships."
+                    )
+                )
+            special_membership_access_ids = list(
+                SpecialMembershipDataset.objects.values_list("id", flat=True)
+            )
 
         self.stdout.write(
             "\n Starting special membership update process with following args:\n\n"
@@ -50,6 +69,7 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  - access IDs:\t\033[1m{special_membership_access_ids}\033[0m\n"
         )
+        self.stdout.write(f"  - All access IDs:\t\033[1m{all_sm}\033[0m\n")
         self.stdout.write(f"  - No Prompt:\t\033[1m{noprompt}\033[0m\n")
         self.stdout.write(f"  - Replace:\t\033[1m{replace}\033[0m\n")
 
