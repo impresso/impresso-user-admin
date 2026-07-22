@@ -429,53 +429,8 @@ IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER = (
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_ACTIVATION_PLAN_REJECTED_TO_USER = (
     "Access granted to Impresso (Basic User Access)"
 )
-# # Logging
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {
-#             # exact format is not important, this is the minimum information
-#             "format": "%(asctime)s [%(name)s.%(funcName)s:%(lineno)s] %(levelname)-8s %(message)s",
-#         },
-#     },
-#     "handlers": {
-#         "console": {
-#             "class": "logging.StreamHandler",
-#             "formatter": "verbose",
-#         },
-#         # "file": {
-#         #     "level": "DEBUG",
-#         #     "class": "logging.handlers.RotatingFileHandler",
-#         #     "maxBytes": 15728640,  # 1024 * 1024 * 15B = 15MB
-#         #     "filename": os.path.join(LOGS_ROOT, "debug.log"),
-#         #     "formatter": "verbose",
-#         # },
-#     },
-#     "loggers": {
-#         "impresso.management.commands": {
-#             "level": "INFO",
-#             "handlers": ["console"],
-#         },
-#         "console": {
-#             "handlers": ["console"],
-#             "level": "INFO",
-#         },
-#         "impresso": {
-#             "handlers": ["file"],
-#             "level": "DEBUG",
-#             "propagate": True,
-#         },
-#         "impresso.utils": {
-#             "handlers": ["console"],
-#             "level": "INFO",
-#             "propagate": False,
-#         },
-#     },
-# }
 
 from .prod_log_config import CONFIG as LOGGING
-
 
 UNFOLD = {
     "SITE_TITLE": "Impresso User Admin",
@@ -484,27 +439,4 @@ UNFOLD = {
     "SIDEBAR": {
         "show_search": True,  # Search in applications and models names
     },
-    #  "COLORS": {
-    #     "base": {
-    #         "50": "249 250 251",
-    #         "100": "243 244 246",
-    #         "200": "229 231 235",
-    #         "300": "209 213 219",
-    #         "400": "156 163 175",
-    #         "500": "107 114 128",
-    #         "600": "75 85 99",
-    #         "700": "55 65 81",
-    #         "800": "31 41 55",
-    #         "900": "17 24 39",
-    #         "950": "3 7 18",
-    #     },
-    #     "primary": {
-    #         "500": "0, 102, 255",
-    #         "600": "52, 58, 64",
-    #         "700": "45, 55, 72",
-    #         "800": "30, 41, 59",
-    #         "900": "15, 23, 42",
-    #         "950": "3, 0, 15",
-    #     },
-    #  }
 }
