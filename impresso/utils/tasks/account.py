@@ -1,18 +1,21 @@
 import logging
 import smtplib
 from logging import Logger
-from django.core import mail
 from django.contrib.auth.models import User, Group
+from django.core import signing
+from django.utils.http import urlencode
 
 from impresso.utils.tasks.email import send_templated_email_with_context
 from ...models import UserChangePlanRequest
-from django_registration.backends.activation.views import RegistrationView
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.urls import reverse
 
 default_logger = logging.getLogger(__name__)
+# Salt used by Django signing to scope email-validation tokens. Changing it
+# invalidates previously issued validation links.
+EMAIL_VALIDATION_SALT = "impresso.email_validation"
 
 
 def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
@@ -29,6 +32,23 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
     txt_content = render_to_string(f"emails/{prefix}.txt", context=context)
     html_content = render_to_string(f"emails/{prefix}.html", context=context)
     return txt_content, html_content
+
+
+def build_email_validation_token(user: User) -> str:
+    """Build a signed token used to validate a newly registered email address."""
+    return signing.dumps(
+        {"user_id": user.pk, "email": user.email},
+        salt=EMAIL_VALIDATION_SALT,
+    )
+
+
+def build_email_validation_link(user: User) -> str:
+    """Build the absolute email-validation URL for a newly registered user."""
+    token = build_email_validation_token(user)
+    return (
+        f"{settings.IMPRESSO_BASE_URL}{reverse('validate-email')}?"
+        f"{urlencode({'token': token})}"
+    )
 
 
 def send_emails_after_user_registration(user_id: int, logger=default_logger):
@@ -74,17 +94,16 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
         )
 
-    view = RegistrationView()
-    key = view.get_activation_key(user)
+    validation_link = build_email_validation_link(user)
 
     txt_content, html_content = getEmailsContents(
         prefix=email_template_prefix,
         context=(
             {
                 "user": user,
-                "key": key,
                 "plan_label": plan_label,
                 "impresso_base_url": settings.IMPRESSO_BASE_URL,
+                "validation_link": validation_link,
             }
         ),
     )
@@ -127,7 +146,6 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
         context=(
             {
                 "user": user,
-                "key": key,
                 "plan_label": plan_label,
                 "email_being_sent_without_error": email_being_sent_without_error,
                 "absolute_admin_url_to_handle_change_request": absolute_admin_url_to_handle_change_request,

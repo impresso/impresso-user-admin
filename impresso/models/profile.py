@@ -59,6 +59,7 @@ class Profile(models.Model):
 
     # is in mailing list.
     email_accepted = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
 
     # maximum for save query
     max_loops_allowed = models.IntegerField(default=100)
