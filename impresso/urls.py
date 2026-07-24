@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path
 from django.utils.safestring import mark_safe
 from django.conf import settings
+from impresso.views.email_validation import validate_email
 
 admin.site.site_header = mark_safe(
     '<b style="color:white">Impresso</b>'
@@ -29,4 +30,5 @@ admin.site.site_header = mark_safe(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("validate-email/", validate_email, name="validate-email"),
 ]
