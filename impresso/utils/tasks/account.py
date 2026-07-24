@@ -1,9 +1,9 @@
 import logging
 import smtplib
 from logging import Logger
-from urllib.parse import urlencode
 from django.contrib.auth.models import User, Group
 from django.core import signing
+from django.utils.http import urlencode
 
 from impresso.utils.tasks.email import send_templated_email_with_context
 from ...models import UserChangePlanRequest
@@ -13,6 +13,8 @@ from django.conf import settings
 from django.urls import reverse
 
 default_logger = logging.getLogger(__name__)
+# Salt used by Django signing to scope email-validation tokens. Changing it
+# invalidates previously issued validation links.
 EMAIL_VALIDATION_SALT = "impresso.email_validation"
 
 
@@ -33,6 +35,7 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
 
 
 def build_email_validation_token(user: User) -> str:
+    """Build a signed token used to validate a newly registered email address."""
     return signing.dumps(
         {"user_id": user.pk, "email": user.email},
         salt=EMAIL_VALIDATION_SALT,
@@ -40,6 +43,7 @@ def build_email_validation_token(user: User) -> str:
 
 
 def build_email_validation_link(user: User) -> str:
+    """Build the absolute email-validation URL for a newly registered user."""
     token = build_email_validation_token(user)
     return (
         f"{settings.IMPRESSO_BASE_URL}{reverse('validate-email')}?"
