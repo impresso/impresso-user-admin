@@ -150,6 +150,7 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
 
 @admin.register(SpecialMembershipDataset)
 class SpecialMembershipDatasetAdmin(ModelAdmin):
+    ordering = ("bitmap_position",)
     list_display = (
         "title",
         "bitmap_position",
