@@ -13,6 +13,7 @@ from impresso.tasks.userSpecialMembershipRequest_tasks import (
 class TestRevokeExpiredTemporaryMembershipsBeat(TestCase):
     def setUp(self) -> None:
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=9,
             title="Beat Revocation Dataset",
             metadata={"revokeAfterDays": 1},
         )

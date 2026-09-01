@@ -11,7 +11,9 @@ from impresso.signals import create_default_groups
 
 
 class TestCreateSpecialMembershipCommand(TestCase):
-    """Test the createspecialmembership management command."""
+    """Test the createspecialmembership management command.
+    ENV=test ./manage.py test impresso.tests.management.test_createspecialmembership
+    """
 
     def setUp(self) -> None:
         create_default_groups(sender="impresso")
@@ -36,6 +38,7 @@ class TestCreateSpecialMembershipCommand(TestCase):
         self.dataset = SpecialMembershipDataset.objects.create(
             title="Dataset Alpha",
             reviewer=self.reviewer,
+            bitmap_position=9,
             metadata={
                 "modality": "cc_reviewer",
                 "description": "Test dataset for special membership",
@@ -45,6 +48,7 @@ class TestCreateSpecialMembershipCommand(TestCase):
         self.dataset_without_reviewer = SpecialMembershipDataset.objects.create(
             title="Dataset Without Reviewer",
             reviewer=None,
+            bitmap_position=10,
         )
 
     def test_create_special_membership_request_success(self) -> None:
@@ -103,10 +107,13 @@ class TestCreateSpecialMembershipCommand(TestCase):
             subscription=self.dataset,
             status=UserSpecialMembershipRequest.STATUS_PENDING,
         )
-        
+
         self.assertIn("Dear Alice Smith", mail.outbox[0].body)
         self.assertIn("Dear John Reviewer,", mail.outbox[0].body)
-        self.assertEqual(settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER_CC_REVIEWER, mail.outbox[0].subject)
+        self.assertEqual(
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER_CC_REVIEWER,
+            mail.outbox[0].subject,
+        )
         mail.outbox = []
 
         out = StringIO()
@@ -148,6 +155,7 @@ class TestCreateSpecialMembershipCommand(TestCase):
         dataset_no_reviewer = SpecialMembershipDataset.objects.create(
             title="Dataset Without Reviewer",
             reviewer=None,
+            bitmap_position=11,
         )
 
         out = StringIO()
@@ -190,6 +198,7 @@ class TestCreateSpecialMembershipCommand(TestCase):
         dataset_empty_metadata = SpecialMembershipDataset.objects.create(
             title="Dataset Empty Metadata",
             reviewer=self.reviewer,
+            bitmap_position=12,
             metadata={},
         )
 

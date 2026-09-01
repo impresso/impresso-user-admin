@@ -32,15 +32,19 @@ class UserSpecialMembershipRequestTestCase(TransactionTestCase):
         self.profile = Profile.objects.create(user=self.user, uid="local-testuser-sm")
 
         self.test_subscription_domain_A = SpecialMembershipDataset.objects.create(
+            bitmap_position=5,
             title="Domain of TEST A archives",
         )
         self.test_subscription_domain_B = SpecialMembershipDataset.objects.create(
+            bitmap_position=6,
             title="Domain of TEST B archives",
         )
         self.test_subscription_domain_C = SpecialMembershipDataset.objects.create(
+            bitmap_position=7,
             title="Domain of TEST C archives",
         )
         self.test_subscription_domain_D = SpecialMembershipDataset.objects.create(
+            bitmap_position=8,
             title="Domain of TEST D archives",
         )
 

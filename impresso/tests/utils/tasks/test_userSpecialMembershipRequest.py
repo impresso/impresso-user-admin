@@ -55,6 +55,7 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         self.profile.save()
 
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=12,
             title="Test Dataset",
             reviewer=self.reviewer,
             metadata={
@@ -108,6 +109,7 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
     def test_created_based_on_metadata_modality(self):
         """When request is created with modality in metadata, it should override the function argument."""
         dataset_with_metadata = SpecialMembershipDataset.objects.create(
+            bitmap_position=13,
             title="Metadata Modality Dataset",
             reviewer=self.reviewer,
             metadata={
@@ -143,6 +145,7 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
         """When request is created, the email context should include the correct number of existing special memberships."""
         # Create an existing subscription for the user to test the count in email context
         dataset_existing = SpecialMembershipDataset.objects.create(
+            bitmap_position=14,
             title="Existing Dataset",
             reviewer=self.reviewer,
             metadata={
@@ -163,6 +166,23 @@ class TestSendCreatedEmailToUserCCReviewer(TestCase):
             1,
             "User should have 1 existing special membership subscription as it is already approved.",
         )
+        self.user.bitmap.date_accepted_terms = timezone.now()
+        self.user.bitmap.save()
+        self.user.refresh_from_db()
+        # accept terms and conditions for the user to ensure the email context is correct
+        user_bitmap = self.user.bitmap.get_bitmap_as_key_str()
+        self.assertEqual(
+            dataset_existing.bitmap_position,
+            14,
+            "Existing dataset should have bitmap position 14.",
+        )
+
+        self.assertEqual(
+            user_bitmap,
+            "100000000000111",
+            "User bitmap should reflect the existing special membership subscription.",
+        )
+
         self.assertIn(
             "You now have full access to: Existing Dataset.",
             mail.outbox[0].body,
@@ -221,7 +241,10 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
         self.profile.affiliation = "University of Testing"
         self.profile.save()
         self.dataset = SpecialMembershipDataset.objects.create(
-            title="Test Dataset", reviewer=self.reviewer, metadata={}
+            bitmap_position=12,
+            title="Test Dataset",
+            reviewer=self.reviewer,
+            metadata={},
         )
         mail.outbox = []
 
@@ -323,6 +346,7 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
     def test_created_no_reviewer_sends_only_user_email(self):
         """When no reviewer can be found, only the user email should be sent."""
         dataset_no_reviewer = SpecialMembershipDataset.objects.create(
+            bitmap_position=17,
             title="No Reviewer Dataset",
             reviewer=None,
         )
@@ -383,6 +407,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
             password="testpass123",
         )
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=12,
             title="Temporary Dataset",
             reviewer=self.reviewer,
             metadata={
@@ -418,6 +443,7 @@ class TestTemporaryAutomaticAcceptance(TransactionTestCase):
 
     def test_created_requests_with_float_days_for_revoke_after_days(self):
         dataset_with_float_revoke_after_days = SpecialMembershipDataset.objects.create(
+            bitmap_position=13,
             title="Float Revoke After Days Dataset",
             reviewer=self.reviewer,
             metadata={
@@ -484,6 +510,7 @@ class TestTemporaryAutomaticRevocation(TestCase):
             password="testpass123",
         )
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=14,
             title="Revoked Dataset",
             metadata={"revokeAfterDays": 1},
         )

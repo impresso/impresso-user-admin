@@ -7,10 +7,12 @@ from impresso.models import SpecialMembershipDataset
 class SpecialMembershipDatasetMetadataMethodsTestCase(TestCase):
     def test_is_temporary_auto_accept_enabled(self) -> None:
         dataset_enabled = SpecialMembershipDataset.objects.create(
+            bitmap_position=1,
             title="Dataset Enabled",
             metadata={"enableTemporaryAutomaticApproval": True},
         )
         dataset_disabled = SpecialMembershipDataset.objects.create(
+            bitmap_position=2,
             title="Dataset Disabled",
             metadata={"enableTemporaryAutomaticApproval": False},
         )
@@ -20,12 +22,14 @@ class SpecialMembershipDatasetMetadataMethodsTestCase(TestCase):
 
     def test_is_modality_cc_reviewer_enabled(self) -> None:
         dataset_cc = SpecialMembershipDataset.objects.create(
+            bitmap_position=3,
             title="Dataset CC",
             metadata={
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER
             },
         )
         dataset_notify = SpecialMembershipDataset.objects.create(
+            bitmap_position=4,
             title="Dataset Notify",
             metadata={
                 "modality": settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
@@ -39,6 +43,7 @@ class SpecialMembershipDatasetMetadataMethodsTestCase(TestCase):
         self,
     ) -> None:
         dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=5,
             title="Dataset Revoke",
             metadata={
                 SpecialMembershipDataset.METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS: 2.5
@@ -53,16 +58,19 @@ class SpecialMembershipDatasetMetadataMethodsTestCase(TestCase):
         self,
     ) -> None:
         dataset_missing = SpecialMembershipDataset.objects.create(
+            bitmap_position=6,
             title="Dataset Missing",
             metadata={},
         )
         dataset_zero = SpecialMembershipDataset.objects.create(
+            bitmap_position=7,
             title="Dataset Zero",
             metadata={
                 SpecialMembershipDataset.METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS: 0
             },
         )
         dataset_invalid = SpecialMembershipDataset.objects.create(
+            bitmap_position=8,
             title="Dataset Invalid",
             metadata={
                 SpecialMembershipDataset.METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS: "seven"

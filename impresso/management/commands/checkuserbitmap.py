@@ -34,40 +34,45 @@ class Command(BaseCommand):
         # )
         # get user subscriptions
         subscriptions = list(
-            user.bitmap.subscriptions.values("title", "bitmap_position")
+            user.bitmap.subscriptions.values("id", "title", "bitmap_position")
         )
 
         subscription_names = "\n ".join([s.get("title") for s in subscriptions])
         # verify that the user subscription positions are correct
         self.stdout.write(f"User subscriptions: \n \033[34m{subscription_names}\033[0m")
-        max_subscription_position = (
+        max_user_subscription_position = (
             max([s["bitmap_position"] for s in subscriptions]) if subscriptions else -1
         )
         self.stdout.write(
-            f"Max subscription position: \033[34m{max_subscription_position}\033[0m"
-        )
-        self.stdout.write(
-            f"adjusted max subscription position with groups position: \033[34m{max_subscription_position + UserBitmap.BITMAP_PLAN_MAX_LENGTH}\033[0m"
+            f"Max user subscription position: \033[34m{max_user_subscription_position}\033[0m"
         )
 
         self.stdout.write(
             "Verify other subscriptions til max user bitmap position (the rest should be 0)"
         )
         # get all possible subscriptions
-        all_subscriptions = SpecialMembershipDataset.objects.filter(
-            bitmap_position__lte=max_subscription_position
-        ).order_by("bitmap_position")
+        all_subscriptions = SpecialMembershipDataset.objects.all().order_by(
+            "bitmap_position"
+        )
+        max_subscription_position = (
+            max([s.bitmap_position for s in all_subscriptions])
+            if all_subscriptions
+            else -1
+        )
+        self.stdout.write(
+            f"Max subscription position: \033[34m{max_subscription_position}\033[0m"
+        )
 
         # print out all possible subscriptions
         for subscription in all_subscriptions:
-            position = subscription.bitmap_position + 5
+            position = subscription.bitmap_position
             # Calculate the bit position from the end
-            bit_position = max_subscription_position + 5 - position
+            bit_position = position
             # Check if the bit at the specified position is 1
             is_set = (int(user_bitmask) & (1 << bit_position)) != 0
             if is_set:
                 self.stdout.write(
-                    f"\033[34m {subscription.title} at position: {position} is set: {is_set}\033[0m"
+                    f"\033[34m \t{subscription.id}\t{subscription.title} at position: {position} is set: {is_set}\033[0m"
                 )
             else:
                 self.stdout.write(

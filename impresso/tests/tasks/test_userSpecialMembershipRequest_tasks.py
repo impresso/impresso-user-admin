@@ -46,7 +46,7 @@ class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
         )
 
         self.revokable_not_auto_approval_dataset = SpecialMembershipDataset.objects.create(
-            bitmap_position=1,
+            bitmap_position=9,
             title="Revocation Dataset",
             metadata={
                 "enableTemporaryAutomaticApproval": False,
@@ -56,7 +56,7 @@ class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
             reviewer=self.reviewer_user,
         )
         self.auto_accept_dataset = SpecialMembershipDataset.objects.create(
-            bitmap_position=2,
+            bitmap_position=10,
             title="Auto-Accept Dataset",
             metadata={
                 "enableTemporaryAutomaticApproval": True,
@@ -65,7 +65,7 @@ class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
             reviewer=self.reviewer_user,
         )
         self.revokable_not_auto_approval_cc_reviewer_dataset = SpecialMembershipDataset.objects.create(
-            bitmap_position=3,
+            bitmap_position=11,
             title="Revocation Dataset",
             metadata={
                 "enableTemporaryAutomaticApproval": False,
@@ -111,7 +111,7 @@ class TestAfterSpecialMembershipRequestCreatedTask(TestCase):
         self.johndoe_userBitmap.refresh_from_db()
         self.assertEqual(
             self.johndoe_userBitmap.get_bitmap_as_key_str(),
-            "10000011",
+            "10000000011",
             "Auto approbval: User should have temporary special membership bit set",
         )
 

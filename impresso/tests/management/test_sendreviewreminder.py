@@ -43,6 +43,7 @@ class TestSendReviewReminderCommand(TestCase):
         )
 
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=8,
             title="Dataset Alpha",
             reviewer=self.reviewer,
         )

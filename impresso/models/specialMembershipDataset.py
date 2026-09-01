@@ -30,7 +30,6 @@ class SpecialMembershipDataset(models.Model):
 
     Methods:
         __str__(): Returns a string representation of the SpecialMembershipDataset instance.
-        save(*args, **kwargs): Overrides the save method to automatically assign a bitmap position integer number if not set.
 
     Meta:
         verbose_name (str): Human-readable name for the model.
@@ -39,11 +38,7 @@ class SpecialMembershipDataset(models.Model):
     """
 
     title = models.CharField(max_length=255, db_column="name")
-    bitmap_position = models.PositiveIntegerField(
-        unique=True,
-        null=True,
-        blank=True,
-    )
+    bitmap_position = models.PositiveIntegerField(unique=True)
     metadata: Metadata = models.JSONField(default=dict, blank=True)
 
     reviewer = models.ForeignKey(
@@ -70,6 +65,15 @@ class SpecialMembershipDataset(models.Model):
 
     def __str__(self):
         return self.title
+
+    @classmethod
+    def get_by_bitmap_position(cls, position: int) -> "SpecialMembershipDataset":
+        """
+        Lookup by bitmap_position (the logical/business key), not the DB primary key (id).
+        bitmap_position is unique and indexed but intentionally is NOT the primary key,
+        to avoid touching existing foreign key relations :(
+        """
+        return cls.objects.get(bitmap_position=position)
 
     @property
     def modality(self) -> Optional[str]:
@@ -149,11 +153,3 @@ class SpecialMembershipDataset(models.Model):
         verbose_name = "Special Membership Access"
         verbose_name_plural = "Special Membership Accesses"
         db_table = "impresso_datasetbitmapposition"
-
-    def save(self, *args, **kwargs):
-        if self.bitmap_position is None:
-            max_position = SpecialMembershipDataset.objects.aggregate(
-                Max("bitmap_position")
-            )["bitmap_position__max"]
-            self.bitmap_position = 0 if max_position is None else max_position + 1
-        super().save(*args, **kwargs)

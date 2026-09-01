@@ -33,6 +33,7 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
             password="testpass123",
         )
         self.dataset = SpecialMembershipDataset.objects.create(
+            bitmap_position=0,
             title="Dataset Alpha",
             reviewer=self.reviewer,
         )
@@ -40,6 +41,7 @@ class TestCreateSpecialMembershipRequestCommand(TestCase):
     def test_creates_request_with_1_day_revokeable_period(self) -> None:
         out = StringIO()
         dataset_with_revokeable_period = SpecialMembershipDataset.objects.create(
+            bitmap_position=1,
             title="Dataset with Revokeable Period",
             reviewer=self.reviewer,
             metadata={
@@ -156,6 +158,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
         )
         self.dataset = SpecialMembershipDataset.objects.create(
             title="Dataset Alpha",
+            bitmap_position=24,
             reviewer=self.reviewer,
         )
 
@@ -224,6 +227,7 @@ class TestCreateSpecialMembershipRequestCommandWithOptions(TestCase):
         revokable_dataset = SpecialMembershipDataset.objects.create(
             title="Revokable Dataset",
             reviewer=self.reviewer,
+            bitmap_position=0,
             metadata={
                 "revokeTemporaryAutomaticApprovalAfterDays": 5,
                 "enableTemporaryAutomaticApproval": True,
