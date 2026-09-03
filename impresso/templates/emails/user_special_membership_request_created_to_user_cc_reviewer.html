@@ -59,7 +59,13 @@
 </ul>
 
 <p>
-  The request will now be reviewed by {{ reviewer.get_full_name|default:reviewer.username }}. We have included both
+  {% if special_membership_custom_template_html %} 
+    {{special_membership_custom_template_html|safe }} 
+  {% endif %}
+</p>
+
+<p>
+  We have included both
   parties in this message to facilitate direct communication. Once {{ reviewer.get_full_name|default:reviewer.username }} approves the request,
   special membership access will be granted automatically.
 </p>
