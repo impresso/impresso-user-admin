@@ -39,7 +39,7 @@ class TestEmailValidation(TestCase):
         )
         if validation_link is None:
             self.fail("Expected a validation link in the email")
-        return validation_link
+        return str(validation_link)
 
     @override_settings(IMPRESSO_BASE_URL="https://example.com")
     def test_build_email_validation_link(self):
