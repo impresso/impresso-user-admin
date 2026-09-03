@@ -80,7 +80,11 @@ class TestAccountPlanChangeToBasicUser(TransactionTestCase):
         self.user.groups.add(group_plan_educational)
         self.user.active = True
         self.user.save()
-        send_emails_after_user_registration(self.user.id)
+        send_emails_after_user_registration(
+            self.user.id,
+            token="test-token",
+            callback_url="https://example.com/confirm-email",
+        )
         self.assertEqual(
             len(mail.outbox), 2, "two emails should be sent, one to user, one to staff"
         )
@@ -123,10 +127,28 @@ class TestAccountCreation(TestCase):
 
         create_default_groups(sender="impresso")
 
+    def assert_validation_link_in_user_email(
+        self, token: str, callback_url: str
+    ) -> None:
+        validation_link = f"{callback_url}?token={token}"
+        user_email = mail.outbox[0]
+
+        self.assertIn(validation_link, user_email.body)
+        self.assertEqual(len(user_email.alternatives), 1)
+        html_content, content_type = user_email.alternatives[0]
+        self.assertEqual(content_type, "text/html")
+        self.assertIn(f'href="{validation_link}"', html_content)
+        self.assertIn(validation_link, html_content)
+
     def test_send_emails_after_user_registration(self):
         mail.outbox = []
-        send_emails_after_user_registration(self.user.id)
+        token = "basic-token"
+        callback_url = "https://example.com/confirm-email"
+        send_emails_after_user_registration(
+            self.user.id, token=token, callback_url=callback_url
+        )
         self.assertEqual(len(mail.outbox), 2)
+        self.assert_validation_link_in_user_email(token, callback_url)
         # check the subject
         self.assertEqual(
             mail.outbox[0].subject,
@@ -144,8 +166,13 @@ class TestAccountCreation(TestCase):
         )
         self.user.groups.add(group_plan_educational)
         self.user.save()
-        send_emails_after_user_registration(self.user.id)
+        token = "educational-token"
+        callback_url = "https://example.com/confirm-email"
+        send_emails_after_user_registration(
+            self.user.id, token=token, callback_url=callback_url
+        )
         self.assertEqual(len(mail.outbox), 2)
+        self.assert_validation_link_in_user_email(token, callback_url)
         # check the subject
         self.assertEqual(
             mail.outbox[1].subject,
@@ -161,8 +188,13 @@ class TestAccountCreation(TestCase):
         self.user.groups.add(group_plan_researcher)
         self.user.save()
 
-        send_emails_after_user_registration(self.user.id)
+        token = "researcher-token"
+        callback_url = "https://example.com/confirm-email"
+        send_emails_after_user_registration(
+            self.user.id, token=token, callback_url=callback_url
+        )
         self.assertEqual(len(mail.outbox), 2)
+        self.assert_validation_link_in_user_email(token, callback_url)
         # check the subject
         self.assertEqual(
             mail.outbox[0].subject,
