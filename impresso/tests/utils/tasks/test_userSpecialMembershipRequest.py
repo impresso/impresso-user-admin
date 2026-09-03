@@ -392,6 +392,62 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
         )
         self.assertGreater(len(reviewer_email.alternatives), 0)
 
+    def test_created_appends_custom_templates_when_both_metadata_fields_are_set(self):
+        self.dataset.metadata = {
+            "templateTxt": "CUSTOM TXT BLOCK",
+            "templateHtml": "<p>CUSTOM HTML BLOCK</p>",
+        }
+        self.dataset.save(update_fields=["metadata"])
+
+        instance = UserSpecialMembershipRequest(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+        instance.pk = 3
+        instance.date_created = instance.date_last_modified = timezone.now()
+
+        send_email_after_user_special_membership_request_created(
+            instance=instance,
+            logger=logger,
+        )
+
+        self.assertEqual(len(mail.outbox), 2)
+        user_email = mail.outbox[0]
+        reviewer_email = mail.outbox[1]
+        self.assertIn("CUSTOM TXT BLOCK", user_email.body)
+
+        user_html_body = user_email.alternatives[0][0]
+        reviewer_html_body = reviewer_email.alternatives[0][0]
+        self.assertIn("CUSTOM HTML BLOCK", user_html_body)
+
+    def test_created_ignores_custom_templates_when_only_one_metadata_field_is_set(self):
+        self.dataset.metadata = {
+            "templateTxt": "ORPHAN TXT BLOCK",
+        }
+        self.dataset.save(update_fields=["metadata"])
+
+        instance = UserSpecialMembershipRequest(
+            user=self.user,
+            reviewer=self.reviewer,
+            subscription=self.dataset,
+            status=UserSpecialMembershipRequest.STATUS_PENDING,
+        )
+        instance.pk = 4
+        instance.date_created = instance.date_last_modified = timezone.now()
+
+        send_email_after_user_special_membership_request_created(
+            instance=instance,
+            logger=logger,
+        )
+
+        self.assertEqual(len(mail.outbox), 2)
+        user_email = mail.outbox[0]
+        reviewer_email = mail.outbox[1]
+        self.assertNotIn("ORPHAN TXT BLOCK", user_email.body)
+        self.assertNotIn("ORPHAN TXT BLOCK", reviewer_email.body)
+
 
 class TestTemporaryAutomaticAcceptance(TransactionTestCase):
     def setUp(self):

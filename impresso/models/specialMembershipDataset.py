@@ -15,6 +15,8 @@ class Metadata(TypedDict, total=False):
     enableTemporaryAutomaticApproval: Optional[bool]
     revokeAfterDays: Optional[float]
     revokeTemporaryAutomaticApprovalAfterDays: Optional[float]
+    templateHtml: Optional[str]
+    templateTxt: Optional[str]
 
 
 class SpecialMembershipDataset(models.Model):
@@ -55,12 +57,16 @@ class SpecialMembershipDataset(models.Model):
     METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS = (
         "revokeTemporaryAutomaticApprovalAfterDays"
     )
+    METADATA_TEMPLATE_HTML = "templateHtml"
+    METADATA_TEMPLATE_TXT = "templateTxt"
 
     METADATA_ALLOWED_KEYS = {
         METADATA_MODALITY,
         METADATA_ENABLE_TEMPORARY_AUTOMATIC_APPROVAL,
         METADATA_REVOKE_AFTER_DAYS,
         METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS,
+        METADATA_TEMPLATE_HTML,
+        METADATA_TEMPLATE_TXT,
     }
 
     def __str__(self):
