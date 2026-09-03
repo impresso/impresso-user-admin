@@ -16,14 +16,16 @@ Dear {{ user.first_name }},
   <li><strong>Current Status:</strong> {{ status_label }}</li>
   <li>
     <strong>Notes:</strong>
-    {% if user_special_membership_request.notes %} {{
-    user_special_membership_request.notes }} {% else %} No notes provided. {%
-    endif %}
+    {% if user_special_membership_request.notes %} 
+      {{ user_special_membership_request.notes }} 
+    {% else %} 
+      No notes provided.
+    {% endif %}
   </li>
 </ul>
 <p>
   {% if special_membership_custom_template_html %} 
-    {{special_membership_custom_template_html|safe }} 
+    {{ special_membership_custom_template_html|safe }} 
   {% endif %}
 </p>
 <p>
@@ -37,6 +39,3 @@ Dear {{ user.first_name }},
   Best regards,<br />
   The Impresso Team
 </p>
-
-{% if special_membership_custom_template_html %} {{
-special_membership_custom_template_html|safe }} {% endif %}

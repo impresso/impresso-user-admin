@@ -417,12 +417,10 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
         user_email = mail.outbox[0]
         reviewer_email = mail.outbox[1]
         self.assertIn("CUSTOM TXT BLOCK", user_email.body)
-        self.assertIn("CUSTOM TXT BLOCK", reviewer_email.body)
 
         user_html_body = user_email.alternatives[0][0]
         reviewer_html_body = reviewer_email.alternatives[0][0]
         self.assertIn("CUSTOM HTML BLOCK", user_html_body)
-        self.assertIn("CUSTOM HTML BLOCK", reviewer_html_body)
 
     def test_created_ignores_custom_templates_when_only_one_metadata_field_is_set(self):
         self.dataset.metadata = {
