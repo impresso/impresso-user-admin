@@ -6,7 +6,6 @@ from django.contrib.auth.models import User, Group
 
 from impresso.utils.tasks.email import send_templated_email_with_context
 from ...models import UserChangePlanRequest
-from django_registration.backends.activation.views import RegistrationView
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -31,7 +30,12 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
     return txt_content, html_content
 
 
-def send_emails_after_user_registration(user_id: int, logger=default_logger):
+def send_emails_after_user_registration(
+    user_id: int,
+    token: str = "nonce",
+    callback_url: str = "https://impresso-project.ch/app/confirm-email",
+    logger=default_logger,
+):
     """
     Sends a confirmation email to the user with the given user_id.
     At this stage, the user record in the database has already been created and assigned to
@@ -74,17 +78,16 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
         )
 
-    view = RegistrationView()
-    key = view.get_activation_key(user)
-
+    validation_link = f"{callback_url}?token={token}"
     txt_content, html_content = getEmailsContents(
         prefix=email_template_prefix,
         context=(
             {
                 "user": user,
-                "key": key,
+                "key": token,
                 "plan_label": plan_label,
                 "impresso_base_url": settings.IMPRESSO_BASE_URL,
+                "validation_link": validation_link,
             }
         ),
     )
@@ -127,7 +130,7 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
         context=(
             {
                 "user": user,
-                "key": key,
+                "key": token,
                 "plan_label": plan_label,
                 "email_being_sent_without_error": email_being_sent_without_error,
                 "absolute_admin_url_to_handle_change_request": absolute_admin_url_to_handle_change_request,
