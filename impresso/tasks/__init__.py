@@ -21,6 +21,7 @@ from ..utils.tasks.account import (
     send_email_plan_change,
     send_email_plan_change_rejected,
     send_magic_link_email,
+    send_user_email_verification,
 )
 from ..utils.tasks.userBitmap import helper_update_user_bitmap
 
@@ -122,6 +123,20 @@ def after_user_registered(
     # and send email to impresso admins
     send_emails_after_user_registration(
         user_id=user_id, token=token, callback_url=callback_url, logger=logger
+    )
+
+
+@default_task_config
+def resend_user_email_verification(
+    self, user_id: int, token: str, callback_url: str
+) -> None:
+    """Resend an email-address verification link after its token has expired."""
+    logger.info(f"[user:{user_id}] requested a replacement email verification link")
+    send_user_email_verification(
+        user_id=user_id,
+        token=token,
+        callback_url=callback_url,
+        logger=logger,
     )
 
 

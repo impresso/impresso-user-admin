@@ -12,7 +12,9 @@ from impresso.utils.tasks.account import (
     send_emails_after_user_activation_plan_rejected,
     send_emails_after_user_registration,
     send_magic_link_email,
+    send_user_email_verification,
 )
+from impresso.tasks import resend_user_email_verification
 from django.utils import timezone
 from django.core import mail
 
@@ -390,3 +392,59 @@ class TestMagicLinkEmail(TestCase):
                 token="sometoken",
                 logger=logger,
             )
+
+
+class TestResendUserEmailVerification(TestCase):
+    """Test replacement email verification links for expired tokens."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            first_name="Jane",
+            last_name="Doe",
+            password="12345",
+            email="jane@doe.com",
+        )
+        mail.outbox = []
+
+    def assert_replacement_verification_email(
+        self, token: str, callback_url: str
+    ) -> None:
+        validation_link = f"{callback_url}?token={token.replace('+', '%2B')}"
+        self.assertEqual(len(mail.outbox), 1)
+        user_email = mail.outbox[0]
+        self.assertEqual(
+            user_email.subject,
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC,
+        )
+        self.assertIn("previous Impresso email verification link has expired", user_email.body)
+        self.assertIn(validation_link, user_email.body)
+        self.assertEqual(len(user_email.alternatives), 1)
+        html_content, content_type = user_email.alternatives[0]
+        self.assertEqual(content_type, "text/html")
+        self.assertIn(f'href="{validation_link}"', html_content)
+
+    def test_send_user_email_verification(self):
+        token = "new+token"
+        callback_url = "https://example.com/confirm-email"
+
+        send_user_email_verification(
+            user_id=self.user.id,
+            token=token,
+            callback_url=callback_url,
+            logger=logger,
+        )
+
+        self.assert_replacement_verification_email(token, callback_url)
+
+    def test_resend_user_email_verification_task(self):
+        token = "new-token"
+        callback_url = "https://example.com/confirm-email"
+
+        resend_user_email_verification.delay(
+            user_id=self.user.id,
+            token=token,
+            callback_url=callback_url,
+        )
+
+        self.assert_replacement_verification_email(token, callback_url)
