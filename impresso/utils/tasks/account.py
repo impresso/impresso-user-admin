@@ -1,6 +1,7 @@
 import logging
 import smtplib
 from logging import Logger
+from urllib.parse import urlencode
 from django.core import mail
 from django.contrib.auth.models import User, Group
 
@@ -28,6 +29,51 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
     txt_content = render_to_string(f"emails/{prefix}.txt", context=context)
     html_content = render_to_string(f"emails/{prefix}.html", context=context)
     return txt_content, html_content
+
+
+def send_user_email_verification(
+    user_id: int,
+    token: str,
+    callback_url: str,
+    logger: Logger = default_logger,
+) -> None:
+    """Send a replacement email-address verification link to a user.
+
+    This is used when a previously issued verification token has expired. It
+    deliberately notifies only the user, unlike initial registration which
+    also notifies staff.
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        logger.info(f"user={user_id} NOT FOUND!")
+        raise
+
+    group_names = user.groups.values_list("name", flat=True)
+    email_subject = settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC
+    if settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in group_names:
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER
+        )
+    elif settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in group_names:
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
+        )
+
+    validation_link = f"{callback_url}?{urlencode({'token': token})}"
+    logger.info(f"[user:{user_id}] Sending replacement email verification link...")
+    send_templated_email_with_context(
+        template="account_email_verification_resend",
+        subject=email_subject,
+        context={"user": user, "validation_link": validation_link},
+        from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        cc=[],
+        reply_to=[settings.DEFAULT_FROM_EMAIL],
+        logger=logger,
+        fail_silently=False,
+    )
+    logger.info(f"[user:{user_id}] Replacement email verification link sent.")
 
 
 def send_emails_after_user_registration(
