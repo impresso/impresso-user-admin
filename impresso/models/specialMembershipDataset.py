@@ -31,7 +31,7 @@ class SpecialMembershipDataset(models.Model):
         fullname (CharField): The full name of the dataset, if applicable.
         country_code (CharField): The country code associated with the dataset.
         reviewer (ForeignKey): Foreign key to the User model representing the reviewer of the dataset.
-        data_provider (CharField): The data provider for the special membership dataset.
+        data_provider_alias (CharField): The data provider for the special membership dataset.
 
     Methods:
         __str__(): Returns a string representation of the SpecialMembershipDataset instance.
@@ -47,7 +47,7 @@ class SpecialMembershipDataset(models.Model):
     metadata: Metadata = models.JSONField(default=dict, blank=True)
     fullname = models.CharField(max_length=255, blank=True, null=True)
     country_code = models.CharField(max_length=2, blank=True, null=True)
-    data_provider = models.CharField(max_length=20, blank=True, null=True)
+    data_provider_alias = models.CharField(max_length=20, blank=True, null=True)
 
     reviewer = models.ForeignKey(
         "auth.User",
