@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='specialmembershipdataset',
-            name='data_provider',
+            name='data_provider_alias',
             field=models.CharField(blank=True, max_length=20, null=True),
         ),
         migrations.AddField(
