@@ -161,6 +161,9 @@ class SpecialMembershipDatasetAdmin(ModelAdmin):
     ordering = ("bitmap_position",)
     list_display = (
         "title",
+        "fullname",
+        "country_code",
+        "data_provider_alias",
         "bitmap_position",
         "reviewer",
         "modality",
