@@ -146,13 +146,13 @@ class SpecialMembershipDatasetAdminForm(forms.ModelForm):
                     "metadata.revokeAfterDays must be a positive integer or float."
                 )
 
-        template_html = metadata.get("templateHtml")
+        template_html = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_HTML)
         if template_html is not None and not isinstance(template_html, str):
-            raise ValidationError("metadata.templateHtml must be a string.")
+            raise ValidationError("metadata.emailExtraMessageHtml must be a string.")
 
-        template_txt = metadata.get("templateTxt")
+        template_txt = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_TXT)
         if template_txt is not None and not isinstance(template_txt, str):
-            raise ValidationError("metadata.templateTxt must be a string.")
+            raise ValidationError("metadata.emailExtraMessageText must be a string.")
         return metadata
 
 

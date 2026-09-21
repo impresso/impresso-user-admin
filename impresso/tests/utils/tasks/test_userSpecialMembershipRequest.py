@@ -394,8 +394,8 @@ class TestSendCreatedEmailToUserAndReviewer(TestCase):
 
     def test_created_appends_custom_templates_when_both_metadata_fields_are_set(self):
         self.dataset.metadata = {
-            "templateTxt": "CUSTOM TXT BLOCK",
-            "templateHtml": "<p>CUSTOM HTML BLOCK</p>",
+            SpecialMembershipDataset.METADATA_TEMPLATE_TXT: "CUSTOM TXT BLOCK",
+            SpecialMembershipDataset.METADATA_TEMPLATE_HTML: "<p>CUSTOM HTML BLOCK</p>",
         }
         self.dataset.save(update_fields=["metadata"])
 

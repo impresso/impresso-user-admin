@@ -1,6 +1,7 @@
 import logging
 from logging import Logger
 from django.conf import settings
+from impresso.models.specialMembershipDataset import SpecialMembershipDataset
 from impresso.models.userBitmap import UserBitmap
 from impresso.utils.models.user import (
     get_number_of_special_memberships,
@@ -189,8 +190,8 @@ def send_email_after_user_special_membership_request_created(
         instance.status, instance.status
     )
     metadata = instance.subscription.metadata if instance.subscription else {}
-    template_html = metadata.get("templateHtml")
-    template_txt = metadata.get("templateTxt")
+    template_html = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_HTML)
+    template_txt = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_TXT)
 
     template_html = template_html.strip() if isinstance(template_html, str) else None
     template_txt = template_txt.strip() if isinstance(template_txt, str) else None
