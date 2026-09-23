@@ -5,6 +5,16 @@ from impresso.models import SpecialMembershipDataset
 
 
 class SpecialMembershipDatasetMetadataMethodsTestCase(TestCase):
+    def test_metadata_allowed_keys_include_custom_templates(self) -> None:
+        self.assertIn(
+            SpecialMembershipDataset.METADATA_TEMPLATE_HTML,
+            SpecialMembershipDataset.METADATA_ALLOWED_KEYS,
+        )
+        self.assertIn(
+            SpecialMembershipDataset.METADATA_TEMPLATE_TXT,
+            SpecialMembershipDataset.METADATA_ALLOWED_KEYS,
+        )
+
     def test_is_temporary_auto_accept_enabled(self) -> None:
         dataset_enabled = SpecialMembershipDataset.objects.create(
             bitmap_position=1,

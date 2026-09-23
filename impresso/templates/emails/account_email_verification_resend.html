@@ -1,0 +1,12 @@
+<p>Dear {{ user.first_name }},</p>
+
+<p>Your previous Impresso email verification link has expired.</p>
+
+<p>
+  Please verify your email address using this new link:<br />
+  <a href="{{ validation_link }}">{{ validation_link }}</a>
+</p>
+
+<p>If you did not request this email, you can safely ignore it.</p>
+
+<p>The Impresso team</p>

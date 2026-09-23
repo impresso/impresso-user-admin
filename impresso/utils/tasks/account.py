@@ -1,12 +1,12 @@
 import logging
 import smtplib
 from logging import Logger
+from urllib.parse import urlencode
 from django.core import mail
 from django.contrib.auth.models import User, Group
 
 from impresso.utils.tasks.email import send_templated_email_with_context
 from ...models import UserChangePlanRequest
-from django_registration.backends.activation.views import RegistrationView
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -31,7 +31,57 @@ def getEmailsContents(prefix: str, context: dict) -> tuple[str, str]:
     return txt_content, html_content
 
 
-def send_emails_after_user_registration(user_id: int, logger=default_logger):
+def send_user_email_verification(
+    user_id: int,
+    token: str,
+    callback_url: str,
+    logger: Logger = default_logger,
+) -> None:
+    """Send a replacement email-address verification link to a user.
+
+    This is used when a previously issued verification token has expired. It
+    deliberately notifies only the user, unlike initial registration which
+    also notifies staff.
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        logger.info(f"user={user_id} NOT FOUND!")
+        raise
+
+    group_names = user.groups.values_list("name", flat=True)
+    email_subject = settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC
+    if settings.IMPRESSO_GROUP_USER_PLAN_RESEARCHER in group_names:
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER
+        )
+    elif settings.IMPRESSO_GROUP_USER_PLAN_EDUCATIONAL in group_names:
+        email_subject = (
+            settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
+        )
+
+    validation_link = f"{callback_url}?{urlencode({'token': token})}"
+    logger.info(f"[user:{user_id}] Sending replacement email verification link...")
+    send_templated_email_with_context(
+        template="account_email_verification_resend",
+        subject=email_subject,
+        context={"user": user, "validation_link": validation_link},
+        from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        cc=[],
+        reply_to=[settings.DEFAULT_FROM_EMAIL],
+        logger=logger,
+        fail_silently=False,
+    )
+    logger.info(f"[user:{user_id}] Replacement email verification link sent.")
+
+
+def send_emails_after_user_registration(
+    user_id: int,
+    token: str = "nonce",
+    callback_url: str = "https://impresso-project.ch/app/confirm-email",
+    logger=default_logger,
+):
     """
     Sends a confirmation email to the user with the given user_id.
     At this stage, the user record in the database has already been created and assigned to
@@ -74,17 +124,16 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
             settings.IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL
         )
 
-    view = RegistrationView()
-    key = view.get_activation_key(user)
-
+    validation_link = f"{callback_url}?token={token}"
     txt_content, html_content = getEmailsContents(
         prefix=email_template_prefix,
         context=(
             {
                 "user": user,
-                "key": key,
+                "key": token,
                 "plan_label": plan_label,
                 "impresso_base_url": settings.IMPRESSO_BASE_URL,
+                "validation_link": validation_link,
             }
         ),
     )
@@ -127,7 +176,7 @@ def send_emails_after_user_registration(user_id: int, logger=default_logger):
         context=(
             {
                 "user": user,
-                "key": key,
+                "key": token,
                 "plan_label": plan_label,
                 "email_being_sent_without_error": email_being_sent_without_error,
                 "absolute_admin_url_to_handle_change_request": absolute_admin_url_to_handle_change_request,

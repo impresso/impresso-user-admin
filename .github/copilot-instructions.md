@@ -31,6 +31,17 @@ impresso-user-admin/
 └── manage.py
 ```
 
+### `.github/` directory
+
+- **`copilot-instructions.md`** (this file) - Main instructions for GitHub Copilot and other AI assistants; automatically read by Copilot to understand project conventions.
+- **`agents/`** - Specialized agent-specific instruction files:
+  - `celery-tasks.md` - Guidelines for developing and maintaining Celery background tasks
+  - `commands.md` - Django management command conventions
+  - `django-development.md` - Django application development patterns and best practices
+  - `documentation.md` - Documentation standards and writing guidelines
+  - `testing.md` - Testing framework, patterns, and conventions
+- **`workflows/`** - GitHub Actions workflows
+
 ## Celery Task Organization
 
 ### Task Modules
@@ -42,10 +53,13 @@ The application organizes Celery tasks into two main directories:
    - `userSpecialMembershipRequest_tasks.py` - Special membership tasks
 
 2. **`impresso/utils/tasks/`** - Contains helper functions used by tasks
-   - `__init__.py` - Common utilities (job progress tracking)
+   - `__init__.py` - Common utilities (job progress tracking, pagination, list diffing)
    - `account.py` - User account and email operations
-   - `userBitmap.py` - User permission bitmap updates
+   - `collection.py` - Collection and collectable item indexing operations
    - `email.py` - Email rendering and sending utilities
+   - `export.py` - CSV/ZIP export operations
+   - `textreuse.py` - Text reuse passage indexing operations
+   - `userBitmap.py` - User permission bitmap updates
    - `userSpecialMembershipRequest.py` - Special membership operations
 
 ### Task Helper Functions
@@ -158,7 +172,8 @@ EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend ENV=dev pipenv run 
 ### Test Organization
 
 - Tests are in `impresso/tests/` directory
-- Mirror the structure of the main codebase
+- Mirror the structure of the main codebase (`tasks/`, `utils/`, `models/`, `views/`, `management/`, `templates/`)
+- The project uses a custom test runner (`impresso.tests.test_runner.TestRunner`, set in `impresso/settings.py`) that enables eager Celery mode (`CELERY_TASK_ALWAYS_EAGER=True`): `.delay()` and `apply_async()` run inline, and task exceptions propagate to the test process. Patch the enqueue call and assert arguments instead of waiting for wall-clock execution.
 - Use `TestCase` for standard tests
 - Use `TransactionTestCase` for tests requiring DB transactions
 - Clear `mail.outbox` between test cases
@@ -219,7 +234,7 @@ ENV=dev pipenv run ./manage.py stopjob <job_id>
 ENV=dev pipenv run ./manage.py updateuserbitmap <user_id>
 ```
 
-Example command structure, use help and logging extensively for clarity nd ALWAYS use typings as much as possible:
+Example command structure: use `help` and logging extensively for clarity, and ALWAYS use type annotations as much as possible:
 
 ```python
 from django.core.management.base import BaseCommand
@@ -230,11 +245,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser) -> None:
         parser.add_argument("username", type=str)
 
-    def handle(self, username:str, *args, **options) -> None:
+    def handle(self, username: str, *args: str, **options: str) -> None:
         self.stdout.write(f"Get user with username: {username}")
 ```
 
-- when creating a new command, be
+- When creating a new command, be sure to add tests under `impresso/tests/management/commands/`.
 
 ## Security Considerations
 
@@ -279,4 +294,4 @@ When adding new email templates:
 2. Use consistent naming conventions (e.g., `plan_change_request_email.txt` and `plan_change_request_email.html`)
 3. Use context variables for dynamic content
 4. use the method `send_templated_email_with_context()` from `impresso/utils/tasks/email.py` to send emails
-5. Handle SMTP exceptions and log email sending status in STRERR appropriately using logging library
+5. Handle SMTP exceptions and log the email sending status appropriately using the `logging` library

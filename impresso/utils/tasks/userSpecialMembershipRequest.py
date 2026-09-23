@@ -1,6 +1,7 @@
 import logging
 from logging import Logger
 from django.conf import settings
+from impresso.models.specialMembershipDataset import SpecialMembershipDataset
 from impresso.models.userBitmap import UserBitmap
 from impresso.utils.models.user import (
     get_number_of_special_memberships,
@@ -188,6 +189,15 @@ def send_email_after_user_special_membership_request_created(
     status_label = dict(UserSpecialMembershipRequest.STATUS_CHOICES).get(
         instance.status, instance.status
     )
+    metadata = instance.subscription.metadata if instance.subscription else {}
+    template_html = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_HTML)
+    template_txt = metadata.get(SpecialMembershipDataset.METADATA_TEMPLATE_TXT)
+
+    template_html = template_html.strip() if isinstance(template_html, str) else None
+    template_txt = template_txt.strip() if isinstance(template_txt, str) else None
+    if not (template_html and template_txt):
+        template_html = None
+        template_txt = None
     # Default to NOTIFY_REVIEWER unless dataset metadata explicitly enables CC_REVIEWER.
     modality = (
         settings.IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER
@@ -234,6 +244,8 @@ def send_email_after_user_special_membership_request_created(
             "plan_group": plan_group,
             "number_of_special_memberships": number_of_special_memberships,
             "status_label": status_label,
+            "special_membership_custom_template_html": template_html,
+            "special_membership_custom_template_txt": template_txt,
         },
         from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
         to=[
@@ -270,6 +282,8 @@ def send_email_after_user_special_membership_request_created(
                 "plan_group": plan_group,
                 "status_label": status_label,
                 "number_of_special_memberships": number_of_special_memberships,
+                "special_membership_custom_template_html": template_html,
+                "special_membership_custom_template_txt": template_txt,
             },
             from_email=settings.IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL,
             to=[

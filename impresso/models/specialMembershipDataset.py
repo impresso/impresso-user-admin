@@ -15,6 +15,8 @@ class Metadata(TypedDict, total=False):
     enableTemporaryAutomaticApproval: Optional[bool]
     revokeAfterDays: Optional[float]
     revokeTemporaryAutomaticApprovalAfterDays: Optional[float]
+    emailExtraMessageHtml: Optional[str]
+    emailExtraMessageText: Optional[str]
 
 
 class SpecialMembershipDataset(models.Model):
@@ -26,7 +28,10 @@ class SpecialMembershipDataset(models.Model):
         title (CharField): The title of the special membership dataset.
         bitmap_position (PositiveIntegerField): The position in the user's bitmap representing this dataset.
         metadata (Metadata): Additional metadata related to the dataset.
+        fullname (CharField): The full name of the dataset, if applicable.
+        country_code (CharField): The country code associated with the dataset.
         reviewer (ForeignKey): Foreign key to the User model representing the reviewer of the dataset.
+        data_provider_alias (CharField): The data provider for the special membership dataset.
 
     Methods:
         __str__(): Returns a string representation of the SpecialMembershipDataset instance.
@@ -40,6 +45,9 @@ class SpecialMembershipDataset(models.Model):
     title = models.CharField(max_length=255, db_column="name")
     bitmap_position = models.PositiveIntegerField(unique=True)
     metadata: Metadata = models.JSONField(default=dict, blank=True)
+    fullname = models.CharField(max_length=255, blank=True, null=True)
+    country_code = models.CharField(max_length=2, blank=True, null=True)
+    data_provider_alias = models.CharField(max_length=20, blank=True, null=True)
 
     reviewer = models.ForeignKey(
         "auth.User",
@@ -55,12 +63,16 @@ class SpecialMembershipDataset(models.Model):
     METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS = (
         "revokeTemporaryAutomaticApprovalAfterDays"
     )
+    METADATA_TEMPLATE_HTML = "emailExtraMessageHtml"
+    METADATA_TEMPLATE_TXT = "emailExtraMessageText"
 
     METADATA_ALLOWED_KEYS = {
         METADATA_MODALITY,
         METADATA_ENABLE_TEMPORARY_AUTOMATIC_APPROVAL,
         METADATA_REVOKE_AFTER_DAYS,
         METADATA_REVOKE_TEMPORARY_AUTOMATIC_APPROVAL_AFTER_DAYS,
+        METADATA_TEMPLATE_HTML,
+        METADATA_TEMPLATE_TXT,
     }
 
     def __str__(self):
