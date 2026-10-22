@@ -162,6 +162,9 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # 'django.core.mail.backends.locmem.EmailBackend'
 EMAIL_HOST = get_env_variable("EMAIL_HOST", "smtp.")
 EMAIL_PORT = get_env_variable("EMAIL_PORT", 0)
+EMAIL_HOST_USER = get_env_variable("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = get_env_variable("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = get_env_variable("EMAIL_USE_TLS", "True") == "True"
 DEFAULT_FROM_EMAIL = get_env_variable("DEFAULT_FROM_EMAIL", "donotexist@onlyfortest.it")
 # Celery
 REDIS_HOST = get_env_variable("REDIS_HOST", "localhost:6379")
@@ -174,7 +177,10 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = (
 )
 
 IMPRESSO_BASE_URL = get_env_variable("IMPRESSO_BASE_URL", "https://impresso-project.ch")
-
+IMPRESSO_INSTITUTIONS_ACCESS_URL = get_env_variable(
+    "IMPRESSO_INSTITUTIONS_ACCESS_URL",
+    "https://impresso-project.ch/institutions-access",
+)
 # Solr
 IMPRESSO_SOLR_URL_SELECT = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "select")
 IMPRESSO_SOLR_URL_UPDATE = os.path.join(get_env_variable("IMPRESSO_SOLR_URL"), "update")
@@ -381,7 +387,9 @@ IMPRESSO_DEFAULT_GROUP_USERS = (
     (IMPRESSO_GROUP_USER_PLAN_RESEARCHER, IMPRESSO_GROUP_USER_PLAN_RESEARCHER_LABEL),
 )
 
+IMPRESSO_SPECIAL_MEMBERSHIP_TEMPORARY_APPROVAL_DEFAULT_DAYS = 1
 IMPRESSO_EMAIL_LABEL_DEFAULT_FROM_EMAIL = f"Impresso Team <{DEFAULT_FROM_EMAIL}>"
+
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_BASIC = "Access to Impresso"
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_EDUCATIONAL = (
     "Access to Impresso - Student User Plan"
@@ -392,8 +400,18 @@ IMPRESSO_EMAIL_SUBJECT_AFTER_USER_REGISTRATION_PLAN_RESEARCHER = (
 IMPRESSO_EMAIL_SUBJECT_PASSWORD_RESET = (
     "Password reset request for your Impresso account"
 )
+# Special Membership Request email subjects
+IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_CC_REVIEWER = "cc_reviewer"
+IMPRESSO_EMAIL_MODALITY_SPECIAL_MEMBERSHIP_REQUEST_NOTIFY_REVIEWER = "notify_reviewer"
+
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER = (
     "Your Special Membership Request has been received"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_USER_CC_REVIEWER = (
+    "Your Special Membership Request has been received (CC to reviewer)"
+)
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_REVIEWER = (
+    "A Special Membership Request has been submitted"
 )
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER = (
     "Your Special Membership Request is still pending review"
@@ -401,12 +419,16 @@ IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_PENDING_TO_USER = (
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TO_USER = (
     "Your Special Membership Request has been approved"
 )
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_ACCEPTED_TEMPORARY_TO_USER = (
+    "Your temporary Special Membership access has been approved"
+)
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REJECTED_TO_USER = (
     "Your Special Membership Request has been rejected"
 )
-IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_CREATED_TO_INSTITUTION = (
-    "A Special Membership Request has been submitted"
+IMPRESSO_EMAIL_SUBJECT_AFTER_USER_SPECIAL_MEMBERSHIP_REQUEST_REVOKED_TO_USER = (
+    "Your temporary Special Membership access has expired"
 )
+
 IMPRESSO_EMAIL_SUBJECT_AFTER_USER_ACTIVATION_PLAN_REJECTED_TO_USER = (
     "Access granted to Impresso (Basic User Access)"
 )
@@ -463,27 +485,4 @@ UNFOLD = {
     "SIDEBAR": {
         "show_search": True,  # Search in applications and models names
     },
-    #  "COLORS": {
-    #     "base": {
-    #         "50": "249 250 251",
-    #         "100": "243 244 246",
-    #         "200": "229 231 235",
-    #         "300": "209 213 219",
-    #         "400": "156 163 175",
-    #         "500": "107 114 128",
-    #         "600": "75 85 99",
-    #         "700": "55 65 81",
-    #         "800": "31 41 55",
-    #         "900": "17 24 39",
-    #         "950": "3 7 18",
-    #     },
-    #     "primary": {
-    #         "500": "0, 102, 255",
-    #         "600": "52, 58, 64",
-    #         "700": "45, 55, 72",
-    #         "800": "30, 41, 59",
-    #         "900": "15, 23, 42",
-    #         "950": "3, 0, 15",
-    #     },
-    #  }
 }
