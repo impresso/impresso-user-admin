@@ -30,4 +30,4 @@ ENV IMPRESSO_GIT_TAG=${GIT_TAG}
 ENV IMPRESSO_GIT_BRANCH=${GIT_BRANCH}
 ENV IMPRESSO_GIT_REVISION=${GIT_REVISION}
 # Set the user to run the application
-USER appuser
+# USER appuser
