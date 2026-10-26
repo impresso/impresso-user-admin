@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.core.management import CommandError, call_command
@@ -25,7 +25,7 @@ class TestChangeUserPasswordsCommand(TestCase):
         return Path(file.name)
 
     @patch("builtins.input", return_value="y")
-    def test_changes_password_after_confirmation(self, mock_input: object) -> None:
+    def test_changes_password_after_confirmation(self, mock_input: MagicMock) -> None:
         tsv_file = self._create_tsv(
             "username\tpassword\njane-doe@example.com\tnew-password\n"
         )
@@ -36,7 +36,7 @@ class TestChangeUserPasswordsCommand(TestCase):
         self.assertTrue(self.user.check_password("new-password"))
 
     @patch("builtins.input")
-    def test_rejects_invalid_row_before_prompt(self, mock_input: object) -> None:
+    def test_rejects_invalid_row_before_prompt(self, mock_input: MagicMock) -> None:
         tsv_file = self._create_tsv(
             "username\tpassword\njane-doe@example.com\tnew-password\ninvalid\tother\n"
         )
@@ -59,7 +59,7 @@ class TestChangeUserPasswordsCommand(TestCase):
             call_command("changeuserpasswords", tsv_file)
 
     @patch("builtins.input")
-    def test_rejects_data_row_with_extra_column(self, mock_input: object) -> None:
+    def test_rejects_data_row_with_extra_column(self, mock_input: MagicMock) -> None:
         tsv_file = self._create_tsv(
             "username\tpassword\njane-doe@example.com\tnew-password\textra\n"
         )
@@ -80,7 +80,7 @@ class TestChangeUserPasswordsCommand(TestCase):
             call_command("changeuserpasswords", tsv_file)
 
     @patch("builtins.input")
-    def test_rejects_missing_user_before_prompt(self, mock_input: object) -> None:
+    def test_rejects_missing_user_before_prompt(self, mock_input: MagicMock) -> None:
         tsv_file = self._create_tsv(
             "username\tpassword\nmissing@example.com\tnew-password\n"
         )
