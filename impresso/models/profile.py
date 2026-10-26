@@ -3,28 +3,29 @@ from django.contrib.auth.models import User
 
 
 class Profile(models.Model):
-    """
-    Store a few auth related information about a site user and custom info.
+    """Store application-specific account data for a Django ``User``.
 
-    Why? because "Reusable apps shouldn’t implement a custom user model.
-    A project may use many apps, and two reusable apps that implemented a
-    custom user model couldn’t be used together."
+    The one-to-one profile keeps application fields separate from Django's
+    reusable authentication model. Affiliation and institutional URL are
+    optional at the database level; plan-specific workflows may require them.
+
     Attributes:
-        user (models.OneToOneField): A one-to-one relationship with the User model.
-        uid (models.CharField): A unique identifier for the profile.
-        provider (models.CharField): The authentication provider, with choices of 'local' or 'Github'.
-        displayname (models.CharField): The display name of the user, optional.
-        picture (models.URLField): The URL to the user's profile picture, optional.
-        pattern (models.CharField): A custom pattern associated with the user, optional.
-        email_accepted (models.BooleanField): Indicates if the user has accepted email notifications.
-        max_loops_allowed (models.IntegerField): The maximum number of loops allowed for saving queries.
-        max_parallel_jobs (models.IntegerField): The maximum number of concurrent running jobs.
+        user: The related Django user. Deleting the user deletes this profile.
+        uid: Unique profile identifier, typically prefixed by its provider.
+        provider: Authentication provider (``local`` or ``Github``).
+        affiliation: User's institution or other affiliation, if supplied.
+        institutional_url: URL supporting the user's stated affiliation.
+        displayname: Optional name presented to other users.
+        picture: Optional URL of the user's profile image.
+        pattern: Optional comma-separated hexadecimal color palette.
+        email_accepted: Whether the user accepted mailing-list communications.
+        email_verified: Whether the user's email address has been verified.
+        max_loops_allowed: Maximum loops allowed when saving queries.
+        max_parallel_jobs: Maximum concurrent jobs allowed for the user.
+
     Constants:
-        PROVIDER_LOCAL (str): The local provider constant.
-        PROVIDER_CHOICES (tuple): The tuple of provider choices.
-    Meta:
-        verbose_name_plural (str): The plural name for the model.
-        db_table (str): The database table name for the model.
+        PROVIDER_LOCAL: Provider value for locally authenticated users.
+        PROVIDER_CHOICES: Values accepted by the ``provider`` field.
     """
 
     PROVIDER_LOCAL = "local"
