@@ -10,8 +10,9 @@ from typing import cast
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
-from impresso.models import Profile
+from impresso.models import Profile, UserBitmap
 
 ALPHABET: str = string.ascii_letters + string.digits + "-!$"
 
@@ -78,6 +79,12 @@ class Command(BaseCommand):
             default=None,
             help="Optional institutional URL for the user profile.",
         )
+        parser.add_argument(
+            "--accept-tou",
+            action="store_true",
+            default=False,
+            help="Record acceptance of the terms of use for each created user.",
+        )
 
     def handle(self, emails: list[str], *args: str, **options: object) -> None:
         plan = cast(str | None, options.get("plan"))
@@ -85,6 +92,7 @@ class Command(BaseCommand):
         complete = cast(bool, options["complete"])
         affiliation = cast(str | None, options.get("affiliation"))
         institutional_url = cast(str | None, options.get("institutional_url"))
+        accept_tou = cast(bool, options["accept_tou"])
 
         if plan not in settings.IMPRESSO_GROUP_USERS_AVAILABLE_PLANS:
             self.stderr.write(
@@ -100,6 +108,7 @@ class Command(BaseCommand):
             f"{self.ANSI_CYAN}{self.ANSI_BOLD}Create Accounts{self.ANSI_RESET}\n"
             f"  Plan: {self.ANSI_BOLD}{plan}{self.ANSI_RESET}\n"
             f"  Complete profiles: {self.ANSI_BOLD}{complete}{self.ANSI_RESET}\n"
+            f"  Accept terms of use: {self.ANSI_BOLD}{accept_tou}{self.ANSI_RESET}\n"
         )
         for email in emails:
 
@@ -160,6 +169,11 @@ class Command(BaseCommand):
                 continue
             # assign the plan to the user
             user.groups.add(plan_as_group)
+            if accept_tou:
+                UserBitmap.objects.update_or_create(
+                    user=user,
+                    defaults={"date_accepted_terms": timezone.now()},
+                )
             # generate profile uid with prefix "local-" followed by the first two letters of the username and a series of 8 random characters
             profile_uid = f"local-{username[:2]}-{generate_four_char_alphanumeric()}"
             profile_defaults = {

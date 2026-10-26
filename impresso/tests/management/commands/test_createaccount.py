@@ -4,8 +4,9 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 
-from impresso.models import Profile
+from impresso.models import Profile, UserBitmap
 from impresso.signals import create_default_groups
 
 
@@ -52,6 +53,24 @@ class TestCreateAccountCommand(TestCase):
         profile = Profile.objects.get(user__username="jane-doe")
         self.assertEqual(profile.affiliation, "University of Example")
         self.assertEqual(profile.institutional_url, "https://example.edu")
+
+    @patch("builtins.input", return_value="y")
+    def test_accept_tou_creates_bitmap_with_current_acceptance_time(
+        self, mock_input: object
+    ) -> None:
+        before = timezone.now()
+
+        call_command(
+            "createaccount",
+            "jane-doe@example.com",
+            "--accept-tou",
+            stdout=StringIO(),
+        )
+
+        user = User.objects.get(username="jane-doe")
+        bitmap = UserBitmap.objects.get(user=user)
+        self.assertGreaterEqual(bitmap.date_accepted_terms, before)
+        self.assertLessEqual(bitmap.date_accepted_terms, timezone.now())
 
     @patch("builtins.input", return_value="y")
     def test_complete_defaults_to_false(self, mock_input: object) -> None:
