@@ -19,7 +19,7 @@ from impresso.utils.models.user import (
     get_plan_from_user_groups,
     get_plan_from_group_name,
 )
-from impresso.models import Profile
+from impresso.models import Profile, UserBitmap
 
 
 class GroupFilter(admin.SimpleListFilter):
@@ -133,6 +133,7 @@ class UserAdmin(ModelAdmin):
         "make_suspended",
         "remove_from_group__no_redaction",
         "add_to_group__no_redaction",
+        "update_user_bitmap",
     ]
     search_fields = ["username", "profile__uid", "email"]
     list_filter = (GroupFilter, "is_staff", "is_active")
@@ -211,6 +212,47 @@ class UserAdmin(ModelAdmin):
             % updated,
             messages.SUCCESS,
         )
+
+    @action(description="UPDATE selected users' bitmap")
+    def update_user_bitmap(self, request, queryset):
+        updated = 0
+        failed = 0
+        for user in queryset:
+            try:
+                user_bitmap, _ = UserBitmap.objects.get_or_create(user=user)
+                up_to_date_bitmap = user_bitmap.get_up_to_date_bitmap()
+                if user_bitmap.bitmap != up_to_date_bitmap:
+                    # persist the freshly computed bitmap, bypassing save() which
+                    # would recompute it anyway
+                    UserBitmap.objects.filter(pk=user_bitmap.pk).update(
+                        bitmap=up_to_date_bitmap
+                    )
+                    updated += 1
+            except Exception as e:
+                failed += 1
+                messages.error(request, f"Error updating bitmap for {user}: {e}")
+
+        self.message_user(
+            request,
+            ngettext(
+                "%d user bitmap was successfully updated.",
+                "%d user bitmaps were successfully updated.",
+                updated,
+            )
+            % updated,
+            messages.SUCCESS,
+        )
+        if failed:
+            self.message_user(
+                request,
+                ngettext(
+                    "%d user bitmap could not be updated.",
+                    "%d user bitmaps could not be updated.",
+                    failed,
+                )
+                % failed,
+                messages.WARNING,
+            )
 
     def uid(self, user):
         return user.profile.uid if hasattr(user, "profile") else None
