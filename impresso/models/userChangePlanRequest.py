@@ -58,18 +58,22 @@ class UserChangePlanRequest(models.Model):
         related_name="changePlanRequest",
     )
     plan = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_last_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True, db_comment="Creation time set by Django.")
+    date_last_modified = models.DateTimeField(auto_now=True, db_comment="Last modification time set by Django.")
     status = models.CharField(
         max_length=10,
         default=STATUS_PENDING,
+        db_default=STATUS_PENDING,
         choices=(
             (STATUS_PENDING, "Pending"),
             (STATUS_APPROVED, "Approved"),
             (STATUS_REJECTED, "Rejected"),
         ),
     )
-    changelog = models.JSONField(null=True, blank=True, default=list)
+    changelog = models.JSONField(
+        null=True, blank=True, default=list,
+        db_comment="Request history; Django defaults to an empty list.",
+    )
     notes = models.TextField(null=True, blank=True)
 
     def __str__(self):

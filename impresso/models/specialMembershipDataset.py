@@ -44,7 +44,10 @@ class SpecialMembershipDataset(models.Model):
 
     title = models.CharField(max_length=255, db_column="name")
     bitmap_position = models.PositiveIntegerField(unique=True)
-    metadata: Metadata = models.JSONField(default=dict, blank=True)
+    metadata: Metadata = models.JSONField(
+        default=dict, blank=True,
+        db_comment="Dataset metadata; Django defaults to an empty object.",
+    )
     fullname = models.CharField(max_length=255, blank=True, null=True)
     country_code = models.CharField(max_length=2, blank=True, null=True)
     data_provider_alias = models.CharField(max_length=20, blank=True, null=True)

@@ -11,10 +11,10 @@ class UploadedImage(models.Model):
     name = models.CharField(max_length=100)
     signature = models.TextField()
     md5_checksum = models.CharField(max_length=32, db_index=True)
-    thumbnail = models.TextField(default='')
+    thumbnail = models.TextField(default='', db_comment="Thumbnail data; Django defaults to an empty string.")
 
-    date_created       = models.DateTimeField(auto_now_add=True)
-    date_last_modified = models.DateTimeField(auto_now=True)
+    date_created       = models.DateTimeField(auto_now_add=True, db_comment="Creation time set by Django.")
+    date_last_modified = models.DateTimeField(auto_now=True, db_comment="Last modification time set by Django.")
 
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
 

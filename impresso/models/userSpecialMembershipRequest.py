@@ -84,8 +84,8 @@ class UserSpecialMembershipRequest(models.Model):
         null=True,
         help_text="The special membership dataset being requested",
     )
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_last_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True, db_comment="Creation time set by Django.")
+    date_last_modified = models.DateTimeField(auto_now=True, db_comment="Last modification time set by Django.")
     temporary_expires_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -94,9 +94,13 @@ class UserSpecialMembershipRequest(models.Model):
     status = models.CharField(
         max_length=10,
         default=STATUS_PENDING,
+        db_default=STATUS_PENDING,
         choices=STATUS_CHOICES,
     )
-    changelog = models.JSONField(null=True, blank=True, default=list)
+    changelog = models.JSONField(
+        null=True, blank=True, default=list,
+        db_comment="Request history; Django defaults to an empty list.",
+    )
     notes = models.TextField(null=True, blank=True)
 
     def __str__(self):

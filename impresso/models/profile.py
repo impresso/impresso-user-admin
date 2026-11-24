@@ -40,7 +40,7 @@ class Profile(models.Model):
         unique=True,
     )
     provider = models.CharField(
-        max_length=10, choices=PROVIDER_CHOICES, default=PROVIDER_LOCAL
+        max_length=10, choices=PROVIDER_CHOICES, default=PROVIDER_LOCAL, db_default=PROVIDER_LOCAL
     )
 
     # affiliation, e; g institution if any
@@ -59,14 +59,14 @@ class Profile(models.Model):
     pattern = models.CharField(max_length=100, null=True, blank=True)
 
     # is in mailing list.
-    email_accepted = models.BooleanField(default=False)
-    email_verified = models.BooleanField(default=False)
+    email_accepted = models.BooleanField(default=False, db_default=False)
+    email_verified = models.BooleanField(default=False, db_default=False)
 
     # maximum for save query
-    max_loops_allowed = models.IntegerField(default=100)
+    max_loops_allowed = models.IntegerField(default=100, db_default=100)
 
     # maximum concurrent running jobs
-    max_parallel_jobs = models.IntegerField(default=2)
+    max_parallel_jobs = models.IntegerField(default=2, db_default=2)
 
     class Meta:
         verbose_name_plural = "profiles"

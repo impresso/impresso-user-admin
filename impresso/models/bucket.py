@@ -6,10 +6,10 @@ class Bucket(models.Model):
     id = models.CharField(primary_key=True, max_length=50)
     name = models.CharField(max_length=500)
     description = models.TextField()
-    count_items = models.PositiveIntegerField(default=0)
+    count_items = models.PositiveIntegerField(default=0, db_default=0)
 
-    date_created       = models.DateTimeField(auto_now_add=True)
-    date_last_modified = models.DateTimeField(auto_now=True)
+    date_created       = models.DateTimeField(auto_now_add=True, db_comment="Creation time set by Django.")
+    date_last_modified = models.DateTimeField(auto_now=True, db_comment="Last modification time set by Django.")
 
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
 

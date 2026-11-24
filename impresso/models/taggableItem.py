@@ -17,7 +17,7 @@ class TaggableItem(models.Model):
 
     item_id = models.CharField(max_length=50, db_index=True)
     content_type = models.CharField(max_length=1, choices=CONTENT_TYPE_CHOICES)
-    date_added = models.DateTimeField(auto_now_add=True)
+    date_added = models.DateTimeField(auto_now_add=True, db_comment="Addition time set by Django.")
     # Foreing key: the collection
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
 
