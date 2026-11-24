@@ -6,12 +6,12 @@ class Page(models.Model):
     newspaper = models.ForeignKey(Newspaper, models.DO_NOTHING)
     issue = models.ForeignKey(Issue, models.DO_NOTHING)
 
-    is_corrupted = models.BooleanField(default=False, db_column='has_corrupted_json')
-    is_converted = models.BooleanField(default=False, db_column='has_converted_coordinates')
+    is_corrupted = models.BooleanField(default=False, db_default=False, db_column='has_corrupted_json')
+    is_converted = models.BooleanField(default=False, db_default=False, db_column='has_converted_coordinates')
 
-    n_tokens = models.PositiveIntegerField(default=0)
+    n_tokens = models.PositiveIntegerField(default=0, db_default=0)
     
-    ocr_quality = models.FloatField(default=0.0)
+    ocr_quality = models.FloatField(default=0.0, db_default=0.0)
 
     class Meta:
         managed = False

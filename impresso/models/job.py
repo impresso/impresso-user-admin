@@ -59,16 +59,16 @@ class Job(models.Model):
     )
 
     type = models.CharField(max_length=3, choices=TYPE_CHOICES)
-    status = models.CharField(max_length=3, choices=STATUS_CHOICES, default=READY)
+    status = models.CharField(max_length=3, choices=STATUS_CHOICES, default=READY, db_default=READY)
 
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_last_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True, db_comment="Creation time set by Django.")
+    date_last_modified = models.DateTimeField(auto_now=True, db_comment="Last modification time set by Django.")
 
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    extra = models.TextField(default="{}")
+    extra = models.TextField(default="{}", db_comment="Job metadata as JSON; Django defaults to an empty object.")
 
-    description = models.TextField(default="")
+    description = models.TextField(default="", db_comment="Job description; Django defaults to an empty string.")
 
     def get_progress(self):
         try:

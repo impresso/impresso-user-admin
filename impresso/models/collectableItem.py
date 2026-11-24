@@ -18,8 +18,8 @@ class CollectableItem(models.Model):
     item_id = models.CharField(max_length=50, db_index=True)
     item_date = models.DateField(null=True)
     content_type = models.CharField(max_length=1, choices=CONTENT_TYPE_CHOICES)
-    date_added = models.DateTimeField(auto_now_add=True, db_index=True)
-    indexed = models.BooleanField(default=False, db_index=True)
+    date_added = models.DateTimeField(auto_now_add=True, db_index=True, db_comment="Addition time set by Django.")
+    indexed = models.BooleanField(default=False, db_default=False, db_index=True)
     # Foreing key: the collection
     collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
     # Foreing key: the search query if any when the item was added
@@ -27,7 +27,7 @@ class CollectableItem(models.Model):
         SearchQuery, null=True, blank=True,
         verbose_name="search query", on_delete=models.SET_NULL)
     search_query_score = models.FloatField(
-        default=0.0, null=True, blank=True, db_index=True)
+        default=0.0, db_default=0.0, null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'collectable_items'
